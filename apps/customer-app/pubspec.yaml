@@ -1,0 +1,25 @@
+name: customer_app
+description: Daryeel2 customer app shell for the schema-driven runtime.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_runtime:
+    path: ../../packages/flutter_runtime
+  flutter_schema_renderer:
+    path: ../../packages/flutter_schema_renderer
+  http: ^1.5.0
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

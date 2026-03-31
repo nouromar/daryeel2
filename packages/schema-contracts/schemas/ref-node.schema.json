@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/schema-contracts/ref-node.schema.json",
+  "title": "RefNode",
+  "type": "object",
+  "required": ["ref"],
+  "properties": {
+    "ref": { "type": "string" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/domain/schemas/request_status.schema.json",
+  "title": "RequestStatus",
+  "type": "string",
+  "enum": [
+    "requested",
+    "assigned",
+    "en_route",
+    "in_service",
+    "completed",
+    "cancelled"
+  ]
+}

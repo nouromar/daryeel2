@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: Flutter/Dart (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - apps/customer-app
+          - packages/flutter_components
+          - packages/flutter_runtime
+          - packages/flutter_schema_renderer
+          - packages/flutter_themes
+          - packages/schema_runtime_dart
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: ${{ matrix.dir }}
+        run: flutter pub get
+
+      - name: Run tests (if present)
+        working-directory: ${{ matrix.dir }}
+        shell: bash
+        run: |
+          if [ -d test ]; then
+            flutter test
+          else
+            echo "No tests folder in ${{ matrix.dir }}"
+          fi
+
+  node:
+    name: TypeScript (schema_runtime_ts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/schema_runtime_ts/package-lock.json
+
+      - name: Install
+        working-directory: packages/schema_runtime_ts
+        run: npm ci
+
+      - name: Test
+        working-directory: packages/schema_runtime_ts
+        run: npm test
+
+  python:
+    name: Python (schema-service)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/schema-service/requirements.txt
+
+      - name: Install deps
+        working-directory: services/schema-service
+        run: pip install -r requirements.txt
+
+      - name: Pytest
+        working-directory: services/schema-service
+        run: pytest -q

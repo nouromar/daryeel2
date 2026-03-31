@@ -1,0 +1,8 @@
+{
+  "package": "theme-contracts",
+  "version": "0.1.0",
+  "themes": [
+    "themes/customer-default.light.json",
+    "themes/customer-default.dark.json"
+  ]
+}

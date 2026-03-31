@@ -1,0 +1,14 @@
+{
+  "name": "ScreenTemplate",
+  "category": "template",
+  "version": "1.0",
+  "propsSchema": {},
+  "defaults": {},
+  "styleContract": {
+    "density": ["compact", "comfortable"]
+  },
+  "slots": ["header", "body", "footer"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

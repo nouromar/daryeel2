@@ -1,0 +1,11 @@
+{
+  "package": "component-contracts",
+  "version": "0.1.0",
+  "contracts": [
+    "contracts/screen-template.contract.json",
+    "contracts/info-card.contract.json",
+    "contracts/primary-action-bar.contract.json",
+    "contracts/address-section.contract.json",
+    "contracts/quote-summary-card.contract.json"
+  ]
+}

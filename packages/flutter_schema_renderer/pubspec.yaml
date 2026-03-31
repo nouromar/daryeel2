@@ -1,0 +1,21 @@
+name: flutter_schema_renderer
+description: Schema to widget rendering for Daryeel2.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  schema_runtime_dart:
+    path: ../schema_runtime_dart
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^5.0.0
+
+flutter:

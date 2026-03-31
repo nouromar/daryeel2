@@ -1,0 +1,10 @@
+name: schema_runtime_dart
+description: Pure Dart schema runtime core for Daryeel2.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+

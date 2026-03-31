@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/schema-contracts/component-node.schema.json",
+  "title": "ComponentNode",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": { "type": "string" },
+    "props": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": true
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            { "$ref": "component-node.schema.json" },
+            { "$ref": "ref-node.schema.json" }
+          ]
+        }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "bind": { "type": "string" },
+    "visibleWhen": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

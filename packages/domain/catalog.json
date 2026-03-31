@@ -1,0 +1,9 @@
+{
+  "package": "domain",
+  "version": "0.1.0",
+  "schemas": [
+    "schemas/service_slug.schema.json",
+    "schemas/request_status.schema.json",
+    "schemas/actor_type.schema.json"
+  ]
+}

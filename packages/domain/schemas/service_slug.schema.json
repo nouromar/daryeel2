@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/domain/schemas/service_slug.schema.json",
+  "title": "ServiceSlug",
+  "type": "string",
+  "enum": [
+    "taxi",
+    "delivery",
+    "pharmacy",
+    "ambulance",
+    "home_visit"
+  ]
+}

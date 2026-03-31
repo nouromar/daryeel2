@@ -1,0 +1,10 @@
+{
+  "package": "schema-contracts",
+  "version": "0.1.0",
+  "schemas": [
+    "schemas/action-definition.schema.json",
+    "schemas/component-node.schema.json",
+    "schemas/ref-node.schema.json",
+    "schemas/screen.schema.json"
+  ]
+}

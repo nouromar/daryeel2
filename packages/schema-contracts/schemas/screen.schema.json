@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/schema-contracts/screen.schema.json",
+  "title": "ScreenSchema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "documentType",
+    "product",
+    "themeId",
+    "root"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "id": { "type": "string" },
+    "documentType": {
+      "type": "string",
+      "enum": ["screen"]
+    },
+    "product": { "type": "string" },
+    "service": { "$ref": "../../domain/schemas/service_slug.schema.json" },
+    "themeId": { "type": "string" },
+    "themeMode": {
+      "type": "string",
+      "enum": ["light", "dark"]
+    },
+    "root": {
+      "$ref": "component-node.schema.json"
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "action-definition.schema.json"
+      }
+    }
+  },
+  "additionalProperties": false
+}

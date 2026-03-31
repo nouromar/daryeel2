@@ -1,0 +1,22 @@
+{
+  "name": "PrimaryActionBar",
+  "category": "section",
+  "version": "1.0",
+  "propsSchema": {
+    "primaryLabel": "string",
+    "tone": "enum",
+    "size": "enum"
+  },
+  "defaults": {
+    "tone": "brand",
+    "size": "large"
+  },
+  "styleContract": {
+    "tone": ["default", "brand", "danger"],
+    "size": ["medium", "large"]
+  },
+  "slots": [],
+  "events": ["primary_pressed"],
+  "actions": ["primary"],
+  "fallbackBehavior": "omit"
+}

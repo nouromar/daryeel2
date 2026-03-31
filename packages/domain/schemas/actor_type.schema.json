@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/domain/schemas/actor_type.schema.json",
+  "title": "ActorType",
+  "type": "string",
+  "enum": [
+    "customer",
+    "provider",
+    "dispatcher",
+    "admin",
+    "system"
+  ]
+}

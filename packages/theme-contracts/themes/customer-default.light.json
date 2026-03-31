@@ -1,0 +1,15 @@
+{
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "inherits": [],
+  "tokens": {
+    "color.surface.primary": "#FFFFFF",
+    "color.surface.subtle": "#F8FAFC",
+    "color.text.primary": "#0F172A",
+    "color.text.secondary": "#475569",
+    "color.action.brand": "#0F766E",
+    "space.md": 16,
+    "radius.md": 12,
+    "elevation.card": 1
+  }
+}

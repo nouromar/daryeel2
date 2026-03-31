@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/schema-contracts/action-definition.schema.json",
+  "title": "ActionDefinition",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "navigate",
+        "submit_form",
+        "open_modal",
+        "refresh_data",
+        "select_value",
+        "dismiss"
+      ]
+    },
+    "route": { "type": "string" },
+    "formId": { "type": "string" },
+    "modalId": { "type": "string" },
+    "dataSource": { "type": "string" },
+    "value": {}
+  },
+  "additionalProperties": false
+}

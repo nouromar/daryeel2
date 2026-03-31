@@ -1,0 +1,23 @@
+{
+  "name": "InfoCard",
+  "category": "section",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "subtitle": "string",
+    "variant": "enum",
+    "surface": "enum"
+  },
+  "defaults": {
+    "variant": "default",
+    "surface": "raised"
+  },
+  "styleContract": {
+    "variant": ["default", "compact", "emphasized"],
+    "surface": ["flat", "subtle", "raised"]
+  },
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

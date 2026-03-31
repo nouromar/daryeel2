@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "daryeel2/schema-contracts/fragment.schema.json",
+  "title": "FragmentSchema",
+  "type": "object",
+  "required": ["schemaVersion", "id", "documentType", "node"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "id": { "type": "string" },
+    "documentType": {
+      "type": "string",
+      "enum": ["fragment"]
+    },
+    "node": { "$ref": "component-node.schema.json" }
+  },
+  "additionalProperties": false
+}

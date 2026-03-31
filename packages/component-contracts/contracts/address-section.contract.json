@@ -1,0 +1,21 @@
+{
+  "name": "AddressSection",
+  "category": "section",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "mode": "enum",
+    "variant": "enum"
+  },
+  "defaults": {
+    "mode": "generic",
+    "variant": "default"
+  },
+  "styleContract": {
+    "variant": ["default", "compact"]
+  },
+  "slots": [],
+  "events": ["address_selected"],
+  "actions": ["open_address_search"],
+  "fallbackBehavior": "omit"
+}

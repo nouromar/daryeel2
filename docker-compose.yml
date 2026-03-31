@@ -1,0 +1,32 @@
+services:
+  schema-service:
+    build:
+      context: .
+      dockerfile: services/schema-service/Dockerfile
+    ports:
+      - "8011:8011"
+    environment:
+      SCHEMA_SERVICE_APP_ENV: docker
+      # Optional. When set, /config/bootstrap advertises this URL to clients.
+      SCHEMA_SERVICE_PUBLIC_BASE_URL: ${SCHEMA_SERVICE_PUBLIC_BASE_URL:-}
+      # Optional. When unset, schema-service uses in-process caching only.
+      SCHEMA_SERVICE_REDIS_URL: ${SCHEMA_SERVICE_REDIS_URL:-}
+      SCHEMA_SERVICE_REDIS_KEY_PREFIX: ${SCHEMA_SERVICE_REDIS_KEY_PREFIX:-daryeel2:schema-service:}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx,sys; sys.exit(0 if httpx.get('http://localhost:8011/health', timeout=2).status_code==200 else 1)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"]
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]

@@ -1,0 +1,1 @@
+"""Schema delivery service for Daryeel2."""
