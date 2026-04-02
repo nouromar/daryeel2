@@ -35,7 +35,7 @@ Based on repo state (Mar 2026):
   - optional Redis cache backend is supported and runnable via Docker
 - **Flutter runtime** supports:
   - schema rendering via component mapping
-  - deterministic action dispatch (navigate)
+  - deterministic action dispatch (`navigate`, `open_url`, `submit_form`, `track_event`) with an allowlist policy
   - `visibleWhen` filtering (feature-flag based)
   - diagnostics pipeline (dedupe/budgets, remote ingest)
   - mobile-first HTTP JSON caching with SharedPreferences + ETag/304

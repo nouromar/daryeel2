@@ -33,9 +33,11 @@ Future<RefResolutionResult> resolveScreenRefs({
   required ScreenSchema schema,
   required FragmentDocumentLoader loader,
   int maxDepth = 32,
+  int maxFragments = 200,
 }) async {
   final errors = <RefResolutionError>[];
   final cache = <String, ComponentNode>{};
+  final seenRefs = <String>{};
 
   Future<SchemaNode> resolveNode(
     SchemaNode node, {
@@ -56,6 +58,21 @@ Future<RefResolutionResult> resolveScreenRefs({
 
     if (node is RefNode) {
       final ref = node.ref;
+
+      if (!seenRefs.contains(ref)) {
+        seenRefs.add(ref);
+        if (seenRefs.length > maxFragments) {
+          errors.add(
+            RefResolutionError(
+              path: path,
+              ref: ref,
+              message: 'Exceeded maxFragments=$maxFragments',
+            ),
+          );
+          return node;
+        }
+      }
+
       if (stack.contains(ref)) {
         errors.add(
           RefResolutionError(

@@ -151,10 +151,21 @@ SchemaParseResult<ScreenSchema> parseScreenSchema(Map<String, Object?> json) {
         );
         continue;
       }
+
+      Map<String, Object?>? eventProperties;
+      final eventPropsRaw = value['eventProperties'];
+      if (eventPropsRaw is Map) {
+        eventProperties = Map<String, Object?>.from(
+          eventPropsRaw.cast<String, Object?>(),
+        );
+      }
+
       actions[entry.key as String] = ActionDefinition(
         type: actionType,
         route: value['route'] as String?,
         formId: value['formId'] as String?,
+        eventName: value['eventName'] as String?,
+        eventProperties: eventProperties,
       );
     }
   }

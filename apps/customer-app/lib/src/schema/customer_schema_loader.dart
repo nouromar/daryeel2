@@ -60,19 +60,114 @@ class HttpSchemaLoader implements SchemaLoader {
     );
 
     Map<String, Object?> document;
+    String? docId;
     if (cache != null) {
       final result = await cache!.getOrFetch(
         uri: uri,
         cacheKey: 'schema_screen.${request.screenId}',
         headers: headersProvider?.call() ?? const <String, String>{},
+        cacheResponseHeaders: const <String>{'x-daryeel-doc-id'},
       );
+
+      if (result is! HttpJsonCacheSuccess) {
+        final failure = result as HttpJsonCacheFailure;
+        throw StateError(failure.message);
+      }
+
       document = result.json;
+      docId = result.headers['x-daryeel-doc-id'];
     } else {
       final response = await _client.get(uri, headers: headersProvider?.call());
 
       if (response.statusCode != 200) {
         throw StateError(
           'Schema service returned ${response.statusCode} for ${request.screenId}',
+        );
+      }
+
+      if (response.bodyBytes.length > SecurityBudgets.maxSchemaJsonBytes) {
+        throw StateError(
+          'Response too large (${response.bodyBytes.length} bytes)',
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        throw const FormatException(
+          'Schema service returned a non-object response',
+        );
+      }
+
+      document = Map<String, Object?>.from(decoded.cast<String, Object?>());
+      docId = response.headers['x-daryeel-doc-id'];
+    }
+
+    return SchemaBundle(
+      schemaId: document['id'] as String? ?? request.screenId,
+      schemaVersion: document['schemaVersion'] as String? ?? 'unknown',
+      document: document,
+      docId: docId,
+    );
+  }
+}
+
+/// Loads an immutable schema document by `docId`.
+///
+/// Intended for the schema pinning ladder.
+class HttpSchemaDocLoader implements SchemaLoader {
+  HttpSchemaDocLoader({
+    required this.baseUrl,
+    required this.docId,
+    http.Client? client,
+    this.headersProvider,
+    this.cache,
+  }) : _client = client ?? http.Client();
+
+  final String baseUrl;
+  final String docId;
+  final http.Client _client;
+  final RequestHeadersProvider? headersProvider;
+  final HttpJsonCache? cache;
+
+  @override
+  Future<SchemaBundle> loadScreen(RuntimeScreenRequest request) async {
+    final normalizedBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+
+    final encoded = Uri.encodeComponent(docId);
+
+    // Mirrors the theme doc endpoint shape: `/docs/by-id/<docId>`.
+    final uri = Uri.parse(
+      '$normalizedBaseUrl/schemas/screens/docs/by-id/$encoded',
+    );
+
+    Map<String, Object?> document;
+    if (cache != null) {
+      final result = await cache!.getOrFetch(
+        uri: uri,
+        cacheKey: 'schema_screen_doc.$docId',
+        headers: headersProvider?.call() ?? const <String, String>{},
+      );
+
+      if (result is! HttpJsonCacheSuccess) {
+        final failure = result as HttpJsonCacheFailure;
+        throw StateError(failure.message);
+      }
+
+      document = result.json;
+    } else {
+      final response = await _client.get(uri, headers: headersProvider?.call());
+
+      if (response.statusCode != 200) {
+        throw StateError(
+          'Schema service returned ${response.statusCode} for docId=$docId',
+        );
+      }
+
+      if (response.bodyBytes.length > SecurityBudgets.maxSchemaJsonBytes) {
+        throw StateError(
+          'Response too large (${response.bodyBytes.length} bytes)',
         );
       }
 
@@ -90,6 +185,7 @@ class HttpSchemaLoader implements SchemaLoader {
       schemaId: document['id'] as String? ?? request.screenId,
       schemaVersion: document['schemaVersion'] as String? ?? 'unknown',
       document: document,
+      docId: docId,
     );
   }
 }
@@ -122,6 +218,12 @@ class HttpFragmentDocumentLoader implements FragmentDocumentLoader {
         cacheKey: 'schema_fragment.$encoded',
         headers: headersProvider?.call() ?? const <String, String>{},
       );
+
+      if (result is! HttpJsonCacheSuccess) {
+        final failure = result as HttpJsonCacheFailure;
+        throw StateError(failure.message);
+      }
+
       return result.json;
     }
 
@@ -130,6 +232,12 @@ class HttpFragmentDocumentLoader implements FragmentDocumentLoader {
     if (response.statusCode != 200) {
       throw StateError(
         'Schema service returned ${response.statusCode} for fragment $fragmentId',
+      );
+    }
+
+    if (response.bodyBytes.length > SecurityBudgets.maxSchemaJsonBytes) {
+      throw StateError(
+        'Response too large (${response.bodyBytes.length} bytes)',
       );
     }
 

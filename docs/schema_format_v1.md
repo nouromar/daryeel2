@@ -225,13 +225,11 @@ Example:
 
 Actions are declared centrally and referenced by components.
 
-Supported v1 action types:
+Supported action types (implemented in the Flutter runtime as of Apr 2026):
 - `navigate`
+- `open_url`
 - `submit_form`
-- `open_modal`
-- `refresh_data`
-- `select_value`
-- `dismiss`
+- `track_event`
 
 Example:
 
@@ -242,9 +240,21 @@ Example:
       "type": "navigate",
       "route": "checkout.review"
     },
+    "open_terms": {
+      "type": "open_url",
+      "route": "https://example.com/terms"
+    },
     "submit_request": {
       "type": "submit_form",
       "formId": "request_form"
+    },
+    "track_view": {
+      "type": "track_event",
+      "eventName": "screen.view",
+      "properties": {
+        "screenId": "checkout",
+        "variant": "v1"
+      }
     }
   }
 }
@@ -254,6 +264,12 @@ Not supported in v1:
 - arbitrary backend endpoints declared from schema
 - arbitrary multi-step logic graphs
 - arbitrary expressions that mutate data
+
+Reserved for a future schema format version (not currently implemented):
+- `open_modal`
+- `refresh_data`
+- `select_value`
+- `dismiss`
 
 ## 8. Visibility and Conditional Rules
 

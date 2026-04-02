@@ -13,6 +13,9 @@ import '../schema/customer_schema_loader.dart';
 import '../schema/fallback_fragment_documents.dart';
 import '../schema/fallback_schema_bundle.dart';
 import '../telemetry/http_remote_diagnostics_transport.dart';
+import '../actions/diagnostics_submit_form_handler.dart';
+import '../actions/diagnostics_track_event_handler.dart';
+import '../actions/url_launcher_open_url_handler.dart';
 import '../ui/customer_component_registry.dart';
 import '../ui/customer_theme.dart';
 import '../cache/http_json_cache.dart';
@@ -54,18 +57,27 @@ class _CustomerAppState extends State<CustomerApp> {
     String? schemaVersion,
     String? configSnapshotId,
   }) {
+    final effectiveConfigSnapshotId =
+        configSnapshotId ?? _activeConfigSnapshotId;
     return <String, String>{
       'x-request-id': _randomHexId(16),
       'x-daryeel-session-id': _sessionId,
       if (schemaVersion != null && schemaVersion.isNotEmpty)
         'x-daryeel-schema-version': schemaVersion,
-      if ((configSnapshotId ?? _activeConfigSnapshotId) case final v?
-          when v.isNotEmpty)
-        'x-daryeel-config-snapshot': v,
+      if (effectiveConfigSnapshotId?.isNotEmpty ?? false)
+        'x-daryeel-config-snapshot': effectiveConfigSnapshotId!,
     };
   }
 
   late RuntimeDiagnostics _diagnostics;
+
+  late final SchemaFormStore _formStore = SchemaFormStore();
+
+  @override
+  void dispose() {
+    _formStore.dispose();
+    super.dispose();
+  }
 
   DiagnosticsSink _buildDiagnosticsSink({
     Uri? telemetryEndpoint,
@@ -138,7 +150,7 @@ class _CustomerAppState extends State<CustomerApp> {
     final compatibilityChecker = CustomerSchemaCompatibilityChecker();
 
     final prefs = await SharedPreferences.getInstance();
-    final httpCache = HttpJsonCache(prefs: prefs);
+    var httpCache = HttpJsonCache(prefs: prefs);
 
     ProductBootstrap? bootstrap;
     ConfigSnapshot? configSnapshot;
@@ -217,6 +229,14 @@ class _CustomerAppState extends State<CustomerApp> {
       product: bootstrap?.product ?? product,
     );
 
+    // Now that the request + diagnostics exist, re-create the cache so it can
+    // emit cache-corruption diagnostics.
+    httpCache = HttpJsonCache(
+      prefs: prefs,
+      diagnostics: _diagnostics,
+      diagnosticsContext: _diagnosticsContextForRequest(request),
+    );
+
     Future<_LoadedScreen> buildLoadedScreen(
       RuntimeScreenRequest screenRequest,
       SchemaBundle bundle,
@@ -290,7 +310,7 @@ class _CustomerAppState extends State<CustomerApp> {
       final configFlags =
           configSnapshot?.enabledFeatureFlags ?? const <String>{};
       try {
-        final bundle = await SchemaRuntime(
+        final result = await SchemaRuntime(
           loader: HttpSchemaLoader(
             baseUrl: effectiveSchemaBaseUrl,
             cache: httpCache,
@@ -305,6 +325,14 @@ class _CustomerAppState extends State<CustomerApp> {
             configSnapshotId: bootstrap?.configSnapshotId,
           ),
         ).load(request);
+
+        if (!result.isSupported) {
+          throw UnsupportedError(
+            result.incompatibilityReason ?? 'Unsupported schema bundle',
+          );
+        }
+
+        final bundle = result.bundle;
         return buildLoadedScreen(
           request,
           bundle,
@@ -346,7 +374,14 @@ class _CustomerAppState extends State<CustomerApp> {
       compatibilityChecker: compatibilityChecker,
       diagnostics: _diagnostics,
       diagnosticsContext: _diagnosticsContextForRequest(request),
-    ).load(request);
+    ).load(request).then((r) {
+      if (!r.isSupported) {
+        throw StateError(
+          'Bundled schema is incompatible: ${r.incompatibilityReason}',
+        );
+      }
+      return r.bundle;
+    });
   }
 
   Uri? _resolveTelemetryEndpoint({
@@ -440,15 +475,7 @@ class _CustomerAppState extends State<CustomerApp> {
         }
 
         final screenSchema = loadedScreen.schema!;
-        const actionDispatcher = NavigatorSchemaActionDispatcher();
-
         final enabledFeatureFlags = loadedScreen.enabledFeatureFlags;
-        final visibility = SchemaVisibilityContext(
-          enabledFeatureFlags: enabledFeatureFlags,
-          service: screenSchema.service,
-          state: loadedScreen.bundle.document,
-        );
-
         final diagnosticsContext = <String, Object?>{
           'app': <String, Object?>{
             'appId': 'customer-app',
@@ -472,6 +499,35 @@ class _CustomerAppState extends State<CustomerApp> {
               'snapshotId': loadedScreen.configSnapshotId,
             },
         };
+
+        final visibility = SchemaVisibilityContext(
+          enabledFeatureFlags: enabledFeatureFlags,
+          service: screenSchema.service,
+          state: loadedScreen.bundle.document,
+        );
+
+        final actionDispatcher = TypeMapSchemaActionDispatcher(
+          dispatchersByType: <String, SchemaActionDispatcher>{
+            SchemaActionTypes.navigate: const NavigatorSchemaActionDispatcher(),
+            SchemaActionTypes.openUrl: UrlSchemaActionDispatcher(
+              openUrlHandler: const UrlLauncherOpenUrlHandler(),
+              uriPolicy: const UriPolicy.allowAll(),
+            ),
+            SchemaActionTypes.submitForm: SubmitFormSchemaActionDispatcher(
+              submitFormHandler: DiagnosticsSubmitFormHandler(
+                diagnostics: _diagnostics,
+                diagnosticsContext: diagnosticsContext,
+              ),
+            ),
+            SchemaActionTypes.trackEvent: TrackEventSchemaActionDispatcher(
+              trackEventHandler: DiagnosticsTrackEventHandler(
+                diagnostics: _diagnostics,
+                diagnosticsContext: diagnosticsContext,
+              ),
+            ),
+          },
+          fallback: const UnsupportedSchemaActionDispatcher(),
+        );
 
         final renderer = SchemaRenderer(
           rootNode: screenSchema.root,
@@ -501,7 +557,12 @@ class _CustomerAppState extends State<CustomerApp> {
             body: Column(
               children: [
                 _SchemaStatusBanner(screen: loadedScreen),
-                Expanded(child: renderer.render()),
+                Expanded(
+                  child: SchemaFormScope(
+                    store: _formStore,
+                    child: renderer.render(),
+                  ),
+                ),
               ],
             ),
           ),

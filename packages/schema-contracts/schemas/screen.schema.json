@@ -25,6 +25,18 @@
       "type": "string",
       "enum": ["light", "dark"]
     },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "minRuntimeApi": { "type": "integer", "minimum": 0 },
+        "requiresCapabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contractsCatalogVersion": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
     "root": {
       "$ref": "component-node.schema.json"
     },

@@ -14,7 +14,8 @@ COMPONENT_CONTRACTS_DIR = DARYEEL2_ROOT / "packages" / "component-contracts"
 
 MAX_JSON_BYTES = 256 * 1024
 MAX_NODES_PER_DOCUMENT = 5_000
-MAX_REF_DEPTH = 50
+MAX_REF_DEPTH = 32
+MAX_FRAGMENTS_PER_SCREEN = 200
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,54 @@ def _collect_refs_from_node_tree(root: dict[str, Any]) -> set[str]:
         if isinstance(ref, str) and ref:
             refs.add(ref)
     return refs
+
+
+def _reachable_fragment_refs_for_screen(
+    *,
+    screen_root: dict[str, Any],
+    fragment_docs: dict[str, dict[str, Any]],
+    max_depth: int = MAX_REF_DEPTH,
+    max_fragments: int = MAX_FRAGMENTS_PER_SCREEN,
+) -> tuple[set[str], bool]:
+    """Return (reachable_refs, exceeded_budget).
+
+    Budget is based on unique fragment refs that may be loaded while resolving a
+    screen.
+    """
+
+    initial = _collect_refs_from_node_tree(screen_root)
+    if not initial:
+        return set(), False
+
+    from collections import deque
+
+    seen: set[str] = set()
+    q: deque[tuple[str, int]] = deque((r, 1) for r in initial)
+
+    while q:
+        ref, depth = q.popleft()
+        if ref in seen:
+            continue
+        seen.add(ref)
+        if len(seen) > max_fragments:
+            return seen, True
+
+        if depth > max_depth:
+            # Ref depth budgets are validated separately.
+            continue
+
+        doc = fragment_docs.get(ref)
+        if not isinstance(doc, dict):
+            continue
+        node = doc.get("node")
+        if not isinstance(node, dict):
+            continue
+
+        for child_ref in _collect_refs_from_node_tree(node):
+            if child_ref not in seen:
+                q.append((child_ref, depth + 1))
+
+    return seen, False
 
 
 def _validate_component_node_against_contract(
@@ -355,6 +404,52 @@ def _detect_ref_cycles(graph: dict[str, set[str]]) -> list[list[str]]:
     return unique
 
 
+def _max_ref_depth(
+    *,
+    root_node: dict[str, Any],
+    fragment_docs: dict[str, dict[str, Any]],
+    max_budget: int = MAX_REF_DEPTH,
+) -> int:
+    """Compute maximum fragment-ref expansion depth reachable from a node.
+
+    Depth counts the number of fragment expansions along a path.
+    Cycles are ignored here (reported separately).
+    """
+
+    max_seen = 0
+    visiting: set[str] = set()
+
+    def walk_node(node: dict[str, Any], depth: int) -> None:
+        nonlocal max_seen
+        if depth > max_seen:
+            max_seen = depth
+        if depth > max_budget:
+            return
+
+        for n in _iter_nodes(node):
+            ref = n.get("ref")
+            if not isinstance(ref, str) or not ref:
+                continue
+            if ref in visiting:
+                continue
+
+            doc = fragment_docs.get(ref)
+            if not isinstance(doc, dict):
+                continue
+            fragment_node = doc.get("node")
+            if not isinstance(fragment_node, dict):
+                continue
+
+            visiting.add(ref)
+            try:
+                walk_node(fragment_node, depth + 1)
+            finally:
+                visiting.remove(ref)
+
+    walk_node(root_node, 0)
+    return max_seen
+
+
 def validate_examples(
     *,
     examples_dir: Path = SCHEMA_EXAMPLES_DIR,
@@ -365,6 +460,7 @@ def validate_examples(
     contracts = _load_component_contracts(contracts_dir)
 
     fragment_docs: dict[str, dict[str, Any]] = {}
+    fragment_paths_by_id: dict[str, str] = {}
     for path in sorted(examples_dir.glob("*.fragment.json")):
         doc = _read_json_file(path)
         try:
@@ -382,6 +478,7 @@ def validate_examples(
         fragment_id = doc.get("id")
         if isinstance(fragment_id, str) and fragment_id:
             fragment_docs[fragment_id] = doc
+            fragment_paths_by_id[fragment_id] = str(path)
         else:
             issues.append(
                 ValidationIssue(
@@ -414,6 +511,21 @@ def validate_examples(
                 )
 
     fragment_ids = set(fragment_docs.keys())
+
+    # Ref depth budgets (compute after all fragments are loaded).
+    for fragment_id, doc in fragment_docs.items():
+        node = doc.get("node")
+        if not isinstance(node, dict):
+            continue
+        max_depth = _max_ref_depth(root_node=node, fragment_docs=fragment_docs)
+        if max_depth > MAX_REF_DEPTH:
+            issues.append(
+                ValidationIssue(
+                    code="ref_depth_exceeded",
+                    message=f"Fragment ref depth exceeds budget ({MAX_REF_DEPTH})",
+                    path=fragment_paths_by_id.get(fragment_id, f"fragment:{fragment_id}"),
+                )
+            )
 
     # Ref cycles
     graph = _build_fragment_ref_graph(fragment_docs)
@@ -470,6 +582,31 @@ def validate_examples(
                 ValidationIssue(
                     code="node_budget_exceeded",
                     message=f"Screen exceeds node budget ({MAX_NODES_PER_DOCUMENT})",
+                    path=str(path),
+                )
+            )
+
+        max_depth = _max_ref_depth(root_node=root, fragment_docs=fragment_docs)
+        if max_depth > MAX_REF_DEPTH:
+            issues.append(
+                ValidationIssue(
+                    code="ref_depth_exceeded",
+                    message=f"Screen ref depth exceeds budget ({MAX_REF_DEPTH})",
+                    path=str(path),
+                )
+            )
+
+        _, exceeded = _reachable_fragment_refs_for_screen(
+            screen_root=root,
+            fragment_docs=fragment_docs,
+            max_depth=MAX_REF_DEPTH,
+            max_fragments=MAX_FRAGMENTS_PER_SCREEN,
+        )
+        if exceeded:
+            issues.append(
+                ValidationIssue(
+                    code="fragments_budget_exceeded",
+                    message=f"Screen exceeds fragments budget ({MAX_FRAGMENTS_PER_SCREEN})",
                     path=str(path),
                 )
             )

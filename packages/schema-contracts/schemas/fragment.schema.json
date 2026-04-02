@@ -11,6 +11,17 @@
       "type": "string",
       "enum": ["fragment"]
     },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "minRuntimeApi": { "type": "integer", "minimum": 0 },
+        "requiresCapabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
     "node": { "$ref": "component-node.schema.json" }
   },
   "additionalProperties": false

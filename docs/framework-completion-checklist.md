@@ -28,7 +28,7 @@ Targets:
 
 Checklist:
 - [ ] Define/confirm contract fields: props (types/enums), defaults, slots, actions, fallbacks.
-- [ ] Add contract introspection API (list components + props/slots/actions).
+- [x] Add contract introspection API (list components + props/slots/actions).
 - [ ] Ensure strict-mode behavior is consistent:
   - unknown props rejected (or dropped deterministically with a diagnostic)
   - unknown slots rejected (or ignored deterministically with a diagnostic)
@@ -118,9 +118,9 @@ Targets:
 - `Daryeel2/docs/schema_format_v1.md` (action definitions)
 
 Checklist:
-- [ ] Add `submit_form` action type (bounded contract).
-- [ ] Add minimal “action failure” diagnostics payload convention.
-- [ ] Guard unknown actions (no-op + diagnostic).
+- [x] Add `submit_form` action type (bounded contract).
+- [x] Add minimal “action failure” diagnostics payload convention.
+- [x] Guard unknown actions (no-op + diagnostic).
 
 Acceptance:
 - A schema-authored form screen can submit via action id.
@@ -131,15 +131,17 @@ Targets:
 - `Daryeel2/packages/flutter_components/` (field widgets)
 
 Checklist:
-- [ ] Form state model:
+- [x] Form state model:
   - values
-  - touched/dirty
   - validation errors
   - submit state
-- [ ] Bounded binding syntax:
-  - allow only known namespaces (e.g. `form.*`)
-  - allow only supported value types
-- [ ] Built-in validators (bounded): required, min/max length, regex (optional).
+- [ ] Add touched/dirty tracking.
+- [x] Bounded binding syntax:
+  - parsed from a simple string: `<formId>.<fieldKey>` (also accepts `:` and `/` separators)
+  - fail-closed parsing
+  - form values are sanitized to primitives (string/num/bool)
+- [x] Built-in validators (bounded): required, min/max length, regex (optional).
+- [x] Wire `SchemaFormScope` into the customer-app runtime view so `submit_form` can read and validate live field values.
 
 Acceptance:
 - “Request form” demo screen is schema-driven end-to-end with diagnostics.
@@ -204,11 +206,11 @@ Targets:
 - `Daryeel2/docs/security-plan.md` (or create Daryeel2-specific security doc)
 
 Checklist:
-- [ ] Add size budgets (server + client):
+- [x] Add size budgets (server + client):
   - max schema doc size
   - max nodes
   - max ref depth
-- [ ] Ensure schema input is treated as untrusted everywhere.
+- [x] Ensure schema input is treated as untrusted everywhere.
 
 Acceptance:
 - Oversized inputs fail safely with diagnostics.

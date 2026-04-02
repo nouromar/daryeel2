@@ -27,11 +27,19 @@ final class ComponentNode extends SchemaNode {
 }
 
 final class ActionDefinition {
-  const ActionDefinition({required this.type, this.route, this.formId});
+  const ActionDefinition({
+    required this.type,
+    this.route,
+    this.formId,
+    this.eventName,
+    this.eventProperties,
+  });
 
   final String type;
   final String? route;
   final String? formId;
+  final String? eventName;
+  final Map<String, Object?>? eventProperties;
 }
 
 final class ScreenSchema {

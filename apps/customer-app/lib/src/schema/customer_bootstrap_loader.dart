@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:http/http.dart' as http;
 
 import '../cache/http_json_cache.dart';
@@ -116,6 +117,52 @@ class ConfigSnapshot {
     return raw is bool ? raw : true;
   }
 
+  bool get enableRemoteThemes {
+    final raw = runtime['enableRemoteThemes'];
+    return raw is bool ? raw : false;
+  }
+
+  SchemaCompatibilityPolicyOverlay? get schemaCompatibilityPolicyOverlay {
+    final raw = runtime['schemaCompatibilityPolicyOverlay'];
+    if (raw is! Map) return null;
+    final m = Map<String, Object?>.from(raw.cast<String, Object?>());
+
+    Set<String>? readStringSet(Object? v) {
+      if (v == null) return null;
+      if (v is Set) {
+        return v.whereType<String>().where((s) => s.isNotEmpty).toSet();
+      }
+      if (v is List) {
+        return v.whereType<String>().where((s) => s.isNotEmpty).toSet();
+      }
+      return null;
+    }
+
+    final supportedSchemaVersions = readStringSet(m['supportedSchemaVersions']);
+    final supportedProducts = readStringSet(m['supportedProducts']);
+    final supportedThemeIds = readStringSet(m['supportedThemeIds']);
+    final supportedThemeModes = readStringSet(m['supportedThemeModes']);
+    final requireRootNode = m['requireRootNode'] is bool
+        ? (m['requireRootNode'] as bool)
+        : null;
+
+    if (supportedSchemaVersions == null &&
+        supportedProducts == null &&
+        supportedThemeIds == null &&
+        supportedThemeModes == null &&
+        requireRootNode == null) {
+      return null;
+    }
+
+    return SchemaCompatibilityPolicyOverlay(
+      supportedSchemaVersions: supportedSchemaVersions,
+      supportedProducts: supportedProducts,
+      supportedThemeIds: supportedThemeIds,
+      supportedThemeModes: supportedThemeModes,
+      requireRootNode: requireRootNode,
+    );
+  }
+
   int? get dedupeTtlSeconds {
     final raw = telemetry['dedupeTtlSeconds'];
     if (raw is int) return raw;
@@ -197,6 +244,12 @@ class CustomerBootstrapLoader {
         cacheKey: 'config_bootstrap.$product',
         headers: headersProvider?.call() ?? const <String, String>{},
       );
+
+      if (result is! HttpJsonCacheSuccess) {
+        final failure = result as HttpJsonCacheFailure;
+        throw StateError(failure.message);
+      }
+
       return ProductBootstrap.fromJson(result.json);
     }
 

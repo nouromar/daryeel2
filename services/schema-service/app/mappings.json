@@ -1,0 +1,12 @@
+{
+  "screens": {
+    "customer_home": "customer_home.screen.json"
+  },
+  "fragments": {
+    "section:customer_welcome_v1": "customer_welcome.fragment.json"
+  },
+  "themes": {
+    "customer-default:light": "themes/customer-default.light.json",
+    "customer-default:dark": "themes/customer-default.dark.json"
+  }
+}

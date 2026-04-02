@@ -94,3 +94,9 @@ class ThemeDocument(BaseModel):
     themeMode: str
     inherits: list[str]
     tokens: dict[str, Any]
+
+
+class ComponentContractsResponse(BaseModel):
+    package: str = "component-contracts"
+    version: str = "0.0.0"
+    contracts: list[dict[str, Any]] = Field(default_factory=list)

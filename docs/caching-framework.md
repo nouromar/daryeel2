@@ -77,6 +77,14 @@ Over time, schema/theme should follow the snapshot pattern:
 - Schema screen documents should be addressable by stable IDs + versions.
 - Theme documents should be addressable by stable IDs + versions.
 
+DocId pinning (planned):
+- Selector (mutable) responses SHOULD include a stable `x-daryeel-doc-id` header so clients can pin the exact immutable document they just received.
+- Immutable documents SHOULD be fetchable by docId via endpoints like:
+  - `GET /schemas/screens/docs/by-id/{docId}`
+  - `GET /themes/docs/by-id/{docId}`
+- Flutter client loaders already include support for these immutable-by-docId routes and header caching.
+- As of current repo state, `schema-service` does not yet expose the immutable-by-docId routes and does not emit `x-daryeel-doc-id` on selector responses, so full end-to-end pinning requires server work.
+
 If the URL does **not** contain a version, treat it like bootstrap (revalidated + short TTL).
 
 ---
@@ -175,7 +183,7 @@ Do NOT put these in `Vary` unless absolutely required.
 ---
 
 ## Rollout plan
-1) Adopt ETag/304 + cache-control on bootstrap and snapshot endpoints (done for config).
+1) Adopt ETag/304 + cache-control on bootstrap and snapshot endpoints (done for config/schema/theme selectors + snapshots).
 2) Add client HTTP cache helper for conditional GET and LKG persistence.
 3) Introduce Redis cache backend in services (optional early; mandatory later at scale).
 4) Move schema/theme documents toward immutable-by-ID addressing.

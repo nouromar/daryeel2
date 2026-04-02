@@ -107,6 +107,17 @@ Use this consistent naming hierarchy:
 - `app.lifecycle.*` — app start, session start, background/foreground
 - `backend.request.*` — server-side request logs and failures
 
+Additional standardized events (implemented in Flutter runtime + customer app):
+- `runtime.screen_load.summary` — one event per screen load attempt with stable payload keys (see `ScreenLoadSummaryKeys` in `packages/flutter_runtime`)
+- Schema fallback ladder events:
+  - `runtime.schema.ladder.source_used`
+  - `runtime.schema.ladder.fallback`
+  - `runtime.schema.ladder.pin_cleared`
+  - `runtime.schema.ladder.pin_promoted`
+- Theme fallback ladder events:
+  - `runtime.theme.ladder.source_used`
+  - `runtime.theme.ladder.fallback_to_local`
+
 ## 6) Standard runtime context (required fields)
 
 ### 6.1 Client context
@@ -209,6 +220,10 @@ When budgets are exceeded:
 - suppress events
 - emit a single summary event: `runtime.diagnostics.suppressed_summary` with counts by category.
 
+Implementation note (Apr 2026 repo state):
+- The Flutter client applies TTL-based dedupe by fingerprint and per-session budgets.
+- Budget/TTL values are configurable from the immutable config snapshot telemetry section (client clamps to safe ranges).
+
 ### 8.4 Deterministic sampling
 For high-volume `info`/`warn` events, use deterministic sampling:
 
@@ -227,6 +242,10 @@ Events:
 - `runtime.schema.fetch_failed` (warn/error) — include failure class
 - `runtime.schema.cache_hit` / `runtime.schema.cache_miss` (info)
 - `runtime.schema.activated` (info) — include active bundleId/version + screenId/serviceSlug
+
+Also required for operational dashboards:
+- `runtime.screen_load.summary` (info/metric)
+  - keys include: `finalSchemaSource`, `finalSchemaReasonCode`, `schemaDocId`, `parseErrorCount`, `refErrorCount`, `usedRemoteTheme`, `finalThemeSource`, `themeDocId`, `attemptCount`, `fallbackCount`, `totalLoadMs`
 
 ### 9.2 Compatibility & validation
 Events:

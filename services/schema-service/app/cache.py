@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import time
 from dataclasses import dataclass
 
@@ -11,6 +12,7 @@ from app.settings import settings
 class CacheValue:
     payload_json: str
     etag: str
+    doc_id: str
 
 
 class CacheBackend:
@@ -74,12 +76,22 @@ class RedisCacheBackend(CacheBackend):
             return None
         payload_json = decoded.get("payload_json")
         etag = decoded.get("etag")
+        doc_id = decoded.get("doc_id")
         if not isinstance(payload_json, str) or not isinstance(etag, str):
             return None
-        return CacheValue(payload_json=payload_json, etag=etag)
+        if not isinstance(doc_id, str) or not doc_id:
+            # Backwards compatible with old cache entries.
+            doc_id = "legacy:sha256:" + hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        return CacheValue(payload_json=payload_json, etag=etag, doc_id=doc_id)
 
     def set(self, key: str, value: CacheValue, ttl_seconds: int | None) -> None:
-        body = json.dumps({"payload_json": value.payload_json, "etag": value.etag})
+        body = json.dumps(
+            {
+                "payload_json": value.payload_json,
+                "etag": value.etag,
+                "doc_id": value.doc_id,
+            }
+        )
         full_key = self._k(key)
         if ttl_seconds is None:
             self._client.set(full_key, body)

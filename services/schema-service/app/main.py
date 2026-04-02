@@ -3,15 +3,25 @@ import hashlib
 import logging
 import time
 import uuid
+from collections import deque
 
 from fastapi import FastAPI, HTTPException, Request
 from starlette.responses import JSONResponse, Response
 
 from app.cache import CacheValue, build_cache_backend
+from app.component_contracts_registry import component_contracts_payload
 from app.config_registry import current_snapshot_id_for_product, get_snapshot
-from app.registry import get_bootstrap, get_fragment, get_screen
+from app.registry import (
+    get_bootstrap,
+    get_fragment,
+    get_fragment_by_doc_id,
+    get_screen_doc_id,
+    get_screen,
+    get_screen_by_doc_id,
+)
 from app.schemas import (
     BootstrapResponse,
+    ComponentContractsResponse,
     ConfigSnapshotResponse,
     FragmentSchema,
     HealthResponse,
@@ -27,7 +37,13 @@ from app.telemetry import (
     DiagnosticsIngestor,
     RecentDiagnosticsResponse,
 )
-from app.theme_registry import find_theme_path, list_theme_paths, load_theme_document
+from app.theme_registry import (
+    find_theme_path,
+    get_theme_by_doc_id,
+    get_theme_doc_ids_by_id_mode,
+    list_theme_paths,
+    load_theme_document,
+)
 
 app = FastAPI(title=settings.app_name)
 
@@ -35,6 +51,9 @@ _request_logger = logging.getLogger("daryeel.request")
 _telemetry_logger = logging.getLogger("daryeel.telemetry")
 
 _cache = build_cache_backend()
+
+# Dev-only ops: keep a small in-memory ring buffer of recent errors.
+_recent_errors: deque[dict[str, object]] = deque(maxlen=200)
 
 _diagnostics_ingestor = DiagnosticsIngestor(
     # In prod you may want debug=0; keep defaults aligned with the diagnostics spec.
@@ -102,12 +121,73 @@ async def request_id_and_access_log(request: Request, call_next) -> Response:
             }
         )
     )
+
+    if response.status_code >= 400 and request.url.path.startswith("/"):
+        # Avoid infinite recursion/self-noise.
+        if not request.url.path.startswith("/dev") and not request.url.path.startswith(
+            "/telemetry"
+        ):
+            _recent_errors.append(
+                {
+                    "timestampMs": int(time.time() * 1000),
+                    "method": request.method,
+                    "path": request.url.path,
+                    "statusCode": response.status_code,
+                    "requestId": request_id,
+                }
+            )
     return response
+
+
+@app.get("/dev/mappings")
+def dev_mappings(product: str) -> dict:
+    # Dev-only inspection endpoint.
+    if settings.app_env != "development":
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if product != "customer_app":
+        raise HTTPException(status_code=404, detail="Unknown product")
+
+    screens: dict[str, str] = {}
+    for screen_id in get_bootstrap().screens:
+        doc_id = get_screen_doc_id(screen_id)
+        if doc_id is not None:
+            screens[screen_id] = doc_id
+
+    return {
+        "product": product,
+        "schemas": {"screens": screens},
+        "themes": get_theme_doc_ids_by_id_mode(),
+    }
+
+
+@app.get("/dev/errors/recent")
+def dev_recent_errors(limit: int = 50) -> dict:
+    # Dev-only inspection endpoint.
+    if settings.app_env != "development":
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if limit <= 0:
+        return {"errors": []}
+    limit = min(limit, 200)
+    return {"errors": list(_recent_errors)[-limit:]}
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/contracts/components", response_model=ComponentContractsResponse)
+def component_contracts(request: Request) -> ComponentContractsResponse | Response:
+    payload = component_contracts_payload()
+    return _cached_json_response(
+        request=request,
+        cache_key="contracts:components",
+        payload=payload,
+        cache_control="public, max-age=60, stale-while-revalidate=300",
+        ttl_seconds=300,
+    )
 
 
 def _normalized_base_url(request: Request) -> str:
@@ -120,6 +200,11 @@ def _normalized_base_url(request: Request) -> str:
 def _strong_etag(payload: dict) -> str:
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return '"%s"' % hashlib.sha256(raw).hexdigest()
+
+
+def _doc_id(payload: dict) -> str:
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _cached_json_response(
@@ -138,6 +223,7 @@ def _cached_json_response(
                 headers={
                     "etag": cached.etag,
                     "cache-control": cache_control,
+                    "x-daryeel-doc-id": cached.doc_id,
                 },
             )
         return JSONResponse(
@@ -145,11 +231,14 @@ def _cached_json_response(
             headers={
                 "etag": cached.etag,
                 "cache-control": cache_control,
+                "x-daryeel-doc-id": cached.doc_id,
             },
         )
 
     etag = _strong_etag(payload)
-    value = CacheValue(payload_json=json.dumps(payload), etag=etag)
+    doc_id = _doc_id(payload)
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    value = CacheValue(payload_json=payload_json, etag=etag, doc_id=doc_id)
     _cache.set(cache_key, value, ttl_seconds=ttl_seconds)
 
     if request.headers.get("if-none-match") == etag:
@@ -158,6 +247,7 @@ def _cached_json_response(
             headers={
                 "etag": etag,
                 "cache-control": cache_control,
+                "x-daryeel-doc-id": doc_id,
             },
         )
 
@@ -166,10 +256,9 @@ def _cached_json_response(
         headers={
             "etag": etag,
             "cache-control": cache_control,
+            "x-daryeel-doc-id": doc_id,
         },
     )
-
-
 @app.get("/schemas/bootstrap", response_model=BootstrapResponse)
 def bootstrap(request: Request) -> BootstrapResponse | Response:
     payload = get_bootstrap().model_dump()
@@ -197,6 +286,21 @@ def screen(request: Request, screen_id: str) -> ScreenSchema | Response:
     )
 
 
+@app.get("/schemas/screens/docs/by-id/{doc_id}", response_model=ScreenSchema)
+def screen_by_doc_id(request: Request, doc_id: str) -> ScreenSchema | Response:
+    schema = get_screen_by_doc_id(doc_id)
+    if schema is None:
+        raise HTTPException(status_code=404, detail="Schema not found")
+    payload = schema.model_dump()
+    return _cached_json_response(
+        request=request,
+        cache_key=f"schemas:screen:doc_id:{doc_id}",
+        payload=payload,
+        cache_control="public, max-age=31536000, immutable",
+        ttl_seconds=7 * 24 * 3600,
+    )
+
+
 @app.get("/schemas/fragments/{fragment_id}", response_model=FragmentSchema)
 def fragment(request: Request, fragment_id: str) -> FragmentSchema | Response:
     doc = get_fragment(fragment_id)
@@ -209,6 +313,21 @@ def fragment(request: Request, fragment_id: str) -> FragmentSchema | Response:
         payload=payload,
         cache_control="public, max-age=300, stale-while-revalidate=3600",
         ttl_seconds=3600,
+    )
+
+
+@app.get("/schemas/fragments/docs/by-id/{doc_id}", response_model=FragmentSchema)
+def fragment_by_doc_id(request: Request, doc_id: str) -> FragmentSchema | Response:
+    doc = get_fragment_by_doc_id(doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Fragment not found")
+    payload = doc.model_dump()
+    return _cached_json_response(
+        request=request,
+        cache_key=f"schemas:fragment:doc_id:{doc_id}",
+        payload=payload,
+        cache_control="public, max-age=31536000, immutable",
+        ttl_seconds=7 * 24 * 3600,
     )
 
 
@@ -290,6 +409,20 @@ def theme_document(request: Request, theme_id: str, theme_mode: str) -> ThemeDoc
         payload=payload,
         cache_control="public, max-age=3600, stale-while-revalidate=86400",
         ttl_seconds=86400,
+    )
+
+
+@app.get("/themes/docs/by-id/{doc_id}", response_model=ThemeDocument)
+def theme_document_by_doc_id(request: Request, doc_id: str) -> ThemeDocument | Response:
+    payload = get_theme_by_doc_id(doc_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Theme not found")
+    return _cached_json_response(
+        request=request,
+        cache_key=f"themes:doc:doc_id:{doc_id}",
+        payload=payload,
+        cache_control="public, max-age=31536000, immutable",
+        ttl_seconds=7 * 24 * 3600,
     )
 
 

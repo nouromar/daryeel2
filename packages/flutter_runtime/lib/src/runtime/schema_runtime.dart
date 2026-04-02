@@ -18,7 +18,7 @@ class SchemaRuntime {
   final RuntimeDiagnostics? diagnostics;
   final Map<String, Object?> diagnosticsContext;
 
-  Future<SchemaBundle> load(RuntimeScreenRequest request) async {
+  Future<SchemaRuntimeLoadResult> load(RuntimeScreenRequest request) async {
     SchemaBundle bundle;
     try {
       bundle = await loader.loadScreen(request);
@@ -59,8 +59,11 @@ class SchemaRuntime {
           },
         ),
       );
-      throw UnsupportedError(
-          compatibility.reason ?? 'Unsupported schema bundle');
+      return SchemaRuntimeLoadResult.incompatible(
+        bundle: bundle,
+        incompatibilityReason:
+            compatibility.reason ?? 'Unsupported schema bundle',
+      );
     }
 
     diagnostics?.emit(
@@ -81,6 +84,30 @@ class SchemaRuntime {
       ),
     );
 
-    return bundle;
+    return SchemaRuntimeLoadResult.supported(bundle: bundle);
   }
+}
+
+final class SchemaRuntimeLoadResult {
+  const SchemaRuntimeLoadResult._({
+    required this.isSupported,
+    required this.bundle,
+    required this.incompatibilityReason,
+  });
+
+  const SchemaRuntimeLoadResult.supported({required SchemaBundle bundle})
+      : this._(isSupported: true, bundle: bundle, incompatibilityReason: null);
+
+  const SchemaRuntimeLoadResult.incompatible({
+    required SchemaBundle bundle,
+    required String incompatibilityReason,
+  }) : this._(
+          isSupported: false,
+          bundle: bundle,
+          incompatibilityReason: incompatibilityReason,
+        );
+
+  final bool isSupported;
+  final SchemaBundle bundle;
+  final String? incompatibilityReason;
 }

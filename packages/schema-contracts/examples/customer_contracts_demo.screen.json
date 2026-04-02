@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0",
+  "id": "customer_contracts_demo",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "AddressSection",
+          "props": {
+            "title": "Pickup",
+            "mode": "pickup",
+            "variant": "default"
+          }
+        },
+        {
+          "type": "AddressSection",
+          "props": {
+            "title": "Dropoff",
+            "mode": "dropoff",
+            "variant": "compact"
+          }
+        },
+        {
+          "type": "QuoteSummaryCard",
+          "props": {
+            "variant": "compact",
+            "surface": "raised",
+            "showIcon": true
+          }
+        }
+      ]
+    }
+  }
+}
