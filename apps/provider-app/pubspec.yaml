@@ -1,0 +1,30 @@
+name: provider_app
+description: Daryeel2 provider app shell for the schema-driven runtime.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_runtime:
+    path: ../../packages/flutter_runtime
+  flutter_daryeel_client_app:
+    path: ../../packages/flutter_daryeel_client_app
+  flutter_schema_renderer:
+    path: ../../packages/flutter_schema_renderer
+  flutter_themes:
+    path: ../../packages/flutter_themes
+  http: ^1.5.0
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:customer_app/src/runtime/customer_runtime_controller.dart';
-import 'package:customer_app/src/runtime/customer_runtime_view_model.dart';
+import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,7 +9,7 @@ import 'scenario_server.dart';
 typedef ScenarioArrange = void Function(ScenarioServer server);
 
 typedef ScenarioBuildController =
-    Future<CustomerRuntimeController> Function(
+    Future<DaryeelRuntimeController> Function(
       ScenarioServer server,
       InMemoryDiagnosticsSink sink,
     );
@@ -41,10 +40,10 @@ class ScenarioRun {
 
   final ScenarioServer server;
   final InMemoryDiagnosticsSink sink;
-  final CustomerRuntimeController controller;
+  final DaryeelRuntimeController controller;
   final SharedPreferences prefs;
 
-  Future<CustomerRuntimeViewModel> loadInitialScreen() {
+  Future<DaryeelRuntimeViewModel> loadInitialScreen() {
     return controller.loadInitialScreen();
   }
 }

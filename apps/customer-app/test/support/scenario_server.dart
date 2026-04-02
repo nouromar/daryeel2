@@ -52,13 +52,13 @@ class ScenarioJsonDoc {
 /// requests through the same endpoint shapes as the production loaders.
 ///
 /// Endpoints implemented (GET):
-/// - /config/bootstrap?product=<id>
-/// - /config/snapshots/<snapshotId>
-/// - /schemas/screens/<screenId>
-/// - /schemas/screens/docs/by-id/<docId>
-/// - /schemas/fragments/<fragmentId>
-/// - /themes/<themeId>/<themeMode>
-/// - /themes/docs/by-id/<docId>
+/// - /config/bootstrap?product=`<id>`
+/// - /config/snapshots/`<snapshotId>`
+/// - /schemas/screens/`<screenId>`
+/// - /schemas/screens/docs/by-id/`<docId>`
+/// - /schemas/fragments/`<fragmentId>`
+/// - /themes/`<themeId>`/`<themeMode>`
+/// - /themes/docs/by-id/`<docId>`
 class ScenarioServer {
   ScenarioServer({Uri? baseUri})
     : _baseUri = baseUri ?? Uri.parse('http://scenario.local');

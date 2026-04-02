@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   flutter_runtime:
     path: ../../packages/flutter_runtime
+  flutter_daryeel_client_app:
+    path: ../../packages/flutter_daryeel_client_app
   flutter_schema_renderer:
     path: ../../packages/flutter_schema_renderer
   flutter_themes:

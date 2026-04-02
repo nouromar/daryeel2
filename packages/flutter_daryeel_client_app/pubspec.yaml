@@ -1,0 +1,28 @@
+name: flutter_daryeel_client_app
+description: Reusable schema-driven Flutter client app shell for Daryeel2.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_runtime:
+    path: ../flutter_runtime
+  flutter_schema_renderer:
+    path: ../flutter_schema_renderer
+  flutter_themes:
+    path: ../flutter_themes
+  http: ^1.5.0
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:

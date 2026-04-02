@@ -1,4 +1,4 @@
-import 'package:customer_app/src/app/runtime_inspector_screen.dart';
+import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';

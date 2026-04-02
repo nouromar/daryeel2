@@ -1,9 +1,10 @@
 import 'dart:convert';
 
-import 'package:customer_app/src/runtime/customer_runtime_controller.dart';
-import 'package:customer_app/src/runtime/customer_runtime_view_model.dart';
-import 'package:customer_app/src/schema/pinned_schema_store.dart';
-import 'package:customer_app/src/schema/pinned_theme_store.dart';
+import 'package:customer_app/src/schema/customer_schema_compatibility.dart';
+import 'package:customer_app/src/schema/fallback_fragment_documents.dart';
+import 'package:customer_app/src/schema/fallback_schema_bundle.dart';
+import 'package:customer_app/src/ui/customer_theme.dart';
+import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,8 +105,10 @@ Map<String, Object?> _screenDoc({
     'product': product,
     'themeId': themeId,
     'themeMode': themeMode,
-    if (meta != null) 'meta': meta,
-    if (featureFlags != null) 'featureFlags': featureFlags,
+    ...?((meta == null) ? null : <String, Object?>{'meta': meta}),
+    ...?((featureFlags == null)
+        ? null
+        : <String, Object?>{'featureFlags': featureFlags}),
     'root': <String, Object?>{
       'type': 'ScreenTemplate',
       'slots': <String, Object?>{'body': body},
@@ -150,11 +153,25 @@ List<DiagnosticEvent> _events(InMemoryDiagnosticsSink sink, String eventName) {
   return sink.events.where((e) => e.eventName == eventName).toList();
 }
 
-Future<CustomerRuntimeController> _buildController(
+Future<DaryeelRuntimeController> _buildController(
   ScenarioServer server,
   InMemoryDiagnosticsSink sink,
 ) async {
-  return CustomerRuntimeController(
+  final config = DaryeelRuntimeConfig(
+    appId: 'customer-app',
+    product: 'customer_app',
+    fallbackBundle: fallbackCustomerHomeBundle,
+    fallbackFragmentDocuments: fallbackFragmentDocuments,
+    resolveLocalTheme: resolveCustomerTheme,
+    resolveThemeMode: resolveThemeMode,
+    defaultThemeId: 'customer-default',
+    defaultThemeMode: 'light',
+    buildCompatibilityChecker: (overlay) =>
+        CustomerSchemaCompatibilityChecker(overlay: overlay),
+  );
+
+  return DaryeelRuntimeController(
+    config: config,
     schemaBaseUrl: server.baseUrl,
     httpClient: server.client,
     diagnosticsSinkOverride: sink,

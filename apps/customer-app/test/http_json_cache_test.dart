@@ -1,10 +1,9 @@
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:customer_app/src/cache/http_json_cache.dart';
 
 void main() {
   testWidgets('HttpJsonCache ignores corrupt JSON and fetches network', (
