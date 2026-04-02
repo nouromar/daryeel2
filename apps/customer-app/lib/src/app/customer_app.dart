@@ -16,6 +16,7 @@ import '../telemetry/http_remote_diagnostics_transport.dart';
 import '../actions/diagnostics_submit_form_handler.dart';
 import '../actions/diagnostics_track_event_handler.dart';
 import '../actions/url_launcher_open_url_handler.dart';
+import 'runtime_inspector_screen.dart';
 import '../ui/customer_component_registry.dart';
 import '../ui/customer_theme.dart';
 import '../cache/http_json_cache.dart';
@@ -71,6 +72,12 @@ class _CustomerAppState extends State<CustomerApp> {
 
   late RuntimeDiagnostics _diagnostics;
 
+  // Debug-only: keep a small in-memory buffer of recent diagnostics so QA can
+  // screenshot exact runtime state.
+  late final InMemoryDiagnosticsSink? _inMemoryDiagnosticsSink = kDebugMode
+      ? InMemoryDiagnosticsSink(maxEvents: 200)
+      : null;
+
   late final SchemaFormStore _formStore = SchemaFormStore();
 
   @override
@@ -84,6 +91,10 @@ class _CustomerAppState extends State<CustomerApp> {
     required bool enableRemoteIngest,
   }) {
     final sinks = <DiagnosticsSink>[];
+    final inMemory = _inMemoryDiagnosticsSink;
+    if (inMemory != null) {
+      sinks.add(inMemory);
+    }
     if (kDebugMode) {
       sinks.add(const DebugPrintDiagnosticsSink(includePayload: true));
     }
@@ -540,6 +551,27 @@ class _CustomerAppState extends State<CustomerApp> {
           ),
         );
 
+        final routes = <String, WidgetBuilder>{
+          'schema.service': (context) =>
+              _SchemaServiceScreen(baseUrl: widget.schemaBaseUrl),
+          if (kDebugMode)
+            'debug.inspector': (context) => RuntimeInspectorScreen(
+              configSnapshotId: loadedScreen.configSnapshotId,
+              schemaDocId: loadedScreen.bundle.docId,
+              schemaSource: switch (loadedScreen.source) {
+                ScreenLoadSource.remote => SchemaLadderSource.selector,
+                ScreenLoadSource.bundled => SchemaLadderSource.bundled,
+                ScreenLoadSource.fallback => SchemaLadderSource.bundledFallback,
+              }.wireValue,
+              themeDocId: null,
+              themeSource: ThemeLadderSource.local.wireValue,
+              diagnostics:
+                  (_inMemoryDiagnosticsSink?.events ??
+                          const <DiagnosticEvent>[])
+                      .toList(growable: false),
+            ),
+        };
+
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: resolveCustomerTheme(loadedScreen.bundle.document),
@@ -548,10 +580,7 @@ class _CustomerAppState extends State<CustomerApp> {
             overrideMode: 'dark',
           ),
           themeMode: resolveThemeMode(loadedScreen.bundle.document),
-          routes: {
-            'schema.service': (context) =>
-                _SchemaServiceScreen(baseUrl: widget.schemaBaseUrl),
-          },
+          routes: routes,
           home: Scaffold(
             appBar: AppBar(title: const Text('Daryeel2 Customer')),
             body: Column(

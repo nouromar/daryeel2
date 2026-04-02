@@ -69,8 +69,12 @@ class HttpJsonCache {
 
   String _etagKey(String cacheKey) => 'http_cache.$cacheKey.etag';
   String _bodyKey(String cacheKey) => 'http_cache.$cacheKey.body_json';
-  String _headerKey(String cacheKey, String headerName) =>
-      'http_cache.$cacheKey.header.$headerName';
+  String _headerKey(String cacheKey, String headerName) {
+    // HTTP header names are case-insensitive. Normalize to lowercase so callers
+    // can request headers using any casing without breaking cache reads.
+    final normalized = headerName.toLowerCase();
+    return 'http_cache.$cacheKey.header.$normalized';
+  }
 
   void _emitCorruptEntryDiagnostic({
     required String cacheKey,
@@ -132,7 +136,17 @@ class HttpJsonCache {
   String? readEtag(String cacheKey) => _prefs.getString(_etagKey(cacheKey));
 
   String? readHeader(String cacheKey, String headerName) {
-    return _prefs.getString(_headerKey(cacheKey, headerName));
+    if (headerName.isEmpty) return null;
+    // Prefer normalized key.
+    final normalized = headerName.toLowerCase();
+    final normalizedValue = _prefs.getString(_headerKey(cacheKey, normalized));
+    if (normalizedValue != null && normalizedValue.isNotEmpty) {
+      return normalizedValue;
+    }
+
+    // Backwards-compatible: try legacy storage using the raw header name.
+    final legacy = _prefs.getString('http_cache.$cacheKey.header.$headerName');
+    return (legacy != null && legacy.isNotEmpty) ? legacy : null;
   }
 
   Map<String, String> readHeaders(String cacheKey, Set<String> headerNames) {
@@ -281,9 +295,9 @@ class HttpJsonCache {
         ? const <String, String>{}
         : <String, String>{
             for (final name in cacheResponseHeaders)
-              if (response.headers[name] != null &&
-                  response.headers[name]!.isNotEmpty)
-                name: response.headers[name]!,
+              if (response.headers[name.toLowerCase()] != null &&
+                  response.headers[name.toLowerCase()]!.isNotEmpty)
+                name.toLowerCase(): response.headers[name.toLowerCase()]!,
           };
 
     await write(

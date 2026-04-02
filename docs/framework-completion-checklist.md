@@ -46,14 +46,14 @@ Targets:
 - `Daryeel2/services/schema-service/` (optional server-side validation)
 
 Checklist:
-- [ ] Add a single “validate all schema fixtures” command (Dart or Python), deterministic.
+- [x] Add a single “validate all schema fixtures” command (Dart or Python), deterministic.
   - Current: `cd Daryeel2/services/schema-service && . .venv/bin/activate && python -m app.validate_all`
-- [ ] Validate:
+- [x] Validate:
   - schema format v1
   - contracts compliance (props/slots/actions)
   - ref resolution is acyclic and all refs exist
   - size budgets (nodes/doc size/ref depth)
-- [ ] Produce human-readable output (which file, which rule, where).
+- [x] Produce human-readable output (which file, which rule, where).
 
 Acceptance:
 - One command validates all fixtures and returns non-zero on error.
@@ -157,11 +157,11 @@ Targets:
 - `Daryeel2/docs/caching-framework.md`
 
 Checklist:
-- [ ] For bootstrap endpoints, tests assert:
+- [x] For bootstrap endpoints, tests assert:
   - `ETag` present
   - supports `If-None-Match` → `304`
   - short TTL cache-control
-- [ ] For immutable-by-id endpoints (config snapshots today), tests assert:
+- [x] For immutable-by-id endpoints (config snapshots today), tests assert:
   - long TTL + `immutable`
 
 Acceptance:
@@ -174,11 +174,11 @@ Targets:
 - `Daryeel2/docs/caching-framework.md`
 
 Checklist:
-- [ ] Introduce versioned/immutable IDs for:
+- [x] Introduce versioned/immutable IDs for:
   - screens
   - fragments
   - themes
-- [ ] Keep current URLs as selectors that map to immutable IDs.
+- [x] Keep current URLs as selectors that map to immutable IDs.
 - [ ] Add rollback workflow: “change mapping” without client release.
 
 Acceptance:
@@ -189,8 +189,8 @@ Targets:
 - `Daryeel2/services/schema-service/app/main.py`
 
 Checklist:
-- [ ] Add dev-only endpoint for “current mappings for product X”.
-- [ ] Add dev-only endpoint for “recent validation/serving errors”.
+- [x] Add dev-only endpoint for “current mappings for product X”.
+- [x] Add dev-only endpoint for “recent validation/serving errors”.
 
 Acceptance:
 - Support can quickly answer: what did we serve?
@@ -289,7 +289,7 @@ Targets:
 - `Daryeel2/apps/customer-app/lib/src/cache/http_json_cache.dart`
 
 Checklist:
-- [ ] Add tests for:
+- [x] Add tests for:
   - cached body + `304` reuse
   - corrupt JSON ignored safely
   - cache key stability
@@ -310,9 +310,9 @@ Acceptance:
 
 ## “Framework complete” exit checklist
 
-- [ ] A schema-authored form flow works end-to-end in the customer app.
+- [x] A schema-authored form flow works end-to-end in the customer app.
 - [ ] Schema/theme/config can be updated and rolled back without app release.
 - [ ] Runtime never crashes on invalid remote input; always falls back safely.
 - [ ] There is a debug inspector and a practical on-call playbook.
 - [ ] Validation/linting is automated and CI-ready.
-- [ ] Performance budgets exist and are enforced.
+- [x] Performance budgets exist and are enforced.
