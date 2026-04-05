@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0",
+  "id": "customer_request_home_visit",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Home Visit",
+            "subtitle": "Request a clinician home visit",
+            "surface": "raised"
+          }
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Address",
+            "hint": "Where should we visit?",
+            "testId": "address"
+          },
+          "bind": "home_visit_request.address"
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Reason",
+            "hint": "Tell us what you need help with",
+            "testId": "reason"
+          },
+          "bind": "home_visit_request.reason"
+        }
+      ],
+      "footer": [
+        {
+          "type": "PrimaryActionBar",
+          "props": {
+            "primaryLabel": "Submit request",
+            "tone": "brand",
+            "size": "large"
+          },
+          "actions": { "primary": "submit" }
+        }
+      ]
+    }
+  },
+  "actions": {
+    "submit": { "type": "submit_form", "formId": "home_visit_request" }
+  }
+}

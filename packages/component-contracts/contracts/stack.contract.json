@@ -1,0 +1,39 @@
+{
+  "name": "Stack",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "alignment": "enum",
+    "fit": "enum",
+    "clipBehavior": "enum"
+  },
+  "defaults": {
+    "alignment": "center",
+    "fit": "loose",
+    "clipBehavior": "hardEdge"
+  },
+  "styleContract": {
+    "alignment": [
+      "topLeft",
+      "topCenter",
+      "topRight",
+      "centerLeft",
+      "center",
+      "centerRight",
+      "bottomLeft",
+      "bottomCenter",
+      "bottomRight"
+    ],
+    "fit": ["loose", "expand", "passthrough"],
+    "clipBehavior": [
+      "none",
+      "hardEdge",
+      "antiAlias",
+      "antiAliasWithSaveLayer"
+    ]
+  },
+  "slots": ["children"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

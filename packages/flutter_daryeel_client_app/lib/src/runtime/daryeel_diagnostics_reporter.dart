@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -33,7 +32,11 @@ class DaryeelDiagnosticsReporter {
   late final String sessionId = randomHexId(16);
 
   /// Correlates all diagnostics emitted during a single screen load.
-  late final String screenLoadId = randomHexId(12);
+  String screenLoadId = randomHexId(12);
+
+  void beginNewScreenLoad() {
+    screenLoadId = randomHexId(12);
+  }
 
   String? activeConfigSnapshotId;
 

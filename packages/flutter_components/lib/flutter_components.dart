@@ -1,5 +1,20 @@
-library flutter_components;
-
+export 'src/widgets/action_card_widget.dart';
+export 'src/widgets/catalog_item_tile_widget.dart';
 export 'src/widgets/info_card_widget.dart';
 export 'src/widgets/primary_action_bar_widget.dart';
 export 'src/widgets/screen_template_widget.dart';
+
+export 'src/schema_components/schema_component_context.dart';
+export 'src/schema_components/action_card_schema_component.dart';
+export 'src/schema_components/bottom_tabs_schema_component.dart';
+export 'src/schema_components/bound_action_card_schema_component.dart';
+export 'src/schema_components/catalog_item_tile_schema_component.dart';
+export 'src/schema_components/for_each_schema_component.dart';
+export 'src/schema_components/gap_schema_component.dart';
+export 'src/schema_components/info_card_schema_component.dart';
+export 'src/schema_components/layout_schema_components.dart';
+export 'src/schema_components/primary_action_bar_schema_component.dart';
+export 'src/schema_components/remote_query_schema_component.dart';
+export 'src/schema_components/remote_paged_list_schema_component.dart';
+export 'src/schema_components/screen_template_schema_component.dart';
+export 'src/schema_components/text_input_schema_component.dart';

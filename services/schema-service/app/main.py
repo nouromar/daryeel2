@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from starlette.responses import JSONResponse, Response
 
 from app.cache import CacheValue, build_cache_backend
+from app.budgets import DEFAULT_DIAGNOSTICS_BUDGETS_PER_SESSION
 from app.component_contracts_registry import component_contracts_payload
 from app.config_registry import current_snapshot_id_for_product, get_snapshot
 from app.registry import (
@@ -58,12 +59,9 @@ _recent_errors: deque[dict[str, object]] = deque(maxlen=200)
 _diagnostics_ingestor = DiagnosticsIngestor(
     # In prod you may want debug=0; keep defaults aligned with the diagnostics spec.
     budgets_per_session={
+        **DEFAULT_DIAGNOSTICS_BUDGETS_PER_SESSION,
         "debug": 0 if settings.app_env != "development" else 100,
-        "info": 30,
-        "warn": 50,
-        "error": None,
-        "fatal": None,
-    }
+    },
 )
 
 
@@ -262,9 +260,10 @@ def _cached_json_response(
 @app.get("/schemas/bootstrap", response_model=BootstrapResponse)
 def bootstrap(request: Request) -> BootstrapResponse | Response:
     payload = get_bootstrap().model_dump()
+    doc_id = _doc_id(payload)
     return _cached_json_response(
         request=request,
-        cache_key="schemas:bootstrap",
+        cache_key=f"schemas:bootstrap:{doc_id}",
         payload=payload,
         cache_control="public, max-age=60, stale-while-revalidate=300",
         ttl_seconds=300,
@@ -277,9 +276,10 @@ def screen(request: Request, screen_id: str) -> ScreenSchema | Response:
     if schema is None:
         raise HTTPException(status_code=404, detail="Schema not found")
     payload = schema.model_dump()
+    doc_id = _doc_id(payload)
     return _cached_json_response(
         request=request,
-        cache_key=f"schemas:screen:{screen_id}",
+        cache_key=f"schemas:screen:{screen_id}:{doc_id}",
         payload=payload,
         cache_control="public, max-age=300, stale-while-revalidate=3600",
         ttl_seconds=3600,
@@ -307,9 +307,10 @@ def fragment(request: Request, fragment_id: str) -> FragmentSchema | Response:
     if doc is None:
         raise HTTPException(status_code=404, detail="Fragment not found")
     payload = doc.model_dump()
+    doc_id = _doc_id(payload)
     return _cached_json_response(
         request=request,
-        cache_key=f"schemas:fragment:{fragment_id}",
+        cache_key=f"schemas:fragment:{fragment_id}:{doc_id}",
         payload=payload,
         cache_control="public, max-age=300, stale-while-revalidate=3600",
         ttl_seconds=3600,
@@ -358,9 +359,10 @@ def config_bootstrap(request: Request, product: str) -> ProductBootstrapResponse
     )
 
     payload = bootstrap.model_dump()
+    doc_id = _doc_id(payload)
     return _cached_json_response(
         request=request,
-        cache_key=f"config:bootstrap:product={product}",
+        cache_key=f"config:bootstrap:product={product}:{doc_id}",
         payload=payload,
         cache_control="public, max-age=60, stale-while-revalidate=300",
         ttl_seconds=300,
@@ -388,9 +390,10 @@ def config_snapshot(request: Request, snapshot_id: str) -> ConfigSnapshotRespons
 @app.get("/themes/catalog", response_model=ThemeCatalogResponse)
 def themes_catalog(request: Request) -> ThemeCatalogResponse | Response:
     payload = ThemeCatalogResponse(themes=list_theme_paths()).model_dump()
+    doc_id = _doc_id(payload)
     return _cached_json_response(
         request=request,
-        cache_key="themes:catalog",
+        cache_key=f"themes:catalog:{doc_id}",
         payload=payload,
         cache_control="public, max-age=60, stale-while-revalidate=300",
         ttl_seconds=300,
@@ -403,9 +406,10 @@ def theme_document(request: Request, theme_id: str, theme_mode: str) -> ThemeDoc
     if theme_path is None:
         raise HTTPException(status_code=404, detail="Theme not found")
     payload = ThemeDocument.model_validate(load_theme_document(theme_path)).model_dump()
+    doc_id = _doc_id(payload)
     return _cached_json_response(
         request=request,
-        cache_key=f"themes:doc:{theme_id}:{theme_mode}",
+        cache_key=f"themes:doc:{theme_id}:{theme_mode}:{doc_id}",
         payload=payload,
         cache_control="public, max-age=3600, stale-while-revalidate=86400",
         ttl_seconds=86400,

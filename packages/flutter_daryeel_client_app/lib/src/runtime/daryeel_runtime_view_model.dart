@@ -7,6 +7,9 @@ class LoadedScreen {
   const LoadedScreen({
     required this.bundle,
     required this.source,
+    this.bootstrapVersion,
+    this.bootstrapProduct,
+    this.bootstrapConfigSnapshotId,
     this.schemaLadderSource,
     this.schemaLadderReason,
     this.errorMessage,
@@ -18,6 +21,8 @@ class LoadedScreen {
     required this.theme,
     required this.darkTheme,
     required this.themeMode,
+    this.resolvedThemeId,
+    this.resolvedThemeMode,
     this.usedRemoteTheme = false,
     this.themeSource,
     this.themeDocId,
@@ -25,6 +30,11 @@ class LoadedScreen {
 
   final SchemaBundle bundle;
   final ScreenLoadSource source;
+
+  /// Bootstrapped metadata (if available).
+  final int? bootstrapVersion;
+  final String? bootstrapProduct;
+  final String? bootstrapConfigSnapshotId;
   final SchemaLadderSource? schemaLadderSource;
   final SchemaLadderReason? schemaLadderReason;
   final String? errorMessage;
@@ -37,6 +47,12 @@ class LoadedScreen {
   final ThemeData theme;
   final ThemeData darkTheme;
   final ThemeMode themeMode;
+
+  /// The effective theme identifier/mode used by the runtime.
+  ///
+  /// Note: theme rendering can still fall back to local themes.
+  final String? resolvedThemeId;
+  final String? resolvedThemeMode;
   final bool usedRemoteTheme;
   final ThemeLadderSource? themeSource;
   final String? themeDocId;
@@ -48,6 +64,9 @@ class LoadedScreen {
     return LoadedScreen(
       bundle: bundle,
       source: source,
+      bootstrapVersion: bootstrapVersion,
+      bootstrapProduct: bootstrapProduct,
+      bootstrapConfigSnapshotId: bootstrapConfigSnapshotId,
       schemaLadderSource: schemaLadderSource ?? this.schemaLadderSource,
       schemaLadderReason: schemaLadderReason ?? this.schemaLadderReason,
       errorMessage: errorMessage,
@@ -59,6 +78,8 @@ class LoadedScreen {
       theme: theme,
       darkTheme: darkTheme,
       themeMode: themeMode,
+      resolvedThemeId: resolvedThemeId,
+      resolvedThemeMode: resolvedThemeMode,
       usedRemoteTheme: usedRemoteTheme,
       themeSource: themeSource,
       themeDocId: themeDocId,

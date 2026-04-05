@@ -5,7 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from app.validate_all import COMPONENT_CONTRACTS_DIR, MAX_FRAGMENTS_PER_SCREEN, MAX_REF_DEPTH, SCHEMA_EXAMPLES_DIR, validate_examples
+from app.validate_all import (
+    COMPONENT_CONTRACTS_DIR,
+    CUSTOMER_FRAGMENTS_DIR,
+    CUSTOMER_SCREENS_DIR,
+    MAX_FRAGMENTS_PER_SCREEN,
+    MAX_REF_DEPTH,
+    SCHEMA_EXAMPLES_DIR,
+    validate_examples,
+)
 
 
 def test_validate_examples_ok() -> None:
@@ -21,15 +29,33 @@ def test_unknown_prop_is_reported(tmp_path: Path) -> None:
     examples_dir = tmp_path / "examples"
     examples_dir.mkdir(parents=True)
 
-    screen_path = SCHEMA_EXAMPLES_DIR / "customer_home.screen.json"
-    fragment_path = SCHEMA_EXAMPLES_DIR / "customer_welcome.fragment.json"
+    screen_path = CUSTOMER_SCREENS_DIR / "customer_home.screen.json"
+    fragment_path = CUSTOMER_FRAGMENTS_DIR / "customer_welcome.fragment.json"
 
     screen_doc = json.loads(screen_path.read_text())
     fragment_doc = json.loads(fragment_path.read_text())
 
-    # Find the first InfoCard and add an unknown prop.
-    body = screen_doc["root"]["slots"]["body"]
-    info_card = next(n for n in body if n.get("type") == "InfoCard")
+    def iter_component_nodes(node: object):
+        if not isinstance(node, dict):
+            return
+
+        if "ref" in node:
+            return
+
+        if "type" in node:
+            yield node
+            slots = node.get("slots")
+            if isinstance(slots, dict):
+                for children in slots.values():
+                    if isinstance(children, list):
+                        for child in children:
+                            yield from iter_component_nodes(child)
+
+    root = screen_doc.get("root")
+    assert isinstance(root, dict)
+
+    # Find the first InfoCard (anywhere) and add an unknown prop.
+    info_card = next(n for n in iter_component_nodes(root) if n.get("type") == "InfoCard")
     info_card.setdefault("props", {})["unknownProp"] = "nope"
 
     (examples_dir / screen_path.name).write_text(json.dumps(screen_doc))

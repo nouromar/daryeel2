@@ -1,0 +1,21 @@
+{
+  "name": "CatalogItemTile",
+  "category": "commerce",
+  "version": "1.0",
+  "propsSchema": {
+    "titlePath": "string",
+    "subtitlePath": "string",
+    "rxRequiredPath": "string",
+    "surface": "enum"
+  },
+  "defaults": {
+    "surface": "flat"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"]
+  },
+  "slots": [],
+  "events": ["tap", "add"],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

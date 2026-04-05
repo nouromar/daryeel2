@@ -33,6 +33,7 @@ class DaryeelThemeLoader {
     required this.baseUrl,
     required this.product,
     required this.pinnedStore,
+    this.enablePinning = true,
     http.Client? client,
     this.cache,
     this.headersProvider,
@@ -41,6 +42,7 @@ class DaryeelThemeLoader {
   final String baseUrl;
   final String product;
   final PinnedThemeStore pinnedStore;
+  final bool enablePinning;
   final http.Client _client;
   final HttpJsonCache? cache;
   final RequestHeadersProvider? headersProvider;
@@ -81,11 +83,13 @@ class DaryeelThemeLoader {
       }
     }
 
-    final pinnedDocId = pinnedStore.readPinnedDocId(
-      product: product,
-      themeId: themeId,
-      themeMode: themeMode,
-    );
+    final pinnedDocId = enablePinning
+        ? pinnedStore.readPinnedDocId(
+            product: product,
+            themeId: themeId,
+            themeMode: themeMode,
+          )
+        : null;
 
     if (pinnedDocId != null) {
       try {
@@ -222,7 +226,7 @@ class DaryeelThemeLoader {
     }
 
     // Promote to pinned only after successfully building ThemeData.
-    if (selectorDocId != null && selectorDocId.isNotEmpty) {
+    if (enablePinning && selectorDocId != null && selectorDocId.isNotEmpty) {
       await pinnedStore.writePinnedDocId(
         product: product,
         themeId: themeId,

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0",
+  "id": "customer_request_ambulance",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Ambulance",
+            "subtitle": "Request an ambulance",
+            "surface": "raised"
+          }
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Pickup location",
+            "hint": "Where should we pick you up?",
+            "testId": "pickup"
+          },
+          "bind": "ambulance_request.pickup"
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Notes",
+            "hint": "Any details to share?",
+            "testId": "notes"
+          },
+          "bind": "ambulance_request.notes"
+        }
+      ],
+      "footer": [
+        {
+          "type": "PrimaryActionBar",
+          "props": {
+            "primaryLabel": "Submit request",
+            "tone": "brand",
+            "size": "large"
+          },
+          "actions": { "primary": "submit" }
+        }
+      ]
+    }
+  },
+  "actions": {
+    "submit": { "type": "submit_form", "formId": "ambulance_request" }
+  }
+}

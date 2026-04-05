@@ -15,6 +15,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
 # Copy only what the service needs at runtime.
 COPY services/schema-service/app ./app
 COPY packages ../../packages
+COPY apps/customer-app/schemas ../../apps/customer-app/schemas
 
 EXPOSE 8011
 

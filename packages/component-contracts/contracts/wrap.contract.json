@@ -1,0 +1,45 @@
+{
+  "name": "Wrap",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "direction": "enum",
+    "alignment": "enum",
+    "runAlignment": "enum",
+    "crossAxisAlignment": "enum",
+    "spacing": "number",
+    "runSpacing": "number"
+  },
+  "defaults": {
+    "direction": "horizontal",
+    "alignment": "start",
+    "runAlignment": "start",
+    "crossAxisAlignment": "start",
+    "spacing": 0,
+    "runSpacing": 0
+  },
+  "styleContract": {
+    "direction": ["horizontal", "vertical"],
+    "alignment": [
+      "start",
+      "center",
+      "end",
+      "spaceBetween",
+      "spaceAround",
+      "spaceEvenly"
+    ],
+    "runAlignment": [
+      "start",
+      "center",
+      "end",
+      "spaceBetween",
+      "spaceAround",
+      "spaceEvenly"
+    ],
+    "crossAxisAlignment": ["start", "center", "end"]
+  },
+  "slots": ["children"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

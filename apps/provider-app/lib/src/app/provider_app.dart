@@ -12,9 +12,13 @@ class ProviderApp extends StatefulWidget {
   const ProviderApp({
     super.key,
     this.schemaBaseUrl = const String.fromEnvironment('SCHEMA_BASE_URL'),
+    this.configBaseUrl = const String.fromEnvironment('CONFIG_BASE_URL'),
+    this.apiBaseUrl = const String.fromEnvironment('API_BASE_URL'),
   });
 
   final String schemaBaseUrl;
+  final String configBaseUrl;
+  final String apiBaseUrl;
 
   @override
   State<ProviderApp> createState() => _ProviderAppState();
@@ -25,6 +29,8 @@ class _ProviderAppState extends State<ProviderApp> {
   Widget build(BuildContext context) {
     return DaryeelClientAppShell(
       schemaBaseUrl: widget.schemaBaseUrl,
+      configBaseUrl: widget.configBaseUrl,
+      apiBaseUrl: widget.apiBaseUrl,
       config: DaryeelClientAppConfig(
         runtime: DaryeelRuntimeConfig(
           appId: 'provider-app',

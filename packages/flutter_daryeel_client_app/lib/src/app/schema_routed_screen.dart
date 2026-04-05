@@ -1,0 +1,251 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_runtime/flutter_runtime.dart';
+import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
+
+import '../runtime/daryeel_runtime_session.dart';
+import '../runtime/daryeel_runtime_view_model.dart';
+import 'runtime_inspector_screen.dart';
+import 'runtime_session_scope.dart';
+
+class SchemaRoutedScreen extends StatefulWidget {
+  const SchemaRoutedScreen({
+    required this.screenId,
+    this.service,
+    this.title,
+    super.key,
+  });
+
+  final String screenId;
+  final String? service;
+  final String? title;
+
+  @override
+  State<SchemaRoutedScreen> createState() => _SchemaRoutedScreenState();
+}
+
+class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
+  late final SchemaFormStore _formStore = SchemaFormStore();
+
+  DaryeelRuntimeSession? _session;
+  late Future<DaryeelRuntimeViewModel> _future;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = RuntimeSessionScope.of(context);
+    if (!identical(_session, next)) {
+      _session = next;
+      if (next.schemaBaseUrl.isNotEmpty) {
+        _future = _load(next);
+      }
+    }
+  }
+
+  Future<DaryeelRuntimeViewModel> _load(DaryeelRuntimeSession session) {
+    return session.loadScreen(
+      screenId: widget.screenId,
+      service: widget.service,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant SchemaRoutedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.screenId != widget.screenId ||
+        oldWidget.service != widget.service) {
+      final session = _session;
+      if (session != null && session.schemaBaseUrl.isNotEmpty) {
+        _future = _load(session);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _formStore.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = _session ?? RuntimeSessionScope.of(context);
+    final title = widget.title ?? widget.screenId;
+
+    Widget inspectorTitle({LoadedScreen? loaded}) {
+      if (!kDebugMode || loaded == null) return Text(title);
+
+      String schemaSourceWireValue(LoadedScreen loadedScreen) {
+        return (loadedScreen.schemaLadderSource ??
+                switch (loadedScreen.source) {
+                  ScreenLoadSource.remote => SchemaLadderSource.selector,
+                  ScreenLoadSource.bundled => SchemaLadderSource.bundled,
+                  ScreenLoadSource.fallback =>
+                    SchemaLadderSource.bundledFallback,
+                })
+            .wireValue;
+      }
+
+      String themeSourceWireValue(LoadedScreen loadedScreen) {
+        return (loadedScreen.themeSource ?? ThemeLadderSource.local).wireValue;
+      }
+
+      return InkWell(
+        onLongPress: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => RuntimeInspectorScreen(
+                schemaBaseUrl: session.schemaBaseUrl,
+                configBaseUrl: session.configBaseUrl,
+                apiBaseUrl: session.apiBaseUrl,
+                bootstrapVersion: loaded.bootstrapVersion,
+                bootstrapProduct: loaded.bootstrapProduct,
+                bootstrapConfigSnapshotId: loaded.bootstrapConfigSnapshotId,
+                configSnapshotId: loaded.configSnapshotId,
+                schemaBundleId: loaded.bundle.schemaId,
+                schemaBundleVersion: loaded.bundle.schemaVersion,
+                schemaDocId: loaded.bundle.docId,
+                schemaSource: schemaSourceWireValue(loaded),
+                schemaDocument: loaded.bundle.document,
+                parseErrors: loaded.parseErrors,
+                refErrors: loaded.refErrors,
+                themeId: loaded.resolvedThemeId,
+                themeMode: loaded.resolvedThemeMode,
+                themeDocId: loaded.themeDocId,
+                themeSource: themeSourceWireValue(loaded),
+                diagnostics:
+                    (session.inMemoryDiagnosticsSink?.events ??
+                            const <DiagnosticEvent>[])
+                        .toList(growable: false),
+              ),
+            ),
+          );
+        },
+        child: Text(title),
+      );
+    }
+
+    if (session.schemaBaseUrl.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: inspectorTitle()),
+        body: const Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Schema base URL is not configured.\n'
+            'Set SCHEMA_BASE_URL (or CONFIG_BASE_URL) to load routed screens from the backend.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    return FutureBuilder<DaryeelRuntimeViewModel>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Scaffold(
+            appBar: AppBar(title: inspectorTitle()),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(title: inspectorTitle()),
+            body: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Unable to load screen: ${widget.screenId}\n${snapshot.error}',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        final vm = snapshot.data!;
+        final loaded = vm.screen;
+
+        session.queryStore.configure(
+          diagnostics: vm.diagnostics,
+          diagnosticsContext: <String, Object?>{
+            ...vm.rendererDiagnosticsContext,
+            'screenLoad': <String, Object?>{
+              'id': session.diagnosticsReporter.screenLoadId,
+            },
+          },
+          defaultHeadersProvider: () =>
+              session.diagnosticsReporter.buildCorrelationHeaders(
+                schemaVersion:
+                    '${loaded.bundle.schemaId}@${loaded.bundle.schemaVersion}',
+                configSnapshotId: loaded.configSnapshotId,
+              ),
+        );
+
+        if (loaded.schema == null) {
+          final errors = loaded.parseErrors.map((e) => e.toString()).join('\n');
+          return Scaffold(
+            appBar: AppBar(title: inspectorTitle(loaded: loaded)),
+            body: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Schema parse failed:\n$errors',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        final renderer = SchemaRenderer(
+          rootNode: loaded.schema!.root,
+          registry: session.appConfig.buildRegistry(
+            screen: loaded.schema!,
+            actionDispatcher: vm.actionDispatcher,
+            visibility: vm.visibility,
+            diagnostics: vm.diagnostics,
+            diagnosticsContext: vm.rendererDiagnosticsContext,
+          ),
+        );
+
+        final schemaIdentity =
+            loaded.bundle.docId ?? loaded.bundle.schemaVersion;
+        final schemaTreeKey = ValueKey<String>(
+          'schema:${loaded.bundle.schemaId}:$schemaIdentity',
+        );
+
+        return KeyedSubtree(
+          key: schemaTreeKey,
+          child: Theme(
+            data: loaded.theme,
+            child: Scaffold(
+              appBar: AppBar(title: inspectorTitle(loaded: loaded)),
+              body: SchemaRouteScope(
+                params: _coerceRouteParams(
+                  ModalRoute.of(context)?.settings.arguments,
+                ),
+                child: SchemaStateScopeHost(
+                  child: SchemaFormScope(
+                    store: _formStore,
+                    child: renderer.render(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+Map<String, Object?> _coerceRouteParams(Object? raw) {
+  if (raw is Map<String, Object?>) return raw;
+  if (raw is Map) {
+    final out = <String, Object?>{};
+    for (final entry in raw.entries) {
+      if (entry.key is! String) continue;
+      out[entry.key as String] = entry.value;
+    }
+    return out;
+  }
+  return const <String, Object?>{};
+}

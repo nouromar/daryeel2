@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_components:
+    path: ../../packages/flutter_components
   flutter_runtime:
     path: ../../packages/flutter_runtime
   flutter_daryeel_client_app:

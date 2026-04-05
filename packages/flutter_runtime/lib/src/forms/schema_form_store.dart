@@ -11,12 +11,28 @@ class SchemaFormStore extends ChangeNotifier {
     this.maxStringLength = 4 * 1024,
     this.maxEnumValues = 200,
     this.maxPatternLength = 512,
+    this.maxJsonDepth = 8,
+    this.maxJsonNodes = 800,
+    this.maxJsonEntriesPerMap = 80,
+    this.maxJsonItemsPerList = 200,
+    this.maxJsonKeyLength = 80,
   });
 
   final int maxFieldsPerForm;
   final int maxStringLength;
   final int maxEnumValues;
   final int maxPatternLength;
+
+  /// Budgets for structured JSON-like values stored in form state.
+  ///
+  /// These enable schema components to bind richer values (e.g. locations)
+  /// while preventing untrusted schemas from pushing arbitrarily large
+  /// structures into memory.
+  final int maxJsonDepth;
+  final int maxJsonNodes;
+  final int maxJsonEntriesPerMap;
+  final int maxJsonItemsPerList;
+  final int maxJsonKeyLength;
 
   final Map<String, _SchemaFormState> _forms = <String, _SchemaFormState>{};
 
@@ -238,7 +254,106 @@ class SchemaFormStore extends ChangeNotifier {
 
     if (value is num || value is bool) return value;
 
-    // Fail-closed: only allow primitives into form state for now.
+    // Allow bounded JSON-like values (decoded Maps/Lists + primitives).
+    if (value is Map || value is List) {
+      final sanitizer = _JsonLikeSanitizer(
+        maxDepth: maxJsonDepth,
+        maxNodes: maxJsonNodes,
+        maxEntriesPerMap: maxJsonEntriesPerMap,
+        maxItemsPerList: maxJsonItemsPerList,
+        maxKeyLength: maxJsonKeyLength,
+        maxStringLength: maxStringLength,
+      );
+      final out = sanitizer.sanitize(value);
+      if (out != null) return out;
+    }
+
+    // Fail-closed: do not accept arbitrary objects into form state.
+    return value.toString();
+  }
+}
+
+final class _JsonLikeSanitizer {
+  _JsonLikeSanitizer({
+    required this.maxDepth,
+    required this.maxNodes,
+    required this.maxEntriesPerMap,
+    required this.maxItemsPerList,
+    required this.maxKeyLength,
+    required this.maxStringLength,
+  }) : _remainingNodes = maxNodes;
+
+  final int maxDepth;
+  final int maxNodes;
+  final int maxEntriesPerMap;
+  final int maxItemsPerList;
+  final int maxKeyLength;
+  final int maxStringLength;
+
+  int _remainingNodes;
+
+  Object? sanitize(Object? value) => _sanitize(value, depth: 0);
+
+  Object? _sanitize(Object? value, {required int depth}) {
+    if (_remainingNodes <= 0) return null;
+    if (depth > maxDepth) return null;
+
+    if (value == null) {
+      _remainingNodes -= 1;
+      return null;
+    }
+
+    if (value is String) {
+      _remainingNodes -= 1;
+      if (value.length <= maxStringLength) return value;
+      return value.substring(0, maxStringLength);
+    }
+
+    if (value is num || value is bool) {
+      _remainingNodes -= 1;
+      return value;
+    }
+
+    if (value is List) {
+      _remainingNodes -= 1;
+      final out = <Object?>[];
+      final limit =
+          value.length < maxItemsPerList ? value.length : maxItemsPerList;
+      for (var i = 0; i < limit; i++) {
+        final child = _sanitize(value[i], depth: depth + 1);
+        out.add(child);
+        if (_remainingNodes <= 0) break;
+      }
+      return out;
+    }
+
+    if (value is Map) {
+      _remainingNodes -= 1;
+      final out = <String, Object?>{};
+      var added = 0;
+
+      for (final entry in value.entries) {
+        if (added >= maxEntriesPerMap) break;
+        if (_remainingNodes <= 0) break;
+
+        final rawKey = entry.key;
+        if (rawKey is! String) continue;
+        var key = rawKey.trim();
+        if (key.isEmpty) continue;
+        if (key.length > maxKeyLength) {
+          key = key.substring(0, maxKeyLength);
+        }
+
+        final child = _sanitize(entry.value, depth: depth + 1);
+        out[key] = child;
+        added += 1;
+      }
+
+      return out;
+    }
+
+    // Not JSON-like.
+    _remainingNodes -= 1;
     return value.toString();
   }
 }

@@ -1,0 +1,20 @@
+{
+  "name": "TextInput",
+  "category": "form",
+  "version": "1.0",
+  "propsSchema": {
+    "label": "string",
+    "hint": "string",
+    "obscureText": "boolean",
+    "testId": "string",
+    "validation": "object"
+  },
+  "defaults": {
+    "obscureText": false
+  },
+  "styleContract": {},
+  "slots": [],
+  "events": ["changed"],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

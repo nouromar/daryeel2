@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "1.0",
+  "documentType": "screen",
+  "id": "customer_layout_primitives",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Layout primitives",
+            "subtitle": "Row / Column / Stack / Wrap + basic box primitives",
+            "surface": "raised"
+          }
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "Padding",
+          "props": { "all": 12 },
+          "slots": {
+            "child": [
+              {
+                "type": "Column",
+                "props": {
+                  "spacing": 12,
+                  "crossAxisAlignment": "stretch",
+                  "mainAxisSize": "min"
+                },
+                "slots": {
+                  "children": [
+                    {
+                      "type": "InfoCard",
+                      "props": {
+                        "title": "Row + Expanded",
+                        "subtitle": "Two cards share horizontal space",
+                        "surface": "subtle"
+                      }
+                    },
+                    {
+                      "type": "Row",
+                      "props": {
+                        "spacing": 12,
+                        "crossAxisAlignment": "stretch"
+                      },
+                      "slots": {
+                        "children": [
+                          {
+                            "type": "Expanded",
+                            "props": { "flex": 1 },
+                            "slots": {
+                              "child": [
+                                {
+                                  "type": "SizedBox",
+                                  "props": { "height": 100 },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "InfoCard",
+                                        "props": {
+                                          "title": "Left",
+                                          "subtitle": "flex: 1",
+                                          "surface": "flat"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "Expanded",
+                            "props": { "flex": 1 },
+                            "slots": {
+                              "child": [
+                                {
+                                  "type": "SizedBox",
+                                  "props": { "height": 100 },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "InfoCard",
+                                        "props": {
+                                          "title": "Right",
+                                          "subtitle": "flex: 1",
+                                          "surface": "flat"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    { "type": "Gap", "props": { "height": 12 } },
+                    {
+                      "type": "InfoCard",
+                      "props": {
+                        "title": "Wrap",
+                        "subtitle": "Cards wrap when space runs out",
+                        "surface": "subtle"
+                      }
+                    },
+                    {
+                      "type": "SizedBox",
+                      "props": { "width": 340 },
+                      "slots": {
+                        "child": [
+                          {
+                            "type": "Wrap",
+                            "props": {
+                              "direction": "horizontal",
+                              "spacing": 8,
+                              "runSpacing": 8
+                            },
+                            "slots": {
+                              "children": [
+                                {
+                                  "type": "SizedBox",
+                                  "props": { "width": 160 },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "InfoCard",
+                                        "props": {
+                                          "title": "A",
+                                          "surface": "flat"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "SizedBox",
+                                  "props": { "width": 160 },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "InfoCard",
+                                        "props": {
+                                          "title": "B",
+                                          "surface": "flat"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "SizedBox",
+                                  "props": { "width": 160 },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "InfoCard",
+                                        "props": {
+                                          "title": "C",
+                                          "surface": "flat"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    { "type": "Gap", "props": { "height": 12 } },
+                    {
+                      "type": "InfoCard",
+                      "props": {
+                        "title": "Stack + Align",
+                        "subtitle": "Two cards overlay in corners",
+                        "surface": "subtle"
+                      }
+                    },
+                    {
+                      "type": "SizedBox",
+                      "props": { "height": 180 },
+                      "slots": {
+                        "child": [
+                          {
+                            "type": "Stack",
+                            "props": {
+                              "alignment": "center",
+                              "fit": "loose",
+                              "clipBehavior": "hardEdge"
+                            },
+                            "slots": {
+                              "children": [
+                                {
+                                  "type": "Align",
+                                  "props": { "alignment": "topLeft" },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "SizedBox",
+                                        "props": { "width": 200 },
+                                        "slots": {
+                                          "child": [
+                                            {
+                                              "type": "InfoCard",
+                                              "props": {
+                                                "title": "Top Left",
+                                                "surface": "raised"
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "Align",
+                                  "props": { "alignment": "bottomRight" },
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "SizedBox",
+                                        "props": { "width": 200 },
+                                        "slots": {
+                                          "child": [
+                                            {
+                                              "type": "InfoCard",
+                                              "props": {
+                                                "title": "Bottom Right",
+                                                "surface": "flat"
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "actions": {}
+  },
+  "actions": {}
+}

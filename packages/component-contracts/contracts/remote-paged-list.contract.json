@@ -1,0 +1,19 @@
+{
+  "name": "RemotePagedList",
+  "category": "data",
+  "version": "1.0",
+  "propsSchema": {
+    "key": "string",
+    "path": "string",
+    "params": "object",
+    "itemsPath": "string",
+    "nextCursorPath": "string",
+    "cursorParam": "string"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["loading", "error", "empty", "item", "loadingMore", "errorMore"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

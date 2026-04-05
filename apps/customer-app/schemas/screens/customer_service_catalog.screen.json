@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0",
+  "documentType": "screen",
+  "id": "customer_service_catalog",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "RemoteQuery",
+          "props": {
+            "key": "service_definitions",
+            "path": "/v1/service-definitions",
+            "dataPath": "items"
+          },
+          "slots": {
+            "loading": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Loading…",
+                  "subtitle": "Fetching services"
+                }
+              }
+            ],
+            "error": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Unable to load",
+                  "subtitle": "Please try again"
+                }
+              }
+            ],
+            "empty": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "No services",
+                  "subtitle": "Nothing available right now"
+                }
+              }
+            ],
+            "child": [
+              {
+                "type": "ForEach",
+                "slots": {
+                  "item": [
+                    {
+                      "type": "BoundActionCard",
+                      "props": {
+                        "titlePath": "title",
+                        "subtitlePath": "subtitle",
+                        "iconPath": "icon",
+                        "routePath": "detailRoute",
+                        "surface": "raised"
+                      }
+                    },
+                    {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "actions": {}
+  },
+  "actions": {}
+}

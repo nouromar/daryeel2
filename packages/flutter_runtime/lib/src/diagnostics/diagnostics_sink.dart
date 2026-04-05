@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'diagnostic_event.dart';
+import '../security/security_budgets.dart';
 
 abstract class DiagnosticsSink {
   const DiagnosticsSink();
@@ -52,7 +53,8 @@ class DebugPrintDiagnosticsSink extends DiagnosticsSink {
 }
 
 class InMemoryDiagnosticsSink extends DiagnosticsSink {
-  InMemoryDiagnosticsSink({int maxEvents = 200})
+  InMemoryDiagnosticsSink(
+      {int maxEvents = SecurityBudgets.maxInMemoryDiagnosticsEvents})
       : assert(maxEvents > 0),
         _maxEvents = maxEvents;
 

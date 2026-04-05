@@ -6,7 +6,7 @@
     "type": "InfoCard",
     "props": {
       "title": "Welcome",
-      "subtitle": "Resolved from fragment",
+      "subtitle": "How can we help today?",
       "surface": "subtle"
     }
   }

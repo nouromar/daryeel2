@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.budgets import DEFAULT_DIAGNOSTICS_BUDGETS_PER_SESSION
+
 
 DiagnosticSeverity = Literal["debug", "info", "warn", "error", "fatal"]
 DiagnosticKind = Literal["diagnostic", "metric", "trace"]
@@ -77,13 +79,7 @@ class DiagnosticsIngestor:
         self._dedupe_ttl_seconds = dedupe_ttl_seconds
         self._max_recent_events = max_recent_events
         self._budget_window_seconds = budget_window_seconds
-        self._budgets_per_session = budgets_per_session or {
-            "debug": 0,
-            "info": 30,
-            "warn": 50,
-            "error": None,
-            "fatal": None,
-        }
+        self._budgets_per_session = budgets_per_session or DEFAULT_DIAGNOSTICS_BUDGETS_PER_SESSION
         self._max_dedupe_entries = max_dedupe_entries
 
         self._lock = Lock()

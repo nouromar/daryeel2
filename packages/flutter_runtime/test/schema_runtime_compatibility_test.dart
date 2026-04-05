@@ -1,5 +1,4 @@
 import 'package:flutter_runtime/flutter_runtime.dart';
-import 'package:flutter_runtime/src/diagnostics/diagnostic_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _TestDiagnostics extends RuntimeDiagnostics {

@@ -70,6 +70,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_components:
+    dependency: "direct main"
+    description:
+      path: "../../packages/flutter_components"
+      relative: true
+    source: path
+    version: "0.1.0"
   flutter_daryeel_client_app:
     dependency: "direct main"
     description:

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "1.0",
+  "id": "pharmacy_shop",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "Column",
+          "props": {
+            "spacing": 12,
+            "crossAxisAlignment": "stretch",
+            "mainAxisSize": "min"
+          },
+          "slots": {
+            "children": [
+              {
+                "type": "TextInput",
+                "props": {
+                  "label": "Search Product",
+                  "hint": "Search Product",
+                  "testId": "pharmacy_search"
+                },
+                "bind": "pharmacy_catalog.q"
+              },
+              {
+                "type": "Align",
+                "props": { "alignment": "centerRight" },
+                "slots": {
+                  "child": [
+                    {
+                      "type": "PrimaryActionBar",
+                      "props": {
+                        "primaryLabel": "Attach Prescription",
+                        "tone": "brand",
+                        "size": "large",
+                        "expand": false
+                      },
+                      "actions": { "primary": "go_prescription_upload" }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "RemotePagedList",
+          "props": {
+            "key": "pharmacy_catalog",
+            "path": "/v1/pharmacy/catalog",
+            "params": {
+              "q": "$form.pharmacy_catalog.q",
+              "limit": "20"
+            },
+            "itemsPath": "items",
+            "nextCursorPath": "next.cursor",
+            "cursorParam": "cursor"
+          },
+          "slots": {
+            "error": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Could not load catalog",
+                  "subtitle": "Please try again",
+                  "surface": "raised"
+                }
+              }
+            ],
+            "empty": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "No products",
+                  "subtitle": "Try a different search",
+                  "surface": "subtle"
+                }
+              }
+            ],
+            "item": [
+              {
+                "type": "Padding",
+                "props": { "bottom": 12 },
+                "slots": {
+                  "child": [
+                    {
+                      "type": "CatalogItemTile",
+                      "props": {
+                        "titlePath": "name",
+                        "subtitlePath": "subtitle",
+                        "rxRequiredPath": "rx_required"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "actions": {
+    "go_prescription_upload": {
+      "type": "navigate",
+      "route": "customer.pharmacy.prescription_upload"
+    }
+  }
+}

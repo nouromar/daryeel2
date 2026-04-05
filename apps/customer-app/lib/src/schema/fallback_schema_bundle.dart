@@ -11,35 +11,113 @@ const fallbackCustomerHomeBundle = SchemaBundle(
     'themeId': 'customer-default',
     'themeMode': 'light',
     'root': {
-      'type': 'ScreenTemplate',
+      'type': 'BottomTabs',
+      'props': {
+        'tabs': [
+          {'id': 'home', 'label': 'Home', 'icon': 'home'},
+          {'id': 'activities', 'label': 'Activities', 'icon': 'history'},
+          {'id': 'account', 'label': 'Account', 'icon': 'person'},
+        ],
+      },
       'slots': {
-        'body': [
-          {'ref': 'section:customer_welcome_v1'},
+        'home': [
           {
-            'type': 'InfoCard',
-            'props': {
-              'title': 'Daryeel2',
-              'subtitle': 'Bundled customer home fallback',
-              'variant': 'default',
-              'surface': 'raised',
+            'type': 'ScreenTemplate',
+            'slots': {
+              'body': [
+                {'ref': 'section:customer_welcome_v1'},
+                {
+                  'type': 'Gap',
+                  'props': {'height': 12},
+                },
+                {
+                  'type': 'ActionCard',
+                  'props': {
+                    'title': 'Ambulance',
+                    'subtitle': 'Request an ambulance',
+                    'icon': 'ambulance',
+                    'surface': 'raised',
+                  },
+                  'actions': {'tap': 'go_ambulance'},
+                },
+                {
+                  'type': 'Gap',
+                  'props': {'height': 12},
+                },
+                {
+                  'type': 'ActionCard',
+                  'props': {
+                    'title': 'Home Visit',
+                    'subtitle': 'Request a home visit',
+                    'icon': 'home',
+                    'surface': 'raised',
+                  },
+                  'actions': {'tap': 'go_home_visit'},
+                },
+                {
+                  'type': 'Gap',
+                  'props': {'height': 12},
+                },
+                {
+                  'type': 'ActionCard',
+                  'props': {
+                    'title': 'Pharmacy',
+                    'subtitle': 'Request pharmacy delivery',
+                    'icon': 'pharmacy',
+                    'surface': 'raised',
+                  },
+                  'actions': {'tap': 'go_pharmacy'},
+                },
+              ],
             },
           },
         ],
-        'footer': [
+        'activities': [
           {
-            'type': 'PrimaryActionBar',
-            'props': {
-              'primaryLabel': 'Open schema service',
-              'tone': 'brand',
-              'size': 'large',
+            'type': 'ScreenTemplate',
+            'slots': {
+              'body': [
+                {
+                  'type': 'InfoCard',
+                  'props': {
+                    'title': 'Activities',
+                    'subtitle': 'Coming soon',
+                    'surface': 'subtle',
+                  },
+                },
+              ],
             },
-            'actions': {'primary': 'open_schema_service'},
+          },
+        ],
+        'account': [
+          {
+            'type': 'ScreenTemplate',
+            'slots': {
+              'body': [
+                {
+                  'type': 'InfoCard',
+                  'props': {
+                    'title': 'Account',
+                    'subtitle': 'Coming soon',
+                    'surface': 'subtle',
+                  },
+                },
+              ],
+            },
           },
         ],
       },
     },
     'actions': {
-      'open_schema_service': {'type': 'navigate', 'route': 'schema.service'},
+      'go_ambulance': {
+        'type': 'navigate',
+        'route': 'customer.request.ambulance',
+      },
+      'go_home_visit': {
+        'type': 'navigate',
+        'route': 'customer.request.home_visit',
+      },
+      'go_pharmacy': {'type': 'navigate', 'route': 'customer.request.pharmacy'},
     },
   },
 );

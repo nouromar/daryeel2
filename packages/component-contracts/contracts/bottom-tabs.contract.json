@@ -1,0 +1,14 @@
+{
+  "name": "BottomTabs",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "tabs": "list"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["home", "activities", "account"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

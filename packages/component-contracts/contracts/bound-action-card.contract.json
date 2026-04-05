@@ -1,0 +1,22 @@
+{
+  "name": "BoundActionCard",
+  "category": "action",
+  "version": "1.0",
+  "propsSchema": {
+    "titlePath": "string",
+    "subtitlePath": "string",
+    "iconPath": "string",
+    "routePath": "string",
+    "surface": "enum"
+  },
+  "defaults": {
+    "surface": "raised"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"]
+  },
+  "slots": [],
+  "events": ["tap"],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

@@ -4,14 +4,18 @@
   "version": "1.0",
   "propsSchema": {
     "primaryLabel": "string",
+    "contentAlign": "enum",
+    "expand": "boolean",
     "tone": "enum",
     "size": "enum"
   },
   "defaults": {
     "tone": "brand",
+    "expand": true,
     "size": "large"
   },
   "styleContract": {
+    "contentAlign": ["left", "center", "right"],
     "tone": ["default", "brand", "danger"],
     "size": ["medium", "large"]
   },

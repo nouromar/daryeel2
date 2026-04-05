@@ -31,4 +31,10 @@ final class SchemaActionTypes {
   static const String openUrl = 'open_url';
   static const String submitForm = 'submit_form';
   static const String trackEvent = 'track_event';
+
+  /// Mutates the current screen's `$state` store.
+  ///
+  /// This is only effective when a [SchemaStateScope] is present in the widget
+  /// tree (installed by the app shell).
+  static const String setState = 'set_state';
 }

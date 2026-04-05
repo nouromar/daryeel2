@@ -164,6 +164,7 @@ SchemaParseResult<ScreenSchema> parseScreenSchema(Map<String, Object?> json) {
         type: actionType,
         route: value['route'] as String?,
         formId: value['formId'] as String?,
+        value: value['value'],
         eventName: value['eventName'] as String?,
         eventProperties: eventProperties,
       );

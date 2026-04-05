@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "1.0",
+  "documentType": "screen",
+  "id": "customer_service_catalog_paged_search",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Services",
+            "subtitle": "Search and browse",
+            "surface": "raised"
+          }
+        },
+        {
+          "type": "Gap",
+          "props": {
+            "height": 12
+          }
+        },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Search",
+            "hint": "Type to filter",
+            "testId": "service_search"
+          },
+          "bind": "service_search.q"
+        },
+        {
+          "type": "Gap",
+          "props": {
+            "height": 12
+          }
+        },
+        {
+          "type": "RemotePagedList",
+          "props": {
+            "key": "service_definitions_paged_search",
+            "path": "/v1/service-definitions/paged",
+            "itemsPath": "items",
+            "nextCursorPath": "next.cursor",
+            "cursorParam": "cursor",
+            "params": {
+              "limit": "10",
+              "q": "$form.service_search.q"
+            }
+          },
+          "slots": {
+            "loading": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Loading…",
+                  "subtitle": "Fetching services"
+                }
+              }
+            ],
+            "error": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Unable to load",
+                  "subtitle": "Please try again"
+                }
+              }
+            ],
+            "empty": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "No services",
+                  "subtitle": "Nothing available right now"
+                }
+              }
+            ],
+            "item": [
+              {
+                "type": "BoundActionCard",
+                "props": {
+                  "titlePath": "title",
+                  "subtitlePath": "subtitle",
+                  "iconPath": "icon",
+                  "routePath": "detailRoute",
+                  "surface": "raised"
+                }
+              },
+              {
+                "type": "Gap",
+                "props": {
+                  "height": 12
+                }
+              }
+            ],
+            "loadingMore": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Loading more…"
+                }
+              }
+            ],
+            "errorMore": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Could not load more",
+                  "subtitle": "Scroll up and try again"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "actions": {}
+}

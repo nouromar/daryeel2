@@ -1,0 +1,20 @@
+{
+  "name": "Padding",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "all": "number",
+    "horizontal": "number",
+    "vertical": "number",
+    "left": "number",
+    "top": "number",
+    "right": "number",
+    "bottom": "number"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["child"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

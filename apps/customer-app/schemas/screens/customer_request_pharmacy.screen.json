@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0",
+  "id": "customer_request_pharmacy",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Pharmacy",
+            "subtitle": "Request pharmacy delivery",
+            "surface": "raised"
+          }
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Medication",
+            "hint": "What do you need?",
+            "testId": "medication"
+          },
+          "bind": "pharmacy_request.medication"
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "TextInput",
+          "props": {
+            "label": "Delivery address",
+            "hint": "Where should we deliver?",
+            "testId": "address"
+          },
+          "bind": "pharmacy_request.address"
+        }
+      ],
+      "footer": [
+        {
+          "type": "PrimaryActionBar",
+          "props": {
+            "primaryLabel": "Submit request",
+            "tone": "brand",
+            "size": "large"
+          },
+          "actions": { "primary": "submit" }
+        }
+      ]
+    }
+  },
+  "actions": {
+    "submit": { "type": "submit_form", "formId": "pharmacy_request" }
+  }
+}

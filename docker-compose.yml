@@ -1,4 +1,59 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-daryeel2}
+      POSTGRES_USER: ${POSTGRES_USER:-daryeel2}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-daryeel2}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    ports:
+      - "8010:8010"
+    environment:
+      API_APP_ENV: docker
+      API_PUBLIC_BASE_URL: ${API_PUBLIC_BASE_URL:-http://localhost:8010}
+      DATABASE_URL: ${API_DATABASE_URL:-postgresql+psycopg://daryeel2:daryeel2@postgres:5432/daryeel2}
+      API_REDIS_URL: ${API_REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx,sys; sys.exit(0 if httpx.get('http://localhost:8010/health', timeout=2).status_code==200 else 1)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   schema-service:
     build:
       context: .
@@ -10,8 +65,11 @@ services:
       # Optional. When set, /config/bootstrap advertises this URL to clients.
       SCHEMA_SERVICE_PUBLIC_BASE_URL: ${SCHEMA_SERVICE_PUBLIC_BASE_URL:-}
       # Optional. When unset, schema-service uses in-process caching only.
-      SCHEMA_SERVICE_REDIS_URL: ${SCHEMA_SERVICE_REDIS_URL:-}
+      SCHEMA_SERVICE_REDIS_URL: ${SCHEMA_SERVICE_REDIS_URL:-redis://redis:6379/0}
       SCHEMA_SERVICE_REDIS_KEY_PREFIX: ${SCHEMA_SERVICE_REDIS_KEY_PREFIX:-daryeel2:schema-service:}
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -24,9 +82,5 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    profiles: ["redis"]
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "no"]
+volumes:
+  postgres_data:

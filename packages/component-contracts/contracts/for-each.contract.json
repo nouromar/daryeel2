@@ -1,0 +1,14 @@
+{
+  "name": "ForEach",
+  "category": "data",
+  "version": "1.0",
+  "propsSchema": {
+    "itemsPath": "string"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["item"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

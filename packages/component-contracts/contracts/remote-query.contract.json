@@ -1,0 +1,17 @@
+{
+  "name": "RemoteQuery",
+  "category": "data",
+  "version": "1.0",
+  "propsSchema": {
+    "key": "string",
+    "path": "string",
+    "dataPath": "string",
+    "params": "object"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["loading", "error", "empty", "child"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

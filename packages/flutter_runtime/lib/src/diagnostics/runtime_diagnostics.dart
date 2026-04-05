@@ -1,12 +1,13 @@
 import 'diagnostic_event.dart';
 import 'diagnostics_sink.dart';
+import '../security/security_budgets.dart';
 
 class DiagnosticsConfig {
   const DiagnosticsConfig({
     this.enableDebug = false,
     this.dedupeTtl = const Duration(seconds: 60),
-    this.maxInfoPerSession = 30,
-    this.maxWarnPerSession = 50,
+    this.maxInfoPerSession = SecurityBudgets.maxInfoDiagnosticsPerSession,
+    this.maxWarnPerSession = SecurityBudgets.maxWarnDiagnosticsPerSession,
   });
 
   final bool enableDebug;

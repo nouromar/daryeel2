@@ -27,14 +27,22 @@ typedef DaryeelCompatibilityCheckerBuilder =
 typedef DaryeelActionPolicyBuilder =
     SchemaActionPolicy Function({
       required String schemaBaseUrl,
+      required String apiBaseUrl,
       required ConfigSnapshot? configSnapshot,
     });
 
 SchemaActionPolicy defaultDaryeelActionPolicyBuilder({
   required String schemaBaseUrl,
+  required String apiBaseUrl,
   required ConfigSnapshot? configSnapshot,
 }) {
   final schemaHost = Uri.tryParse(schemaBaseUrl)?.host;
+  final apiHost = Uri.tryParse(apiBaseUrl)?.host;
+
+  final allowedHosts = <String>{
+    if (schemaHost != null && schemaHost.isNotEmpty) schemaHost,
+    if (apiHost != null && apiHost.isNotEmpty) apiHost,
+  };
 
   return SchemaActionPolicy(
     allowedActionTypes: <String>{
@@ -42,12 +50,11 @@ SchemaActionPolicy defaultDaryeelActionPolicyBuilder({
       SchemaActionTypes.openUrl,
       SchemaActionTypes.submitForm,
       SchemaActionTypes.trackEvent,
+      SchemaActionTypes.setState,
     },
     openUrlPolicy: UriPolicy(
       allowedSchemes: const <String>{'https'},
-      allowedHosts: schemaHost == null || schemaHost.isEmpty
-          ? const <String>{}
-          : <String>{schemaHost},
+      allowedHosts: allowedHosts,
     ),
   );
 }
@@ -69,6 +76,8 @@ class DaryeelRuntimeConfig {
     this.lkgConfigSnapshotPrefsKey,
     this.defaultThemeId,
     this.defaultThemeMode,
+    this.enableSchemaPinning = false,
+    this.enableThemePinning = true,
   });
 
   final String appId;
@@ -92,6 +101,18 @@ class DaryeelRuntimeConfig {
   final String? defaultThemeId;
   final String? defaultThemeMode;
 
+  /// Enables promoting selector results to a pinned immutable docId.
+  ///
+  /// When disabled, the runtime always uses the selector/bundled fallback ladder
+  /// and never reads/writes pinned schema docIds.
+  final bool enableSchemaPinning;
+
+  /// Enables promoting selector results to a pinned immutable docId for themes.
+  ///
+  /// When disabled, the runtime always uses the theme selector and never
+  /// reads/writes pinned theme docIds.
+  final bool enableThemePinning;
+
   String get effectiveLkgConfigSnapshotPrefsKey {
     return lkgConfigSnapshotPrefsKey ??
         'daryeel_client.lkg_config_snapshot_json.$product';
@@ -107,6 +128,7 @@ class DaryeelClientAppConfig {
     this.diagnosticsBufferMaxEvents = 200,
     this.schemaServiceRouteName = 'schema.service',
     this.debugInspectorRouteName = 'debug.inspector',
+    this.additionalRoutes = const <String, WidgetBuilder>{},
   });
 
   final DaryeelRuntimeConfig runtime;
@@ -119,4 +141,7 @@ class DaryeelClientAppConfig {
   /// Stable route names used by the schema runtime.
   final String schemaServiceRouteName;
   final String debugInspectorRouteName;
+
+  /// Optional app-defined routes (e.g., domain screens not yet schema-driven).
+  final Map<String, WidgetBuilder> additionalRoutes;
 }

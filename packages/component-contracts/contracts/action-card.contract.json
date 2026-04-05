@@ -1,0 +1,21 @@
+{
+  "name": "ActionCard",
+  "category": "action",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "subtitle": "string",
+    "surface": "enum",
+    "icon": "string"
+  },
+  "defaults": {
+    "surface": "raised"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"]
+  },
+  "slots": [],
+  "events": ["tap"],
+  "actions": ["tap"],
+  "fallbackBehavior": "omit"
+}

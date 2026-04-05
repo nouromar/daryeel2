@@ -1,0 +1,33 @@
+{
+  "name": "Column",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "mainAxisAlignment": "enum",
+    "crossAxisAlignment": "enum",
+    "mainAxisSize": "enum",
+    "spacing": "number"
+  },
+  "defaults": {
+    "mainAxisAlignment": "start",
+    "crossAxisAlignment": "start",
+    "mainAxisSize": "max",
+    "spacing": 0
+  },
+  "styleContract": {
+    "mainAxisAlignment": [
+      "start",
+      "center",
+      "end",
+      "spaceBetween",
+      "spaceAround",
+      "spaceEvenly"
+    ],
+    "crossAxisAlignment": ["start", "center", "end", "stretch"],
+    "mainAxisSize": ["min", "max"]
+  },
+  "slots": ["children"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

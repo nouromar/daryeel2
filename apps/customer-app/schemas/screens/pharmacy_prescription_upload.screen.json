@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "id": "pharmacy_prescription_upload",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Attach Prescription",
+            "subtitle": "Upload is coming next. For now this is a placeholder screen.",
+            "surface": "raised"
+          }
+        },
+        { "type": "Gap", "props": { "height": 12 } },
+        {
+          "type": "InfoCard",
+          "props": {
+            "title": "Next",
+            "subtitle": "We will add camera/gallery upload + preview + remove, and store a prescriptionUploadId on the order.",
+            "surface": "subtle"
+          }
+        }
+      ]
+    }
+  }
+}

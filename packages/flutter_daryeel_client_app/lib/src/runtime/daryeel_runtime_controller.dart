@@ -35,7 +35,11 @@ class DaryeelRuntimeController {
   DaryeelRuntimeController({
     required this.config,
     required this.schemaBaseUrl,
+    this.configBaseUrl,
+    this.apiBaseUrl = '',
+    this.requestHeadersProvider,
     this.httpClient,
+    this.diagnosticsReporter,
     this.additionalDiagnosticsSinks = const <DiagnosticsSink>[],
     this.diagnosticsSinkOverride,
     this.openUrlHandlerOverride,
@@ -45,14 +49,45 @@ class DaryeelRuntimeController {
 
   final DaryeelRuntimeConfig config;
   final String schemaBaseUrl;
+  final String? configBaseUrl;
+  final String apiBaseUrl;
+  final RequestHeadersProvider? requestHeadersProvider;
   final http.Client? httpClient;
+  final DaryeelDiagnosticsReporter? diagnosticsReporter;
   final List<DiagnosticsSink> additionalDiagnosticsSinks;
   final DiagnosticsSink? diagnosticsSinkOverride;
   final OpenUrlHandler? openUrlHandlerOverride;
   final SubmitFormHandler? submitFormHandlerOverride;
   final TrackEventHandler? trackEventHandlerOverride;
 
-  Future<DaryeelRuntimeViewModel> loadInitialScreen() async {
+  Map<String, String> _buildEffectiveRequestHeaders(
+    DaryeelDiagnosticsReporter reporter, {
+    String? schemaVersion,
+    String? configSnapshotId,
+  }) {
+    final correlation = reporter.buildCorrelationHeaders(
+      schemaVersion: schemaVersion,
+      configSnapshotId: configSnapshotId,
+    );
+
+    Map<String, String> extra;
+    try {
+      extra = requestHeadersProvider?.call() ?? const <String, String>{};
+    } catch (_) {
+      extra = const <String, String>{};
+    }
+
+    if (extra.isEmpty) return correlation;
+    if (correlation.isEmpty) return extra;
+
+    // Let the runtime keep control of correlation IDs.
+    return <String, String>{...extra, ...correlation};
+  }
+
+  Future<DaryeelRuntimeViewModel> loadInitialScreen({
+    String? screenIdOverride,
+    String? serviceOverride,
+  }) async {
     final product = config.product;
     final fallbackScreenId = config.fallbackBundle.schemaId;
 
@@ -60,11 +95,14 @@ class DaryeelRuntimeController {
     int attemptCount = 0;
     int fallbackCount = 0;
 
-    final reporter = DaryeelDiagnosticsReporter(
-      appId: config.appId,
-      diagnosticsSinkOverride: diagnosticsSinkOverride,
-      additionalSinks: additionalDiagnosticsSinks,
-    );
+    final reporter =
+        diagnosticsReporter ??
+        DaryeelDiagnosticsReporter(
+          appId: config.appId,
+          diagnosticsSinkOverride: diagnosticsSinkOverride,
+          additionalSinks: additionalDiagnosticsSinks,
+        );
+    reporter.beginNewScreenLoad();
 
     final prefs = await SharedPreferences.getInstance();
     final client = httpClient ?? http.Client();
@@ -79,6 +117,11 @@ class DaryeelRuntimeController {
     var effectiveSchemaBaseUrl = schemaBaseUrl;
     var effectiveThemeBaseUrl = schemaBaseUrl;
     var initialScreenId = fallbackScreenId;
+
+    final bootstrapBaseUrl =
+        (configBaseUrl != null && configBaseUrl!.isNotEmpty)
+        ? configBaseUrl!
+        : schemaBaseUrl;
 
     // Load last-known-good config snapshot first (fast/offline).
     final lkgJson = prefs.getString(config.effectiveLkgConfigSnapshotPrefsKey);
@@ -98,12 +141,12 @@ class DaryeelRuntimeController {
       }
     }
 
-    if (schemaBaseUrl.isNotEmpty) {
+    if (bootstrapBaseUrl.isNotEmpty) {
       try {
         final loader = DaryeelBootstrapLoader(
-          baseUrl: schemaBaseUrl,
+          baseUrl: bootstrapBaseUrl,
           client: client,
-          headersProvider: () => reporter.buildCorrelationHeaders(),
+          headersProvider: () => _buildEffectiveRequestHeaders(reporter),
           cache: httpCache,
         );
 
@@ -122,7 +165,11 @@ class DaryeelRuntimeController {
         if (bootstrap.configSnapshotId.isNotEmpty) {
           final loadedSnapshot = await loader.loadSnapshot(
             snapshotId: bootstrap.configSnapshotId,
-            configBaseUrl: bootstrap.configServiceBaseUrl,
+            configBaseUrl:
+                (bootstrap.configServiceBaseUrl != null &&
+                    bootstrap.configServiceBaseUrl!.isNotEmpty)
+                ? bootstrap.configServiceBaseUrl
+                : bootstrapBaseUrl,
           );
           configSnapshot = loadedSnapshot;
           await _writeLkgConfigSnapshot(prefs, loadedSnapshot);
@@ -142,7 +189,8 @@ class DaryeelRuntimeController {
         configSnapshot?.schemaCompatibilityPolicyOverlay,
       ),
       actionPolicy: config.buildActionPolicy(
-        schemaBaseUrl: schemaBaseUrl,
+        schemaBaseUrl: effectiveSchemaBaseUrl,
+        apiBaseUrl: apiBaseUrl,
         configSnapshot: configSnapshot,
       ),
       enableRemoteThemes: configSnapshot?.enableRemoteThemes ?? false,
@@ -162,11 +210,17 @@ class DaryeelRuntimeController {
       config: diagnosticsConfig,
     );
 
+    final overrideId = screenIdOverride;
+    if (overrideId != null && overrideId.isNotEmpty) {
+      initialScreenId = overrideId;
+    }
+
     var request = RuntimeScreenRequest(
       screenId: initialScreenId,
       product: (bootstrap?.product ?? '').isNotEmpty
           ? bootstrap!.product
           : product,
+      service: serviceOverride,
     );
 
     // Now that the request + runtime diagnostics exist, re-create the cache so
@@ -199,6 +253,23 @@ class DaryeelRuntimeController {
       );
       final schema = parsed.value;
       if (schema == null) {
+        final resolvedThemeIdRaw =
+            bundle.document['themeId'] as String? ??
+            bootstrap?.defaultThemeId ??
+            config.defaultThemeId;
+        final resolvedThemeModeRaw =
+            bundle.document['themeMode'] as String? ??
+            bootstrap?.defaultThemeMode ??
+            config.defaultThemeMode ??
+            'light';
+        final resolvedThemeId =
+            (resolvedThemeIdRaw != null && resolvedThemeIdRaw.isNotEmpty)
+            ? resolvedThemeIdRaw
+            : null;
+        final resolvedThemeMode = resolvedThemeModeRaw.isNotEmpty
+            ? resolvedThemeModeRaw
+            : null;
+
         final localLightTheme = config.resolveLocalTheme(bundle.document);
         final localDarkTheme = config.resolveLocalTheme(
           bundle.document,
@@ -208,11 +279,17 @@ class DaryeelRuntimeController {
         return LoadedScreen(
           bundle: bundle,
           source: source,
+          bootstrapVersion: bootstrap?.bootstrapVersion,
+          bootstrapProduct: bootstrap?.product,
+          bootstrapConfigSnapshotId: bootstrap?.configSnapshotId,
           errorMessage: errorMessage,
           parseErrors: parsed.errors,
+          configSnapshotId: configSnapshotId,
           theme: localLightTheme,
           darkTheme: localDarkTheme,
           themeMode: localThemeMode,
+          resolvedThemeId: resolvedThemeId,
+          resolvedThemeMode: resolvedThemeMode,
         );
       }
 
@@ -222,7 +299,8 @@ class DaryeelRuntimeController {
               baseUrl: effectiveSchemaBaseUrl,
               client: client,
               cache: httpCache,
-              headersProvider: () => reporter.buildCorrelationHeaders(
+              headersProvider: () => _buildEffectiveRequestHeaders(
+                reporter,
                 schemaVersion: '${bundle.schemaId}@${bundle.schemaVersion}',
                 configSnapshotId: configSnapshotId,
               ),
@@ -253,17 +331,26 @@ class DaryeelRuntimeController {
       bool usedRemoteTheme = false;
       ThemeLadderSource themeSource = ThemeLadderSource.local;
 
+      final resolvedThemeIdRaw =
+          bundle.document['themeId'] as String? ??
+          bootstrap?.defaultThemeId ??
+          config.defaultThemeId ??
+          '';
+      final resolvedThemeModeRaw =
+          bundle.document['themeMode'] as String? ??
+          bootstrap?.defaultThemeMode ??
+          config.defaultThemeMode ??
+          'light';
+      final resolvedThemeId = resolvedThemeIdRaw.isNotEmpty
+          ? resolvedThemeIdRaw
+          : null;
+      final resolvedThemeMode = resolvedThemeModeRaw.isNotEmpty
+          ? resolvedThemeModeRaw
+          : null;
+
       if (policy.enableRemoteThemes && source == ScreenLoadSource.remote) {
-        final themeId =
-            bundle.document['themeId'] as String? ??
-            bootstrap?.defaultThemeId ??
-            config.defaultThemeId ??
-            '';
-        final mode =
-            bundle.document['themeMode'] as String? ??
-            bootstrap?.defaultThemeMode ??
-            config.defaultThemeMode ??
-            'light';
+        final themeId = resolvedThemeIdRaw;
+        final mode = resolvedThemeModeRaw;
 
         if (themeId.isNotEmpty && effectiveThemeBaseUrl.isNotEmpty) {
           try {
@@ -271,9 +358,11 @@ class DaryeelRuntimeController {
               baseUrl: effectiveThemeBaseUrl,
               product: screenRequest.product,
               pinnedStore: pinnedThemeStore,
+              enablePinning: config.enableThemePinning,
               client: client,
               cache: httpCache,
-              headersProvider: () => reporter.buildCorrelationHeaders(
+              headersProvider: () => _buildEffectiveRequestHeaders(
+                reporter,
                 schemaVersion: '${bundle.schemaId}@${bundle.schemaVersion}',
                 configSnapshotId: configSnapshotId,
               ),
@@ -357,6 +446,9 @@ class DaryeelRuntimeController {
       return LoadedScreen(
         bundle: bundle,
         source: source,
+        bootstrapVersion: bootstrap?.bootstrapVersion,
+        bootstrapProduct: bootstrap?.product,
+        bootstrapConfigSnapshotId: bootstrap?.configSnapshotId,
         errorMessage: errorMessage,
         schema: resolved.schema,
         parseErrors: parsed.errors,
@@ -366,6 +458,8 @@ class DaryeelRuntimeController {
         theme: lightTheme,
         darkTheme: darkTheme,
         themeMode: themeMode,
+        resolvedThemeId: resolvedThemeId,
+        resolvedThemeMode: resolvedThemeMode,
         usedRemoteTheme: usedRemoteTheme,
         themeSource: themeSource,
         themeDocId: themeDocId,
@@ -406,12 +500,105 @@ class DaryeelRuntimeController {
       final configFlags =
           configSnapshot?.enabledFeatureFlags ?? const <String>{};
 
-      final pinnedDocId = pinnedStore.readPinnedDocId(
-        product: request.product,
-        screenId: request.screenId,
-      );
+      final pinnedDocId = config.enableSchemaPinning
+          ? pinnedStore.readPinnedDocId(
+              product: request.product,
+              screenId: request.screenId,
+            )
+          : null;
 
       var allowCachedPinned = true;
+      var pinnedImmutableHadException = false;
+
+      Future<DaryeelRuntimeViewModel?> tryLoadCachedPinned(
+        String pinnedDocId, {
+        required SchemaLadderReason finalSchemaReason,
+      }) async {
+        attemptCount++;
+        final cachedPinnedJson = httpCache.readCachedJson(
+          'schema_screen_doc.$pinnedDocId',
+        );
+        if (cachedPinnedJson == null) {
+          reporter.emitSchemaFallback(
+            diagnostics,
+            request,
+            fromSource: SchemaLadderSource.cachedPinned,
+            toSource: SchemaLadderSource.bundledFallback,
+            reason: SchemaLadderReason.cachedPinnedMissing,
+            configSnapshotId: bootstrap?.configSnapshotId,
+          );
+          fallbackCount++;
+          return null;
+        }
+
+        try {
+          final cachedPinnedBundle = SchemaBundle(
+            schemaId: cachedPinnedJson['id'] as String? ?? request.screenId,
+            schemaVersion:
+                cachedPinnedJson['schemaVersion'] as String? ?? 'unknown',
+            document: cachedPinnedJson,
+            docId: pinnedDocId,
+          );
+
+          final loaded = await buildLoadedScreen(
+            request,
+            cachedPinnedBundle,
+            ScreenLoadSource.remote,
+            configSnapshotId: bootstrap?.configSnapshotId,
+            enabledFeatureFlagsFromConfig: configFlags,
+          );
+
+          if (loaded.schema != null &&
+              loaded.parseErrors.isEmpty &&
+              loaded.refErrors.isEmpty) {
+            reporter.emitSchemaSourceUsed(
+              diagnostics,
+              request,
+              source: SchemaLadderSource.cachedPinned,
+              docId: pinnedDocId,
+              pinnedDocId: pinnedDocId,
+              configSnapshotId: bootstrap?.configSnapshotId,
+            );
+
+            final finalized = await finalize(
+              loaded,
+              finalSchemaSource: SchemaLadderSource.cachedPinned,
+              finalSchemaReason: finalSchemaReason,
+              configSnapshotId: bootstrap?.configSnapshotId,
+            );
+
+            return _buildViewModel(
+              diagnostics: diagnostics,
+              policy: policy,
+              request: request,
+              screen: finalized,
+            );
+          }
+
+          reporter.emitSchemaFallback(
+            diagnostics,
+            request,
+            fromSource: SchemaLadderSource.cachedPinned,
+            toSource: SchemaLadderSource.bundledFallback,
+            reason: SchemaLadderReason.cachedPinnedInvalid,
+            configSnapshotId: bootstrap?.configSnapshotId,
+          );
+          fallbackCount++;
+          return null;
+        } catch (error) {
+          reporter.emitSchemaFallback(
+            diagnostics,
+            request,
+            fromSource: SchemaLadderSource.cachedPinned,
+            toSource: SchemaLadderSource.bundledFallback,
+            reason: SchemaLadderReason.cachedPinnedException,
+            errorType: error.runtimeType.toString(),
+            configSnapshotId: bootstrap?.configSnapshotId,
+          );
+          fallbackCount++;
+          return null;
+        }
+      }
 
       if (pinnedDocId != null) {
         attemptCount++;
@@ -422,7 +609,8 @@ class DaryeelRuntimeController {
               docId: pinnedDocId,
               client: client,
               cache: httpCache,
-              headersProvider: () => reporter.buildCorrelationHeaders(
+              headersProvider: () => _buildEffectiveRequestHeaders(
+                reporter,
                 configSnapshotId: bootstrap?.configSnapshotId,
               ),
             ),
@@ -494,95 +682,14 @@ class DaryeelRuntimeController {
             diagnostics,
             request,
             fromSource: SchemaLadderSource.pinnedImmutable,
-            toSource: SchemaLadderSource.cachedPinned,
+            toSource: SchemaLadderSource.selector,
             reason: SchemaLadderReason.pinnedException,
             errorType: error.runtimeType.toString(),
             configSnapshotId: bootstrap?.configSnapshotId,
           );
           fallbackCount++;
-        }
 
-        if (allowCachedPinned) {
-          attemptCount++;
-          final cachedPinnedJson = httpCache.readCachedJson(
-            'schema_screen_doc.$pinnedDocId',
-          );
-          if (cachedPinnedJson != null) {
-            try {
-              final cachedPinnedBundle = SchemaBundle(
-                schemaId: cachedPinnedJson['id'] as String? ?? request.screenId,
-                schemaVersion:
-                    cachedPinnedJson['schemaVersion'] as String? ?? 'unknown',
-                document: cachedPinnedJson,
-                docId: pinnedDocId,
-              );
-
-              final loaded = await buildLoadedScreen(
-                request,
-                cachedPinnedBundle,
-                ScreenLoadSource.remote,
-                configSnapshotId: bootstrap?.configSnapshotId,
-                enabledFeatureFlagsFromConfig: configFlags,
-              );
-
-              if (loaded.schema != null &&
-                  loaded.parseErrors.isEmpty &&
-                  loaded.refErrors.isEmpty) {
-                reporter.emitSchemaSourceUsed(
-                  diagnostics,
-                  request,
-                  source: SchemaLadderSource.cachedPinned,
-                  docId: pinnedDocId,
-                  pinnedDocId: pinnedDocId,
-                  configSnapshotId: bootstrap?.configSnapshotId,
-                );
-
-                final finalized = await finalize(
-                  loaded,
-                  finalSchemaSource: SchemaLadderSource.cachedPinned,
-                  configSnapshotId: bootstrap?.configSnapshotId,
-                );
-
-                return _buildViewModel(
-                  diagnostics: diagnostics,
-                  policy: policy,
-                  request: request,
-                  screen: finalized,
-                );
-              }
-
-              reporter.emitSchemaFallback(
-                diagnostics,
-                request,
-                fromSource: SchemaLadderSource.cachedPinned,
-                toSource: SchemaLadderSource.selector,
-                reason: SchemaLadderReason.cachedPinnedInvalid,
-                configSnapshotId: bootstrap?.configSnapshotId,
-              );
-              fallbackCount++;
-            } catch (error) {
-              reporter.emitSchemaFallback(
-                diagnostics,
-                request,
-                fromSource: SchemaLadderSource.cachedPinned,
-                toSource: SchemaLadderSource.selector,
-                reason: SchemaLadderReason.cachedPinnedException,
-                errorType: error.runtimeType.toString(),
-                configSnapshotId: bootstrap?.configSnapshotId,
-              );
-              fallbackCount++;
-            }
-          } else {
-            reporter.emitSchemaFallback(
-              diagnostics,
-              request,
-              fromSource: SchemaLadderSource.cachedPinned,
-              toSource: SchemaLadderSource.selector,
-              reason: SchemaLadderReason.cachedPinnedMissing,
-              configSnapshotId: bootstrap?.configSnapshotId,
-            );
-            fallbackCount++;
-          }
+          pinnedImmutableHadException = true;
         }
       }
 
@@ -593,7 +700,8 @@ class DaryeelRuntimeController {
             baseUrl: effectiveSchemaBaseUrl,
             client: client,
             cache: httpCache,
-            headersProvider: () => reporter.buildCorrelationHeaders(
+            headersProvider: () => _buildEffectiveRequestHeaders(
+              reporter,
               configSnapshotId: bootstrap?.configSnapshotId,
             ),
           ),
@@ -680,7 +788,8 @@ class DaryeelRuntimeController {
           configSnapshotId: bootstrap?.configSnapshotId,
         );
 
-        if (loaded.schema != null &&
+        if (config.enableSchemaPinning &&
+            loaded.schema != null &&
             loaded.parseErrors.isEmpty &&
             loaded.refErrors.isEmpty &&
             bundle.docId != null &&
@@ -718,6 +827,29 @@ class DaryeelRuntimeController {
           screen: finalized,
         );
       } catch (error) {
+        if (pinnedDocId != null &&
+            allowCachedPinned &&
+            pinnedImmutableHadException) {
+          reporter.emitSchemaFallback(
+            diagnostics,
+            request,
+            fromSource: SchemaLadderSource.selector,
+            toSource: SchemaLadderSource.cachedPinned,
+            reason: SchemaLadderReason.selectorException,
+            errorType: error.runtimeType.toString(),
+            configSnapshotId: bootstrap?.configSnapshotId,
+          );
+          fallbackCount++;
+
+          final cachedPinnedVm = await tryLoadCachedPinned(
+            pinnedDocId,
+            finalSchemaReason: SchemaLadderReason.selectorException,
+          );
+          if (cachedPinnedVm != null) {
+            return cachedPinnedVm;
+          }
+        }
+
         reporter.emitSchemaFallback(
           diagnostics,
           request,
@@ -857,6 +989,7 @@ class DaryeelRuntimeController {
       actionDispatcher: TypeMapSchemaActionDispatcher(
         dispatchersByType: <String, SchemaActionDispatcher>{
           SchemaActionTypes.navigate: const NavigatorSchemaActionDispatcher(),
+          SchemaActionTypes.setState: const NavigatorSchemaActionDispatcher(),
           SchemaActionTypes.openUrl: UrlSchemaActionDispatcher(
             openUrlHandler:
                 openUrlHandlerOverride ?? const UrlLauncherOpenUrlHandler(),

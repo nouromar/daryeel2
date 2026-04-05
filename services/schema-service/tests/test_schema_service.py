@@ -135,14 +135,30 @@ def test_ref_nodes_are_supported_by_models() -> None:
     # Contract allows refs in slots; ensure our Pydantic models accept it.
     client = TestClient(app)
     raw = client.get("/schemas/screens/customer_home").json()
-    raw["root"]["slots"]["body"].append({"ref": "section:example"})
+
+    slots = raw.get("root", {}).get("slots", {})
+    assert isinstance(slots, dict)
+
+    slot_key: str | None = None
+    if isinstance(slots.get("body"), list):
+        slot_key = "body"
+    elif isinstance(slots.get("home"), list):
+        slot_key = "home"
+    else:
+        for k, v in slots.items():
+            if isinstance(v, list):
+                slot_key = k
+                break
+
+    assert slot_key is not None
+    slots[slot_key].append({"ref": "section:example"})
 
     # If models don't support RefNode, /schemas/screens would fail to validate.
     # This uses the same model parsing codepath as the live endpoint.
     from app.schemas import ScreenSchema
 
     parsed = ScreenSchema.model_validate(raw)
-    assert parsed.root.slots["body"][-1].ref == "section:example"
+    assert parsed.root.slots[slot_key][-1].ref == "section:example"
 
 
 def test_fragment_endpoint_ok() -> None:

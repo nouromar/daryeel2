@@ -237,15 +237,17 @@ Acceptance:
 ### E1) Correlation everywhere
 Targets:
 - `Daryeel2/apps/customer-app/`
+- `Daryeel2/services/api/`
 - `Daryeel2/services/schema-service/`
 - `Daryeel2/docs/diagnostics-and-telemetry.md`
 
 Checklist:
-- [ ] Ensure every fetch/action/validation event includes:
-  - request id
-  - schema id/version
-  - config snapshot id
-  - theme id/mode
+- [x] Clients attach correlation headers to backend calls:
+  - `x-request-id`
+  - `x-daryeel-session-id`
+  - `x-daryeel-schema-version` (when applicable)
+  - `x-daryeel-config-snapshot` (when available)
+- [x] Backends echo `x-request-id` and emit structured access logs with the correlation context.
 
 Acceptance:
 - A single log trail ties client screen load → schema-service → ingest.
@@ -255,7 +257,7 @@ Targets:
 - `Daryeel2/apps/customer-app/`
 
 Checklist:
-- [ ] Add a debug-only view that displays:
+- [x] Add a debug-only view that displays:
   - active bootstrap + snapshot ids
   - active schema bundle id/version
   - active theme id/mode
@@ -266,9 +268,167 @@ Acceptance:
 
 ---
 
-## Milestone F — Performance + reliability (mobile-first)
+## Milestone F — Dynamic data (fetch, render, filter, edit, save)
 
-### F1) Startup contract: LKG-first
+Goal:
+- Support schema-authored catalog/search/list/detail and edit flows without building screen-specific native pages.
+- Keep the native work bounded: one query engine, one list engine, one mutation engine, plus a small set of components.
+
+Non-goals:
+- No general-purpose expression language.
+- No schema-defined arbitrary networking (must be bounded/allowlisted).
+
+### F1) QuerySpec contract (bounded)
+Targets:
+- `Daryeel2/docs/schema_format_v1.md`
+- `Daryeel2/packages/schema_runtime_dart/`
+
+Checklist:
+- [ ] Define `QuerySpec` schema shape (bounded):
+  - `id`
+  - `endpointId` or `path` (no arbitrary full URL by default)
+  - `method` (start with `GET`)
+  - `params` bindings (read from `$state`, `$route`)
+  - `cachePolicy` (e.g., `ttlMs`, `staleWhileRevalidateMs`)
+  - optional `pagination` (cursor/offset)
+- [ ] Define a bounded binding vocabulary needed for data:
+  - `$state.<key>`
+  - `$route.<param>`
+  - `$query.<id>.data` / `.error` / `.meta`
+  - `$item.<field>` in repeated templates
+
+Acceptance:
+- A schema can declare at least one query without enabling arbitrary scripting.
+
+### F2) Query engine (Flutter runtime)
+Targets:
+- `Daryeel2/packages/flutter_runtime/`
+- `Daryeel2/packages/flutter_daryeel_client_app/` (preferred shared shell integration)
+
+Checklist:
+- [ ] Implement a single query executor that:
+  - injects auth headers and correlation ids
+  - uses `API_BASE_URL` and an allowlisted `endpointId -> path` mapping
+  - normalizes responses into `AsyncValue`-like states
+- [ ] Implement query caching keyed by:
+  - endpoint + params
+  - auth/account context
+  - schema screen id + query id (for debugging)
+- [ ] Add retry policy (bounded) and explicit timeout defaults.
+
+Acceptance:
+- A query can be executed from a schema screen and produces deterministic loading/data/error rendering.
+
+### F3) Async rendering primitives
+Targets:
+- `Daryeel2/packages/flutter_schema_renderer/`
+- `Daryeel2/packages/flutter_components/`
+
+Checklist:
+- [ ] Add a `QueryView`-style component (or equivalent) that renders:
+  - `loadingSlot`
+  - `errorSlot`
+  - `emptySlot`
+  - `dataSlot`
+- [ ] Ensure error presentation is consistent and emits diagnostics.
+
+Acceptance:
+- Every query-backed screen has an explicit and testable empty/error/loading UX.
+
+### F4) Repeat/List templating
+Targets:
+- `Daryeel2/packages/flutter_schema_renderer/`
+- `Daryeel2/packages/flutter_components/`
+
+Checklist:
+- [x] Add a bounded list component that:
+  - iterates `items` from a query result (array)
+  - renders an `itemTemplate` with `$item` binding scope
+  - uses `ListView.builder` (or slivers) for performance
+- [x] Define stable keys for items (e.g., `item.id`) to avoid UI churn.
+
+Acceptance:
+- A catalog-like list screen can be authored as “query + itemTemplate” in schema.
+
+### F5) Filtering + search (state -> query)
+Targets:
+- `Daryeel2/packages/flutter_runtime/`
+- `Daryeel2/packages/flutter_components/`
+
+Checklist:
+- [x] Add a screen-scoped state store engine that:
+  - supports `set_state` action and/or two-way component bindings
+  - supports defaults from schema
+- [x] Add debounced search input behavior (bounded) so typing doesn’t spam API.
+- [x] Ensure queries re-run when their dependent `$state` keys change.
+
+Acceptance:
+- Search + filter controls update the list results without a native, screen-specific controller.
+
+### F6) Pagination (infinite scroll on mobile)
+Targets:
+- `Daryeel2/packages/flutter_runtime/`
+- `Daryeel2/packages/flutter_components/`
+
+Checklist:
+- [ ] Implement infinite scroll UX (mobile default) backed by pagination:
+  - prefer cursor pagination (`nextCursor`) as the default contract
+  - allow offset pagination only if/when needed later
+  - query can request next page
+  - list triggers pagination on scroll threshold
+  - handles “no more results”
+- [ ] Ensure filter/search changes reset pagination deterministically (clear items + cursor, refetch page 1).
+- [ ] Emit diagnostics for pagination failures without breaking the already-rendered list.
+
+Acceptance:
+- A product/provider list can grow beyond one page reliably.
+
+### F7) Mutations (edit + save)
+Targets:
+- `Daryeel2/packages/flutter_runtime/`
+- `Daryeel2/docs/schema_format_v1.md`
+
+Checklist:
+- [ ] Define a bounded `MutationSpec` (start with `POST/PUT/PATCH`) with payload bindings from `$state`/`$form`.
+- [ ] Implement mutation execution with:
+  - submit-in-progress guard
+  - standardized error normalization (global vs field errors)
+  - success actions: toast, navigate, invalidate queries
+- [ ] Add a default policy: on success, invalidate related queries by id.
+
+Acceptance:
+- A schema-authored edit form can save to the API and show field errors correctly.
+
+### F8) Demo fixtures + tests
+Targets:
+- `Daryeel2/apps/customer-app/schemas/screens/`
+- `Daryeel2/packages/flutter_runtime/test/` and/or `Daryeel2/packages/flutter_schema_renderer/test/`
+
+Checklist:
+- [ ] Add a demo “Service catalog” screen:
+  - query `ServiceDefinition` list
+  - render as ActionCards
+  - filter/search
+- [ ] Add a demo “Detail” screen:
+  - navigates with an id param
+  - fetches details by id
+- [ ] Add a demo “Edit” screen:
+  - fetch initial entity
+  - edit fields
+  - save mutation
+- [ ] Tests cover:
+  - binding resolution correctness
+  - query caching key correctness (includes auth context)
+  - mutation error mapping (field errors)
+
+Acceptance:
+- One end-to-end demo path exercises fetch -> filter -> navigate -> edit -> save.
+
+---
+
+## Milestone G — Performance + reliability (mobile-first)
+
+### G1) Startup contract: LKG-first
 Targets:
 - `Daryeel2/apps/customer-app/`
 - `Daryeel2/packages/flutter_runtime/`
@@ -284,7 +444,7 @@ Checklist:
 Acceptance:
 - App boots offline reliably.
 
-### F2) Cache correctness and corruption handling
+### G2) Cache correctness and corruption handling
 Targets:
 - `Daryeel2/apps/customer-app/lib/src/cache/http_json_cache.dart`
 
@@ -311,6 +471,8 @@ Acceptance:
 ## “Framework complete” exit checklist
 
 - [x] A schema-authored form flow works end-to-end in the customer app.
+- [ ] A schema-authored query/list/detail flow works end-to-end (including filtering).
+- [ ] A schema-authored edit/save flow works end-to-end (including field error mapping).
 - [ ] Schema/theme/config can be updated and rolled back without app release.
 - [ ] Runtime never crashes on invalid remote input; always falls back safely.
 - [ ] There is a debug inspector and a practical on-call playbook.

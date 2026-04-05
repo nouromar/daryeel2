@@ -1,0 +1,15 @@
+{
+  "name": "SizedBox",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "width": "number",
+    "height": "number"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["child"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

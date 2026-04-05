@@ -10,6 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_runtime:
+    path: ../flutter_runtime
+  flutter_schema_renderer:
+    path: ../flutter_schema_renderer
 
 dev_dependencies:
   flutter_test:

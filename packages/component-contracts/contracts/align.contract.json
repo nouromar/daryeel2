@@ -1,0 +1,30 @@
+{
+  "name": "Align",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "alignment": "enum",
+    "widthFactor": "number",
+    "heightFactor": "number"
+  },
+  "defaults": {
+    "alignment": "center"
+  },
+  "styleContract": {
+    "alignment": [
+      "topLeft",
+      "topCenter",
+      "topRight",
+      "centerLeft",
+      "center",
+      "centerRight",
+      "bottomLeft",
+      "bottomCenter",
+      "bottomRight"
+    ]
+  },
+  "slots": ["child"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

@@ -160,6 +160,7 @@ Future<DaryeelRuntimeController> _buildController(
   final config = DaryeelRuntimeConfig(
     appId: 'customer-app',
     product: 'customer_app',
+    enableSchemaPinning: true,
     fallbackBundle: fallbackCustomerHomeBundle,
     fallbackFragmentDocuments: fallbackFragmentDocuments,
     resolveLocalTheme: resolveCustomerTheme,

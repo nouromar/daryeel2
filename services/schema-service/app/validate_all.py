@@ -6,16 +6,18 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from app.validation import DARYEEL2_ROOT, validate_fragment_document, validate_screen_document
+from app.budgets import (
+    MAX_FRAGMENTS_PER_SCREEN,
+    MAX_JSON_BYTES,
+    MAX_NODES_PER_DOCUMENT,
+    MAX_REF_DEPTH,
+)
 
 
 SCHEMA_EXAMPLES_DIR = DARYEEL2_ROOT / "packages" / "schema-contracts" / "examples"
+CUSTOMER_SCREENS_DIR = DARYEEL2_ROOT / "apps" / "customer-app" / "schemas" / "screens"
+CUSTOMER_FRAGMENTS_DIR = DARYEEL2_ROOT / "apps" / "customer-app" / "schemas" / "fragments"
 COMPONENT_CONTRACTS_DIR = DARYEEL2_ROOT / "packages" / "component-contracts"
-
-
-MAX_JSON_BYTES = 256 * 1024
-MAX_NODES_PER_DOCUMENT = 5_000
-MAX_REF_DEPTH = 32
-MAX_FRAGMENTS_PER_SCREEN = 200
 
 
 @dataclass(frozen=True)
@@ -253,6 +255,24 @@ def _validate_component_node_against_contract(
                             path=f"{issue_path}.props.{key}",
                         )
                     )
+            elif kind == "object":
+                if not isinstance(value, dict):
+                    issues.append(
+                        ValidationIssue(
+                            code="invalid_prop_type",
+                            message=f"Prop '{key}' must be an object",
+                            path=f"{issue_path}.props.{key}",
+                        )
+                    )
+            elif kind == "list":
+                if not isinstance(value, list):
+                    issues.append(
+                        ValidationIssue(
+                            code="invalid_prop_type",
+                            message=f"Prop '{key}' must be a list",
+                            path=f"{issue_path}.props.{key}",
+                        )
+                    )
             else:
                 # Unknown kind; treat as warning-level lint failure (strict for now).
                 issues.append(
@@ -461,7 +481,13 @@ def validate_examples(
 
     fragment_docs: dict[str, dict[str, Any]] = {}
     fragment_paths_by_id: dict[str, str] = {}
-    for path in sorted(examples_dir.glob("*.fragment.json")):
+
+    fragment_paths: list[Path] = []
+    fragment_paths.extend(sorted(examples_dir.glob("*.fragment.json")))
+    if CUSTOMER_FRAGMENTS_DIR.exists():
+        fragment_paths.extend(sorted(CUSTOMER_FRAGMENTS_DIR.glob("*.fragment.json")))
+
+    for path in sorted(set(fragment_paths)):
         doc = _read_json_file(path)
         try:
             validate_fragment_document(doc)
@@ -552,7 +578,12 @@ def validate_examples(
             )
 
     # Screens
-    for path in sorted(examples_dir.glob("*.screen.json")):
+    screen_paths: list[Path] = []
+    screen_paths.extend(sorted(examples_dir.glob("*.screen.json")))
+    if CUSTOMER_SCREENS_DIR.exists():
+        screen_paths.extend(sorted(CUSTOMER_SCREENS_DIR.glob("*.screen.json")))
+
+    for path in sorted(set(screen_paths)):
         doc = _read_json_file(path)
         try:
             validate_screen_document(doc)

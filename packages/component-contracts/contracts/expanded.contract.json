@@ -1,0 +1,16 @@
+{
+  "name": "Expanded",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "flex": "number"
+  },
+  "defaults": {
+    "flex": 1
+  },
+  "styleContract": {},
+  "slots": ["child"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

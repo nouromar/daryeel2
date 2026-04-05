@@ -16,6 +16,15 @@ class Settings(BaseSettings):
     # Key prefix for Redis (and other) cache backends.
     redis_key_prefix: str = "daryeel2:schema-service:"
 
+    # Validate schema fixtures (schema + contracts + refs + budgets) when the
+    # service starts. This is the server-side complement to `python -m app.validate_all`.
+    validate_fixtures_on_startup: bool = True
+
+    # When validation finds issues:
+    # - strict=True: fail fast (raise) so the service won't serve invalid docs.
+    # - strict=False: log issues and continue.
+    strict_fixture_validation: bool = True
+
     model_config = SettingsConfigDict(env_prefix="SCHEMA_SERVICE_")
 
 

@@ -1,0 +1,18 @@
+{
+  "name": "Gap",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "height": "number",
+    "width": "number"
+  },
+  "defaults": {
+    "height": 12,
+    "width": 0
+  },
+  "styleContract": {},
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

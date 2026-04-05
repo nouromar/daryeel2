@@ -65,6 +65,34 @@ void main() {
       throwsA(isA<UnsupportedError>()),
     );
   });
+
+  testWidgets('NavigatorSchemaActionDispatcher supports set_state',
+      (tester) async {
+    final store = SchemaStateStore();
+    const dispatcher = NavigatorSchemaActionDispatcher();
+    const action = ActionDefinition(
+      type: 'set_state',
+      value: <String, Object?>{
+        'q': 'abc',
+        'limit': 10,
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SchemaStateScope(
+          store: store,
+          child: const _Home(),
+        ),
+      ),
+    );
+
+    final context = tester.element(find.byKey(const Key('home')));
+    await dispatcher.dispatch(context, action);
+
+    expect(store.getValue('q'), 'abc');
+    expect(store.getValue('limit'), 10);
+  });
 }
 
 class _Home extends StatelessWidget {
