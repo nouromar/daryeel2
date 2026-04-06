@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
+import 'package:flutter_daryeel_client_app/src/runtime/daryeel_runtime_controller.dart';
+import 'package:flutter_daryeel_client_app/src/runtime/daryeel_runtime_view_model.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

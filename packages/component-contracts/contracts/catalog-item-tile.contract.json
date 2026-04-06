@@ -16,6 +16,6 @@
   },
   "slots": [],
   "events": ["tap", "add"],
-  "actions": [],
+  "actions": ["tap", "add"],
   "fallbackBehavior": "omit"
 }

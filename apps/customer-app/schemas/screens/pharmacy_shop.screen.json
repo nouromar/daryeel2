@@ -126,7 +126,11 @@
     },
     "go_prescription_upload": {
       "type": "navigate",
-      "route": "customer.pharmacy.prescription_upload"
+      "route": "customer.schema_screen",
+      "value": {
+        "screenId": "pharmacy_prescription_upload",
+        "title": "Attach Prescription"
+      }
     }
   }
 }

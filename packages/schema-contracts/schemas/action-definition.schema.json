@@ -9,7 +9,11 @@
       "type": "string",
       "enum": [
         "navigate",
+        "open_url",
+        "set_state",
+        "patch_state",
         "submit_form",
+        "track_event",
         "open_modal",
         "refresh_data",
         "select_value",
@@ -20,7 +24,14 @@
     "formId": { "type": "string" },
     "modalId": { "type": "string" },
     "dataSource": { "type": "string" },
-    "value": {}
+    "value": {},
+    "eventName": { "type": "string" },
+    "eventProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
+      }
+    }
   },
   "additionalProperties": false
 }

@@ -74,6 +74,7 @@ class DaryeelRuntimeConfig {
     required this.resolveThemeMode,
     required this.buildCompatibilityChecker,
     this.buildActionPolicy = defaultDaryeelActionPolicyBuilder,
+    this.statePersistence,
     this.lkgConfigSnapshotPrefsKey,
     this.defaultThemeId,
     this.defaultThemeMode,
@@ -92,6 +93,12 @@ class DaryeelRuntimeConfig {
 
   final DaryeelCompatibilityCheckerBuilder buildCompatibilityChecker;
   final DaryeelActionPolicyBuilder buildActionPolicy;
+
+  /// Optional persistence for selected `$state` paths.
+  ///
+  /// When configured, the runtime restores the persisted state once per session
+  /// (best-effort) and auto-saves changes with a small debounce.
+  final SchemaStatePersistenceConfig? statePersistence;
 
   /// Where to store last-known-good config snapshot JSON.
   ///
@@ -118,6 +125,29 @@ class DaryeelRuntimeConfig {
     return lkgConfigSnapshotPrefsKey ??
         'daryeel_client.lkg_config_snapshot_json.$product';
   }
+}
+
+/// Configuration for persisting selected `$state` paths.
+///
+/// This is intentionally simple: a list of dot-path prefixes that should be
+/// persisted as JSON via `SharedPreferences`.
+class SchemaStatePersistenceConfig {
+  const SchemaStatePersistenceConfig({
+    required this.paths,
+    this.prefsKey,
+    this.debounceMilliseconds = 400,
+  });
+
+  /// Dot-paths relative to `$state` root (e.g. `pharmacy.cart`).
+  final List<String> paths;
+
+  /// Optional override for the SharedPreferences key.
+  ///
+  /// If null, the runtime uses a stable key derived from `{product, appId}`.
+  final String? prefsKey;
+
+  /// Debounce window for auto-save writes.
+  final int debounceMilliseconds;
 }
 
 /// UI-shell configuration for the shared schema client app.

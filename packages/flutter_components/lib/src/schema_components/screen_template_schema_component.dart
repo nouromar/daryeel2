@@ -4,6 +4,7 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../widgets/screen_template_widget.dart';
 import 'schema_component_context.dart';
+import 'schema_component_utils.dart';
 
 void registerScreenTemplateSchemaComponent({
   required SchemaWidgetRegistry registry,
@@ -22,58 +23,121 @@ void registerScreenTemplateSchemaComponent({
     final header = _buildSlot(
       node.slots['header'],
       componentRegistry,
-      visibility: context.visibility,
-      diagnostics: context.diagnostics,
-      diagnosticsContext: context.diagnosticsContext,
+      context: context,
+      applyVisibilityWhen: true,
     );
     final body = _buildSlot(
       node.slots['body'],
       componentRegistry,
-      visibility: context.visibility,
-      diagnostics: context.diagnostics,
-      diagnosticsContext: context.diagnosticsContext,
+      context: context,
+      applyVisibilityWhen: true,
     );
     final footer = _buildSlot(
       node.slots['footer'],
       componentRegistry,
-      visibility: context.visibility,
-      diagnostics: context.diagnostics,
-      diagnosticsContext: context.diagnosticsContext,
+      context: context,
+      applyVisibilityWhen: true,
+    );
+
+    final headerGap = schemaAsDouble(node.props['headerGap']) ?? 8;
+    final bodyPadding = _parseEdgeInsets(
+      node.props['bodyPadding'],
+      fallback: const EdgeInsets.all(16),
+    );
+    final primaryScrollPadding = _parseEdgeInsets(
+      node.props['primaryScrollPadding'],
+      fallback: const EdgeInsets.symmetric(horizontal: 16),
+    );
+    final footerPadding = _parseEdgeInsets(
+      node.props['footerPadding'],
+      fallback: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     );
 
     return SchemaStateScopeHost(
       defaults: stateDefaults,
-      child: ScreenTemplateWidget(header: header, body: body, footer: footer),
+      child: ScreenTemplateWidget(
+        header: header,
+        body: body,
+        footer: footer,
+        headerGap: headerGap,
+        bodyPadding: bodyPadding,
+        primaryScrollPadding: primaryScrollPadding,
+        footerPadding: footerPadding,
+      ),
     );
   });
+}
+
+EdgeInsets _parseEdgeInsets(Object? raw, {required EdgeInsets fallback}) {
+  if (raw is! Map) return fallback;
+  final props = <String, Object?>{};
+  for (final entry in raw.entries) {
+    final key = entry.key;
+    if (key is! String) continue;
+    props[key] = entry.value;
+  }
+
+  double? read(String key) => schemaAsDouble(props[key]);
+
+  const supportedKeys = <String>{
+    'all',
+    'horizontal',
+    'vertical',
+    'left',
+    'top',
+    'right',
+    'bottom',
+  };
+  final sawSupportedKey = props.keys.any(supportedKeys.contains);
+  if (!sawSupportedKey) return fallback;
+
+  double left = 0;
+  double top = 0;
+  double right = 0;
+  double bottom = 0;
+
+  final all = read('all');
+  if (all != null) {
+    left = all;
+    top = all;
+    right = all;
+    bottom = all;
+  }
+
+  final horizontal = read('horizontal');
+  if (horizontal != null) {
+    left = horizontal;
+    right = horizontal;
+  }
+
+  final vertical = read('vertical');
+  if (vertical != null) {
+    top = vertical;
+    bottom = vertical;
+  }
+
+  final l = read('left');
+  if (l != null) left = l;
+  final t = read('top');
+  if (t != null) top = t;
+  final r = read('right');
+  if (r != null) right = r;
+  final b = read('bottom');
+  if (b != null) bottom = b;
+
+  return EdgeInsets.fromLTRB(left, top, right, bottom);
 }
 
 List<Widget> _buildSlot(
   List<SchemaNode>? children,
   SchemaWidgetRegistry registry, {
-  required SchemaVisibilityContext visibility,
-  RuntimeDiagnostics? diagnostics,
-  Map<String, Object?> diagnosticsContext = const <String, Object?>{},
+  required SchemaComponentContext context,
+  required bool applyVisibilityWhen,
 }) {
-  if (children == null || children.isEmpty) {
-    return const <Widget>[];
-  }
-
-  return children
-      .where((child) {
-        if (child is ComponentNode) {
-          return evaluateVisibleWhen(
-            child.visibleWhen,
-            visibility,
-            diagnostics: diagnostics,
-            diagnosticsContext: diagnosticsContext,
-            nodeType: child.type,
-          );
-        }
-        return true;
-      })
-      .map(
-        (child) => SchemaRenderer(rootNode: child, registry: registry).render(),
-      )
-      .toList(growable: false);
+  return buildSchemaSlotWidgets(
+    children,
+    registry,
+    context: context,
+    applyVisibilityWhen: applyVisibilityWhen,
+  );
 }

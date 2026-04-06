@@ -19,6 +19,11 @@ export interface ActionDefinition {
   readonly type: string;
   readonly route?: string;
   readonly formId?: string;
+  readonly modalId?: string;
+  readonly dataSource?: string;
+  readonly value?: unknown;
+  readonly eventName?: string;
+  readonly eventProperties?: Record<string, unknown>;
 }
 
 export interface ScreenSchema {

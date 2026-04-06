@@ -7,6 +7,7 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'schema_component_context.dart';
+import 'schema_component_utils.dart';
 
 void registerRemoteQuerySchemaComponent({
   required SchemaWidgetRegistry registry,
@@ -123,12 +124,10 @@ class _RemoteQueryWidgetState extends State<_RemoteQueryWidget> {
   }
 
   List<Widget> _buildSlot(String slotName) {
-    final children = widget.node.slots[slotName];
-    if (children == null || children.isEmpty) return const <Widget>[];
-    return children
-        .map((child) =>
-            SchemaRenderer(rootNode: child, registry: widget.registry).render())
-        .toList(growable: false);
+    return buildSchemaSlotWidgets(
+      widget.node.slots[slotName],
+      widget.registry,
+    );
   }
 
   @override

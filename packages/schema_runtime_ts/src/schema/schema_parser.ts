@@ -108,10 +108,22 @@ export function parseScreenSchema(json: Record<string, unknown>): SchemaParseRes
         continue;
       }
 
+      const eventPropertiesRaw = rawValue['eventProperties'];
+      const eventProperties = isRecord(eventPropertiesRaw)
+        ? (eventPropertiesRaw as Record<string, unknown>)
+        : undefined;
+
       actions[key] = {
         type: actionType,
         route: typeof rawValue['route'] === 'string' ? (rawValue['route'] as string) : undefined,
         formId: typeof rawValue['formId'] === 'string' ? (rawValue['formId'] as string) : undefined,
+        modalId: typeof rawValue['modalId'] === 'string' ? (rawValue['modalId'] as string) : undefined,
+        dataSource:
+          typeof rawValue['dataSource'] === 'string' ? (rawValue['dataSource'] as string) : undefined,
+        value: rawValue['value'],
+        eventName:
+          typeof rawValue['eventName'] === 'string' ? (rawValue['eventName'] as string) : undefined,
+        eventProperties,
       };
     }
   }

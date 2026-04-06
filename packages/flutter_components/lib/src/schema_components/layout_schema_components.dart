@@ -3,13 +3,14 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'schema_component_context.dart';
+import 'schema_component_utils.dart';
 
 void registerRowSchemaComponent({
   required SchemaWidgetRegistry registry,
   required SchemaComponentContext context,
 }) {
   registry.register('Row', (node, componentRegistry) {
-    final spacing = _asDouble(node.props['spacing']) ?? 0.0;
+    final spacing = schemaAsDouble(node.props['spacing']) ?? 0.0;
 
     final mainAxisAlignment =
         _parseMainAxisAlignment(node.props['mainAxisAlignment']);
@@ -17,10 +18,11 @@ void registerRowSchemaComponent({
         _parseCrossAxisAlignment(node.props['crossAxisAlignment']);
     final mainAxisSize = _parseMainAxisSize(node.props['mainAxisSize']);
 
-    final children = _buildSlot(
+    final children = buildSchemaSlotWidgets(
       node.slots['children'],
       componentRegistry,
       context: context,
+      applyVisibilityWhen: true,
     );
 
     return Row(
@@ -37,7 +39,7 @@ void registerColumnSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('Column', (node, componentRegistry) {
-    final spacing = _asDouble(node.props['spacing']) ?? 0.0;
+    final spacing = schemaAsDouble(node.props['spacing']) ?? 0.0;
 
     final mainAxisAlignment =
         _parseMainAxisAlignment(node.props['mainAxisAlignment']);
@@ -45,10 +47,11 @@ void registerColumnSchemaComponent({
         _parseCrossAxisAlignment(node.props['crossAxisAlignment']);
     final mainAxisSize = _parseMainAxisSize(node.props['mainAxisSize']);
 
-    final children = _buildSlot(
+    final children = buildSchemaSlotWidgets(
       node.slots['children'],
       componentRegistry,
       context: context,
+      applyVisibilityWhen: true,
     );
 
     return Column(
@@ -69,10 +72,11 @@ void registerStackSchemaComponent({
     final fit = _parseStackFit(node.props['fit']);
     final clipBehavior = _parseClip(node.props['clipBehavior']);
 
-    final children = _buildSlot(
+    final children = buildSchemaSlotWidgets(
       node.slots['children'],
       componentRegistry,
       context: context,
+      applyVisibilityWhen: true,
     );
 
     return Stack(
@@ -95,13 +99,14 @@ void registerWrapSchemaComponent({
     final crossAxisAlignment =
         _parseWrapCrossAlignment(node.props['crossAxisAlignment']);
 
-    final spacing = _asDouble(node.props['spacing']) ?? 0.0;
-    final runSpacing = _asDouble(node.props['runSpacing']) ?? 0.0;
+    final spacing = schemaAsDouble(node.props['spacing']) ?? 0.0;
+    final runSpacing = schemaAsDouble(node.props['runSpacing']) ?? 0.0;
 
-    final children = _buildSlot(
+    final children = buildSchemaSlotWidgets(
       node.slots['children'],
       componentRegistry,
       context: context,
+      applyVisibilityWhen: true,
     );
 
     return Wrap(
@@ -122,11 +127,12 @@ void registerPaddingSchemaComponent({
 }) {
   registry.register('Padding', (node, componentRegistry) {
     final padding = _parseEdgeInsets(node.props);
-    final child = _buildSingleChildSlot(
+    final child = buildSingleChildSchemaSlotWidget(
       node.slots['child'],
       componentRegistry,
-      context: context,
       componentName: 'Padding',
+      context: context,
+      applyVisibilityWhen: true,
     );
 
     if (child == null) return const SizedBox.shrink();
@@ -144,14 +150,15 @@ void registerAlignSchemaComponent({
 }) {
   registry.register('Align', (node, componentRegistry) {
     final alignment = _parseAlignment(node.props['alignment']);
-    final widthFactor = _asDouble(node.props['widthFactor']);
-    final heightFactor = _asDouble(node.props['heightFactor']);
+    final widthFactor = schemaAsDouble(node.props['widthFactor']);
+    final heightFactor = schemaAsDouble(node.props['heightFactor']);
 
-    final child = _buildSingleChildSlot(
+    final child = buildSingleChildSchemaSlotWidget(
       node.slots['child'],
       componentRegistry,
-      context: context,
       componentName: 'Align',
+      context: context,
+      applyVisibilityWhen: true,
     );
 
     if (child == null) return const SizedBox.shrink();
@@ -170,14 +177,15 @@ void registerSizedBoxSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('SizedBox', (node, componentRegistry) {
-    final width = _asDouble(node.props['width']);
-    final height = _asDouble(node.props['height']);
+    final width = schemaAsDouble(node.props['width']);
+    final height = schemaAsDouble(node.props['height']);
 
-    final child = _buildSingleChildSlot(
+    final child = buildSingleChildSchemaSlotWidget(
       node.slots['child'],
       componentRegistry,
-      context: context,
       componentName: 'SizedBox',
+      context: context,
+      applyVisibilityWhen: true,
     );
 
     return SizedBox(
@@ -193,14 +201,15 @@ void registerExpandedSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('Expanded', (node, componentRegistry) {
-    final rawFlex = _asInt(node.props['flex']);
+    final rawFlex = schemaAsInt(node.props['flex']);
     final flex = rawFlex == null ? 1 : rawFlex.clamp(1, 100);
 
-    final child = _buildSingleChildSlot(
+    final child = buildSingleChildSchemaSlotWidget(
       node.slots['child'],
       componentRegistry,
-      context: context,
       componentName: 'Expanded',
+      context: context,
+      applyVisibilityWhen: true,
     );
 
     if (child == null) {
@@ -213,59 +222,6 @@ void registerExpandedSchemaComponent({
       child: child,
     );
   });
-}
-
-List<Widget> _buildSlot(
-  List<SchemaNode>? children,
-  SchemaWidgetRegistry registry, {
-  required SchemaComponentContext context,
-}) {
-  if (children == null || children.isEmpty) return const <Widget>[];
-
-  return children
-      .where((child) {
-        if (child is ComponentNode) {
-          return evaluateVisibleWhen(
-            child.visibleWhen,
-            context.visibility,
-            diagnostics: context.diagnostics,
-            diagnosticsContext: context.diagnosticsContext,
-            nodeType: child.type,
-          );
-        }
-        return true;
-      })
-      .map((child) =>
-          SchemaRenderer(rootNode: child, registry: registry).render())
-      .toList(growable: false);
-}
-
-Widget? _buildSingleChildSlot(
-  List<SchemaNode>? children,
-  SchemaWidgetRegistry registry, {
-  required SchemaComponentContext context,
-  required String componentName,
-}) {
-  if (children == null || children.isEmpty) return null;
-  if (children.length != 1) {
-    return UnknownSchemaWidget(
-      componentName: '$componentName(multiple-children)',
-    );
-  }
-
-  final child = children.single;
-  if (child is ComponentNode) {
-    final visible = evaluateVisibleWhen(
-      child.visibleWhen,
-      context.visibility,
-      diagnostics: context.diagnostics,
-      diagnosticsContext: context.diagnosticsContext,
-      nodeType: child.type,
-    );
-    if (!visible) return null;
-  }
-
-  return SchemaRenderer(rootNode: child, registry: registry).render();
 }
 
 List<Widget> _withSpacing(List<Widget> children, Axis axis, double spacing) {
@@ -287,16 +243,11 @@ List<Widget> _withSpacing(List<Widget> children, Axis axis, double spacing) {
 }
 
 double? _asDouble(Object? v) {
-  if (v is num) return v.toDouble();
-  if (v is String) return double.tryParse(v.trim());
-  return null;
+  return schemaAsDouble(v);
 }
 
 int? _asInt(Object? v) {
-  if (v is int) return v;
-  if (v is num) return v.toInt();
-  if (v is String) return int.tryParse(v.trim());
-  return null;
+  return schemaAsInt(v);
 }
 
 MainAxisAlignment _parseMainAxisAlignment(Object? raw) {

@@ -8,6 +8,7 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'schema_component_context.dart';
 import '../widgets/screen_primary_scroll_widget.dart';
+import 'schema_component_utils.dart';
 
 void registerRemotePagedListSchemaComponent({
   required SchemaWidgetRegistry registry,
@@ -139,12 +140,10 @@ class _RemotePagedListWidgetState extends State<_RemotePagedListWidget> {
   }
 
   List<Widget> _buildSlot(String slotName) {
-    final children = widget.node.slots[slotName];
-    if (children == null || children.isEmpty) return const <Widget>[];
-    return children
-        .map((child) =>
-            SchemaRenderer(rootNode: child, registry: widget.registry).render())
-        .toList(growable: false);
+    return buildSchemaSlotWidgets(
+      widget.node.slots[slotName],
+      widget.registry,
+    );
   }
 
   @override

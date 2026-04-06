@@ -7,7 +7,7 @@ import '../schema/fallback_fragment_documents.dart';
 import '../schema/fallback_schema_bundle.dart';
 import '../auth/customer_auth_gate.dart';
 import '../auth/customer_auth_store.dart';
-import '../screens/customer_request_screens.dart';
+import '../routing/customer_schema_screen_route.dart';
 import '../ui/customer_component_registry.dart';
 import '../ui/customer_theme.dart';
 
@@ -67,9 +67,15 @@ class _CustomerAppState extends State<CustomerApp> {
               defaultThemeMode: 'light',
               buildCompatibilityChecker: (overlay) =>
                   CustomerSchemaCompatibilityChecker(overlay: overlay),
+              statePersistence: const SchemaStatePersistenceConfig(
+                paths: <String>['pharmacy.cart'],
+              ),
             ),
             appBarTitle: 'Daryeel2 Customer',
-            additionalRoutes: buildCustomerAdditionalRoutes(),
+            additionalRoutes: <String, WidgetBuilder>{
+              CustomerSchemaScreenRoute.name:
+                  CustomerSchemaScreenRoute.builder(),
+            },
             buildRegistry:
                 ({
                   required ScreenSchema screen,

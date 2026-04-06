@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
+import 'package:flutter_daryeel_client_app/src/actions/diagnostics_submit_form_handler.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -510,7 +510,13 @@ Integrate with the existing budget framework:
 - Update `CatalogItemTile` (and other interactive widgets) to delegate actions from schema when provided.
 
 ### Phase 4 (optional): Persistence plugin
-- Add a generic persistence adapter for selected state paths.
+- Add a generic persistence adapter for selected `$state` path prefixes.
+
+Implementation (current):
+- App config: `DaryeelRuntimeConfig.statePersistence` (list of dot-paths like `pharmacy.cart`).
+- Storage: `SharedPreferences` under a stable key (default: `daryeel_client.state.<product>.<appId>`).
+- Restore: once per runtime session (best-effort; corrupt payload is ignored).
+- Save: auto-save on `$state` changes with a small debounce; oversized payloads are skipped.
 
 ---
 

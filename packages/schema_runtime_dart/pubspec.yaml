@@ -8,3 +8,6 @@ environment:
 
 dependencies:
 
+dev_dependencies:
+  lints: ^5.0.0
+

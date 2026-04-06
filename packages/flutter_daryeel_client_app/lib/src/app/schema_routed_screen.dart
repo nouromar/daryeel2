@@ -8,17 +8,36 @@ import '../runtime/daryeel_runtime_view_model.dart';
 import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
 
+typedef SchemaRoutedScreenAppBarActionsBuilder =
+    List<Widget> Function(BuildContext context, LoadedScreen loaded);
+
 class SchemaRoutedScreen extends StatefulWidget {
   const SchemaRoutedScreen({
     required this.screenId,
     this.service,
     this.title,
+    this.routeParams,
+    this.appBarActionsBuilder,
     super.key,
   });
 
   final String screenId;
   final String? service;
   final String? title;
+
+  /// Optional route params exposed to schema interpolation via `${params.*}`.
+  ///
+  /// When omitted, params are derived from `Navigator.pushNamed(..., arguments:)`.
+  /// Providing this lets hosts sanitize/guard route arguments while still
+  /// allowing schema-driven screens to consume safe params.
+  final Map<String, Object?>? routeParams;
+
+  /// Optional host-provided app bar actions.
+  ///
+  /// This is intentionally app-owned (not schema-owned) so apps can keep
+  /// platform-consistent chrome while still wiring stateful affordances like
+  /// cart badges.
+  final SchemaRoutedScreenAppBarActionsBuilder? appBarActionsBuilder;
 
   @override
   State<SchemaRoutedScreen> createState() => _SchemaRoutedScreenState();
@@ -142,28 +161,32 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
     return FutureBuilder<DaryeelRuntimeViewModel>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return Scaffold(
-            appBar: AppBar(title: inspectorTitle()),
-            body: const Center(child: CircularProgressIndicator()),
-          );
-        }
+        late final Widget current;
 
-        if (snapshot.hasError) {
-          return Scaffold(
-            appBar: AppBar(title: inspectorTitle()),
-            body: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'Unable to load screen: ${widget.screenId}\n${snapshot.error}',
-                textAlign: TextAlign.center,
+        if (snapshot.connectionState != ConnectionState.done) {
+          current = const KeyedSubtree(
+            key: ValueKey<String>('schema_routed_screen.loading'),
+            child: Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          current = KeyedSubtree(
+            key: const ValueKey<String>('schema_routed_screen.error'),
+            child: Scaffold(
+              appBar: AppBar(title: inspectorTitle()),
+              body: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Unable to load screen: ${widget.screenId}\n${snapshot.error}',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           );
-        }
-
-        final vm = snapshot.data!;
-        final loaded = vm.screen;
+        } else {
+          final vm = snapshot.data!;
+          final loaded = vm.screen;
 
         // Ensure the shared `$state` store is wired to this screen's diagnostics.
         session.stateStore.configureDiagnostics(
@@ -187,19 +210,26 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
               ),
         );
 
-        if (loaded.schema == null) {
-          final errors = loaded.parseErrors.map((e) => e.toString()).join('\n');
-          return Scaffold(
-            appBar: AppBar(title: inspectorTitle(loaded: loaded)),
-            body: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'Schema parse failed:\n$errors',
-                textAlign: TextAlign.center,
+          if (loaded.schema == null) {
+            final errors =
+                loaded.parseErrors.map((e) => e.toString()).join('\n');
+            current = KeyedSubtree(
+              key: const ValueKey<String>('schema_routed_screen.parse_error'),
+              child: Scaffold(
+                appBar: AppBar(
+                  title: inspectorTitle(loaded: loaded),
+                  actions: widget.appBarActionsBuilder?.call(context, loaded),
+                ),
+                body: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Schema parse failed:\n$errors',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
-            ),
-          );
-        }
+            );
+          } else {
 
         final renderer = SchemaRenderer(
           rootNode: loaded.schema!.root,
@@ -218,25 +248,42 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
           'schema:${loaded.bundle.schemaId}:$schemaIdentity',
         );
 
-        return KeyedSubtree(
-          key: schemaTreeKey,
-          child: Theme(
-            data: loaded.theme,
-            child: Scaffold(
-              appBar: AppBar(title: inspectorTitle(loaded: loaded)),
-              body: SchemaRouteScope(
-                params: _coerceRouteParams(
-                  ModalRoute.of(context)?.settings.arguments,
-                ),
-                child: SchemaStateScopeHost(
-                  child: SchemaFormScope(
-                    store: _formStore,
-                    child: renderer.render(),
+            current = KeyedSubtree(
+              key: schemaTreeKey,
+              child: Theme(
+                data: loaded.theme,
+                child: Scaffold(
+                  appBar: AppBar(
+                    title: inspectorTitle(loaded: loaded),
+                    actions:
+                        widget.appBarActionsBuilder?.call(context, loaded),
+                  ),
+                  body: SchemaRouteScope(
+                    params: _coerceRouteParams(
+                      widget.routeParams ??
+                          ModalRoute.of(context)?.settings.arguments,
+                    ),
+                    child: SchemaStateScopeHost(
+                      child: SchemaFormScope(
+                        store: _formStore,
+                        child: renderer.render(),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          }
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: current,
         );
       },
     );

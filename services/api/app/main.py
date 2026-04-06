@@ -211,10 +211,20 @@ _SERVICE_DEFINITIONS = [
         "title": "Ambulance",
         "subtitle": "Emergency transport",
         "icon": "ambulance",
-        "route": "customer.request.ambulance",
+        "route": {
+            "route": "customer.schema_screen",
+            "value": {
+                "screenId": "customer_request_ambulance",
+                "title": "Ambulance",
+            },
+        },
         "detailRoute": {
-            "route": "customer.service.detail",
-            "value": {"id": "ambulance"},
+            "route": "customer.schema_screen",
+            "value": {
+                "screenId": "customer_service_detail",
+                "title": "Service",
+                "params": {"id": "ambulance"},
+            },
         },
     },
     {
@@ -222,10 +232,20 @@ _SERVICE_DEFINITIONS = [
         "title": "Home visit",
         "subtitle": "Doctor comes to you",
         "icon": "house",
-        "route": "customer.request.home_visit",
+        "route": {
+            "route": "customer.schema_screen",
+            "value": {
+                "screenId": "customer_request_home_visit",
+                "title": "Home Visit",
+            },
+        },
         "detailRoute": {
-            "route": "customer.service.detail",
-            "value": {"id": "home_visit"},
+            "route": "customer.schema_screen",
+            "value": {
+                "screenId": "customer_service_detail",
+                "title": "Service",
+                "params": {"id": "home_visit"},
+            },
         },
     },
     {
@@ -233,10 +253,21 @@ _SERVICE_DEFINITIONS = [
         "title": "Pharmacy",
         "subtitle": "Order medicine",
         "icon": "pill",
-        "route": "customer.request.pharmacy",
+        "route": {
+            "route": "customer.schema_screen",
+            "value": {
+                "screenId": "pharmacy_shop",
+                "title": "Pharmacy",
+                "chromePreset": "pharmacy_cart_badge",
+            },
+        },
         "detailRoute": {
-            "route": "customer.service.detail",
-            "value": {"id": "pharmacy"},
+            "route": "customer.schema_screen",
+            "value": {
+                "screenId": "customer_service_detail",
+                "title": "Service",
+                "params": {"id": "pharmacy"},
+            },
         },
     },
 ]

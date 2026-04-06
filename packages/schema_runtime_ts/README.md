@@ -8,3 +8,8 @@ This package owns:
 - Reference resolution (`resolveScreenRefs`)
 
 It is framework-agnostic (usable by Angular, Node, etc.).
+
+## Build outputs
+
+- `dist/` is the only published output (see `package.json` `files`).
+- `npm run build` cleans and regenerates `dist/` to avoid stale artifacts.

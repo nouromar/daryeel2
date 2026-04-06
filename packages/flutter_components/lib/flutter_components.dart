@@ -9,6 +9,7 @@ export 'src/schema_components/action_card_schema_component.dart';
 export 'src/schema_components/bottom_tabs_schema_component.dart';
 export 'src/schema_components/bound_action_card_schema_component.dart';
 export 'src/schema_components/catalog_item_tile_schema_component.dart';
+export 'src/schema_components/core_schema_components.dart';
 export 'src/schema_components/for_each_schema_component.dart';
 export 'src/schema_components/gap_schema_component.dart';
 export 'src/schema_components/info_card_schema_component.dart';

@@ -31,6 +31,8 @@ final class ActionDefinition {
     required this.type,
     this.route,
     this.formId,
+    this.modalId,
+    this.dataSource,
     this.value,
     this.eventName,
     this.eventProperties,
@@ -39,6 +41,8 @@ final class ActionDefinition {
   final String type;
   final String? route;
   final String? formId;
+  final String? modalId;
+  final String? dataSource;
   final Object? value;
   final String? eventName;
   final Map<String, Object?>? eventProperties;

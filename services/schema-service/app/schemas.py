@@ -14,6 +14,11 @@ class ActionDefinition(BaseModel):
     type: str
     route: str | None = None
     formId: str | None = None
+    modalId: str | None = None
+    dataSource: str | None = None
+    value: Any | None = None
+    eventName: str | None = None
+    eventProperties: dict[str, Any] | None = None
 
 
 class RefNode(BaseModel):

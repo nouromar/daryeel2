@@ -21,45 +21,7 @@ SchemaWidgetRegistry buildCustomerComponentRegistry({
     diagnosticsContext: diagnosticsContext,
   );
 
-  registerTextInputSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerScreenTemplateSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerInfoCardSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerActionCardSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerGapSchemaComponent(registry: registry, context: componentContext);
-  registerBottomTabsSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerPrimaryActionBarSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-
-  registerRemoteQuerySchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerRemotePagedListSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-  registerForEachSchemaComponent(registry: registry, context: componentContext);
-  registerBoundActionCardSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
+  registerCoreSchemaComponents(registry: registry, context: componentContext);
 
   registerCustomerCatalogItemTileSchemaComponent(
     registry: registry,

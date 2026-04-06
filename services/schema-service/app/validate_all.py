@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any, Iterable
 
 from app.validation import DARYEEL2_ROOT, validate_fragment_document, validate_screen_document
@@ -470,6 +471,169 @@ def _max_ref_depth(
     return max_seen
 
 
+_SCHEMA_SCREEN_ROUTE = "customer.schema_screen"
+_SCREEN_ID_RE = re.compile(r"^[a-z][a-z0-9_\-.]{0,79}$")
+
+
+def _validate_schema_screen_route_args(
+    *,
+    action_id: str,
+    action: dict[str, Any],
+    issue_path: str,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+
+    raw_value = action.get("value")
+    if not isinstance(raw_value, dict):
+        issues.append(
+            ValidationIssue(
+                code="invalid_schema_route_value",
+                message="customer.schema_screen requires object 'value'",
+                path=f"{issue_path}.actions.{action_id}.value",
+            )
+        )
+        return issues
+
+    reserved = {"screenId", "title", "service", "chromePreset", "params"}
+    extra_keys = [k for k in raw_value.keys() if isinstance(k, str) and k not in reserved]
+    if extra_keys:
+        issues.append(
+            ValidationIssue(
+                code="unknown_schema_route_args",
+                message=(
+                    "customer.schema_screen only allows {screenId,title,service,chromePreset,params}; "
+                    f"unknown keys: {sorted(extra_keys)[:10]}"
+                ),
+                path=f"{issue_path}.actions.{action_id}.value",
+            )
+        )
+
+    screen_id = raw_value.get("screenId")
+    if not isinstance(screen_id, str) or not screen_id.strip() or not _SCREEN_ID_RE.match(screen_id.strip()):
+        issues.append(
+            ValidationIssue(
+                code="invalid_schema_route_screen_id",
+                message="value.screenId must be a valid screen id",
+                path=f"{issue_path}.actions.{action_id}.value.screenId",
+            )
+        )
+
+    for key in ("title", "service"):
+        v = raw_value.get(key)
+        if v is None:
+            continue
+        if not isinstance(v, str):
+            issues.append(
+                ValidationIssue(
+                    code="invalid_schema_route_string",
+                    message=f"value.{key} must be a string",
+                    path=f"{issue_path}.actions.{action_id}.value.{key}",
+                )
+            )
+        elif len(v) > 120:
+            issues.append(
+                ValidationIssue(
+                    code="schema_route_string_too_long",
+                    message=f"value.{key} exceeds max length (120)",
+                    path=f"{issue_path}.actions.{action_id}.value.{key}",
+                )
+            )
+
+    chrome = raw_value.get("chromePreset")
+    if chrome is not None:
+        if not isinstance(chrome, str):
+            issues.append(
+                ValidationIssue(
+                    code="invalid_schema_route_chrome_preset",
+                    message="value.chromePreset must be a string",
+                    path=f"{issue_path}.actions.{action_id}.value.chromePreset",
+                )
+            )
+        else:
+            allowed = {"standard", "pharmacy_cart_badge"}
+            if chrome.strip() and chrome.strip() not in allowed:
+                issues.append(
+                    ValidationIssue(
+                        code="unknown_schema_route_chrome_preset",
+                        message=f"value.chromePreset not in allowlist: {sorted(allowed)}",
+                        path=f"{issue_path}.actions.{action_id}.value.chromePreset",
+                    )
+                )
+
+    params = raw_value.get("params")
+    if params is not None and not isinstance(params, dict):
+        issues.append(
+            ValidationIssue(
+                code="invalid_schema_route_params",
+                message="value.params must be an object",
+                path=f"{issue_path}.actions.{action_id}.value.params",
+            )
+        )
+        params = None
+
+    if isinstance(params, dict):
+        if len(params) > 50:
+            issues.append(
+                ValidationIssue(
+                    code="schema_route_params_budget_exceeded",
+                    message="value.params exceeds max keys (50)",
+                    path=f"{issue_path}.actions.{action_id}.value.params",
+                )
+            )
+
+        def is_jsonish(v: Any, depth: int) -> bool:
+            if v is None or isinstance(v, (str, int, float, bool)):
+                return True
+            if depth >= 4:
+                return False
+            if isinstance(v, list):
+                if len(v) > 100:
+                    return False
+                return all(is_jsonish(x, depth + 1) for x in v)
+            if isinstance(v, dict):
+                if len(v) > 50:
+                    return False
+                for k, vv in v.items():
+                    if not isinstance(k, str) or not k:
+                        return False
+                    if not is_jsonish(vv, depth + 1):
+                        return False
+                return True
+            return False
+
+        if not is_jsonish(params, 0):
+            issues.append(
+                ValidationIssue(
+                    code="invalid_schema_route_params_value",
+                    message="value.params must be JSON-like (bounded depth/types)",
+                    path=f"{issue_path}.actions.{action_id}.value.params",
+                )
+            )
+
+    # Payload size budget (defense-in-depth).
+    try:
+        import json
+
+        if len(json.dumps(raw_value, separators=(",", ":"), sort_keys=True).encode("utf-8")) > 16 * 1024:
+            issues.append(
+                ValidationIssue(
+                    code="schema_route_value_too_large",
+                    message="customer.schema_screen value exceeds size budget (16KB)",
+                    path=f"{issue_path}.actions.{action_id}.value",
+                )
+            )
+    except Exception:
+        issues.append(
+            ValidationIssue(
+                code="schema_route_value_not_serializable",
+                message="customer.schema_screen value must be JSON-serializable",
+                path=f"{issue_path}.actions.{action_id}.value",
+            )
+        )
+
+    return issues
+
+
 def validate_examples(
     *,
     examples_dir: Path = SCHEMA_EXAMPLES_DIR,
@@ -666,6 +830,30 @@ def validate_examples(
                 issue_path_prefix=path.name,
             )
         )
+
+        # Action validation (route settings guardrails)
+        if isinstance(screen_actions, dict):
+            for action_id, action in screen_actions.items():
+                if not isinstance(action_id, str) or not action_id:
+                    continue
+                if not isinstance(action, dict):
+                    issues.append(
+                        ValidationIssue(
+                            code="invalid_action_definition",
+                            message="Action definition must be an object",
+                            path=f"{path.name}.actions.{action_id}",
+                        )
+                    )
+                    continue
+
+                if action.get("type") == "navigate" and action.get("route") == _SCHEMA_SCREEN_ROUTE:
+                    issues.extend(
+                        _validate_schema_screen_route_args(
+                            action_id=action_id,
+                            action=action,
+                            issue_path=path.name,
+                        )
+                    )
 
     return issues
 

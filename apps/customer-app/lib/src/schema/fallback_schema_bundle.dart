@@ -111,13 +111,29 @@ const fallbackCustomerHomeBundle = SchemaBundle(
     'actions': {
       'go_ambulance': {
         'type': 'navigate',
-        'route': 'customer.request.ambulance',
+        'route': 'customer.schema_screen',
+        'value': {
+          'screenId': 'customer_request_ambulance',
+          'title': 'Ambulance',
+        },
       },
       'go_home_visit': {
         'type': 'navigate',
-        'route': 'customer.request.home_visit',
+        'route': 'customer.schema_screen',
+        'value': {
+          'screenId': 'customer_request_home_visit',
+          'title': 'Home Visit',
+        },
       },
-      'go_pharmacy': {'type': 'navigate', 'route': 'customer.request.pharmacy'},
+      'go_pharmacy': {
+        'type': 'navigate',
+        'route': 'customer.schema_screen',
+        'value': {
+          'screenId': 'pharmacy_shop',
+          'title': 'Pharmacy',
+          'chromePreset': 'pharmacy_cart_badge',
+        },
+      },
     },
   },
 );
