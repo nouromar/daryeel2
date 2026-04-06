@@ -94,7 +94,8 @@
                         "titlePath": "name",
                         "subtitlePath": "subtitle",
                         "rxRequiredPath": "rx_required"
-                      }
+                      },
+                      "actions": { "add": "pharmacy_add_to_cart" }
                     }
                   ]
                 }
@@ -106,6 +107,23 @@
     }
   },
   "actions": {
+    "pharmacy_add_to_cart": {
+      "type": "patch_state",
+      "value": {
+        "ops": [
+          {
+            "op": "increment",
+            "path": "pharmacy.cart.itemsById.${item.id}.quantity",
+            "by": 1
+          },
+          {
+            "op": "increment",
+            "path": "pharmacy.cart.totalQuantity",
+            "by": 1
+          }
+        ]
+      }
+    },
     "go_prescription_upload": {
       "type": "navigate",
       "route": "customer.pharmacy.prescription_upload"

@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:schema_runtime_dart/schema_runtime_dart.dart';
 
+import '../bindings/schema_interpolation.dart';
+import '../security/security_budgets.dart';
 import '../state/schema_state_scope.dart';
 
 abstract class SchemaActionDispatcher {
@@ -30,27 +32,68 @@ class NavigatorSchemaActionDispatcher extends SchemaActionDispatcher {
         }
 
         final raw = action.value;
-        if (raw is Map) {
-          final patch = <String, Object?>{};
-          for (final entry in raw.entries) {
-            final k = entry.key;
-            if (k is! String) continue;
-            final key = k.trim();
-            if (key.isEmpty) continue;
-            patch[key] = entry.value;
+        if (raw is! Map) return;
+
+        // Canonical shape: {"path": "...", "value": ...}
+        final pathRaw = raw['path'];
+        if (pathRaw is! String || pathRaw.trim().isEmpty) return;
+
+        final resolvedPath = interpolateSchemaString(pathRaw, context);
+        final path = resolvedPath.trim();
+        if (path.isEmpty) return;
+
+        store.setValue(path, raw['value']);
+        return;
+
+      case 'patch_state':
+        final store = SchemaStateScope.maybeOf(context);
+        if (store == null) return;
+
+        final raw = action.value;
+        if (raw is! Map) return;
+        final opsRaw = raw['ops'];
+        if (opsRaw is! List) return;
+
+        final maxOps = SecurityBudgets.maxStatePatchOpsPerAction;
+        final opCount = opsRaw.length;
+        final limit = opCount < maxOps ? opCount : maxOps;
+
+        for (var i = 0; i < limit; i++) {
+          final opRaw = opsRaw[i];
+          if (opRaw is! Map) continue;
+
+          final op = opRaw['op'];
+          final pathRaw = opRaw['path'];
+          if (op is! String || pathRaw is! String) continue;
+
+          final resolvedPath = interpolateSchemaString(pathRaw, context);
+          final path = resolvedPath.trim();
+          if (path.isEmpty) continue;
+
+          switch (op.trim().toLowerCase()) {
+            case 'set':
+              store.setValue(path, opRaw['value']);
+              break;
+            case 'remove':
+              store.removeValue(path);
+              break;
+            case 'increment':
+              final byRaw = opRaw['by'];
+              final by = (byRaw is num)
+                  ? byRaw
+                  : (byRaw is String ? num.tryParse(byRaw.trim()) : null);
+              if (by == null) break;
+              store.incrementValue(path, by);
+              break;
+            case 'append':
+              store.appendValue(path, opRaw['value']);
+              break;
+            default:
+              // Unknown op: ignore.
+              break;
           }
-          store.setValues(patch);
-          return;
         }
 
-        if (raw is List && raw.length == 2 && raw.first is String) {
-          final key = (raw.first as String).trim();
-          if (key.isEmpty) return;
-          store.setValue(key, raw[1]);
-          return;
-        }
-
-        // Unknown payload shape: fail closed (no-op) rather than crashing.
         return;
       default:
         throw UnsupportedError('Unsupported action type: ${action.type}');

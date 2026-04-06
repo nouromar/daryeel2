@@ -51,6 +51,8 @@ class DaryeelRuntimeSession {
     );
 
     queryStore = SchemaQueryStore(apiBaseUrl: apiBaseUrl, client: _httpClient);
+
+    stateStore = SchemaStateStore();
   }
 
   final DaryeelClientAppConfig appConfig;
@@ -64,6 +66,7 @@ class DaryeelRuntimeSession {
   final Map<String, String> Function()? requestHeadersProvider;
 
   late final SchemaQueryStore queryStore;
+  late final SchemaStateStore stateStore;
 
   late final DaryeelRuntimeController controller;
   late final InMemoryDiagnosticsSink? inMemoryDiagnosticsSink;
@@ -94,5 +97,6 @@ class DaryeelRuntimeSession {
     // No explicit disposal needed; keep best-effort cleanup minimal.
     inMemoryDiagnosticsSink?.clear();
     queryStore.dispose();
+    stateStore.dispose();
   }
 }

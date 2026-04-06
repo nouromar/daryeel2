@@ -66,15 +66,67 @@ void main() {
     );
   });
 
-  testWidgets('NavigatorSchemaActionDispatcher supports set_state',
+  testWidgets('NavigatorSchemaActionDispatcher supports set_state {path,value}',
+      (tester) async {
+    final store = SchemaStateStore();
+    const dispatcher = NavigatorSchemaActionDispatcher();
+    const action1 = ActionDefinition(
+      type: 'set_state',
+      value: <String, Object?>{
+        'path': 'q',
+        'value': 'abc',
+      },
+    );
+
+    const action2 = ActionDefinition(
+      type: 'set_state',
+      value: <String, Object?>{
+        'path': 'limit',
+        'value': 10,
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SchemaStateScope(
+          store: store,
+          child: const _Home(),
+        ),
+      ),
+    );
+
+    final context = tester.element(find.byKey(const Key('home')));
+    await dispatcher.dispatch(context, action1);
+    await dispatcher.dispatch(context, action2);
+
+    expect(store.getValue('q'), 'abc');
+    expect(store.getValue('limit'), 10);
+  });
+
+  testWidgets('NavigatorSchemaActionDispatcher supports patch_state ops',
       (tester) async {
     final store = SchemaStateStore();
     const dispatcher = NavigatorSchemaActionDispatcher();
     const action = ActionDefinition(
-      type: 'set_state',
+      type: 'patch_state',
       value: <String, Object?>{
-        'q': 'abc',
-        'limit': 10,
+        'ops': <Object?>[
+          <String, Object?>{
+            'op': 'set',
+            'path': 'pharmacy.cart.items',
+            'value': <Object?>[],
+          },
+          <String, Object?>{
+            'op': 'append',
+            'path': 'pharmacy.cart.items',
+            'value': <String, Object?>{'id': '1', 'quantity': 1},
+          },
+          <String, Object?>{
+            'op': 'increment',
+            'path': 'pharmacy.cart.totalQuantity',
+            'by': 1,
+          },
+        ],
       },
     );
 
@@ -90,8 +142,11 @@ void main() {
     final context = tester.element(find.byKey(const Key('home')));
     await dispatcher.dispatch(context, action);
 
-    expect(store.getValue('q'), 'abc');
-    expect(store.getValue('limit'), 10);
+    expect(store.getValue('pharmacy.cart.totalQuantity'), 1);
+    final items = store.getValue('pharmacy.cart.items');
+    expect(items, isA<List>());
+    expect((items as List).length, 1);
+    expect((items.first as Map)['id'], '1');
   });
 }
 

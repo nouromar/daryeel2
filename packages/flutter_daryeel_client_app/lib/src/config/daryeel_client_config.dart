@@ -51,6 +51,7 @@ SchemaActionPolicy defaultDaryeelActionPolicyBuilder({
       SchemaActionTypes.submitForm,
       SchemaActionTypes.trackEvent,
       SchemaActionTypes.setState,
+      SchemaActionTypes.patchState,
     },
     openUrlPolicy: UriPolicy(
       allowedSchemes: const <String>{'https'},

@@ -57,6 +57,19 @@ class SecurityBudgets {
   static const int maxStateKeysPerScreen = 200;
   static const int maxStateStringLength = 4 * 1024;
 
+  /// Budgets for JSON-like `$state` values (Maps/Lists + primitives).
+  ///
+  /// These are intentionally conservative; `$state` can be mutated by remote
+  /// schemas and must remain bounded.
+  static const int maxStateJsonDepth = 8;
+  static const int maxStateJsonNodes = 800;
+  static const int maxStateJsonEntriesPerMap = 80;
+  static const int maxStateJsonItemsPerList = 200;
+  static const int maxStateJsonKeyLength = 80;
+
+  /// Hard cap for patch_state ops per action.
+  static const int maxStatePatchOpsPerAction = 10;
+
   // -------------------------
   // Form budgets
   // -------------------------

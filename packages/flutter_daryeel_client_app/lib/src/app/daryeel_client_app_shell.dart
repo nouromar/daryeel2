@@ -107,7 +107,10 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
     if (session == null) return child;
     return RuntimeSessionScope(
       session: session,
-      child: SchemaQueryScope(store: session.queryStore, child: child),
+      child: SchemaQueryScope(
+        store: session.queryStore,
+        child: SchemaStateScope(store: session.stateStore, child: child),
+      ),
     );
   }
 
@@ -235,6 +238,12 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
 
   Widget _buildLoadedApp(DaryeelRuntimeViewModel vm) {
     final loadedScreen = vm.screen;
+
+    // Ensure the shared `$state` store is wired to this screen's diagnostics.
+    _session?.stateStore.configureDiagnostics(
+      diagnostics: vm.diagnostics,
+      diagnosticsContext: vm.rendererDiagnosticsContext,
+    );
 
     final session = _session;
     if (session != null) {

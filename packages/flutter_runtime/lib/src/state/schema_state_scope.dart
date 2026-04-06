@@ -49,26 +49,33 @@ class SchemaStateScopeHost extends StatefulWidget {
 }
 
 class _SchemaStateScopeHostState extends State<SchemaStateScopeHost> {
-  late final SchemaStateStore _store =
-      SchemaStateStore(initial: widget.defaults);
+  SchemaStateStore? _localStore;
 
   @override
   void didUpdateWidget(covariant SchemaStateScopeHost oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (!mapEquals(oldWidget.defaults, widget.defaults)) {
-      _store.applyDefaults(widget.defaults);
+      final store = SchemaStateScope.maybeOf(context) ?? _localStore;
+      store?.applyDefaults(widget.defaults);
     }
   }
 
   @override
   void dispose() {
-    _store.dispose();
+    _localStore?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SchemaStateScope(store: _store, child: widget.child);
+    final existing = SchemaStateScope.maybeOf(context);
+    if (existing != null) {
+      existing.applyDefaults(widget.defaults);
+      return widget.child;
+    }
+
+    final store = _localStore ??= SchemaStateStore(initial: widget.defaults);
+    return SchemaStateScope(store: store, child: widget.child);
   }
 }

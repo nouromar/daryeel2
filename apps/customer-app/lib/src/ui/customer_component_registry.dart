@@ -2,6 +2,8 @@ import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
+import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
+
 SchemaWidgetRegistry buildCustomerComponentRegistry({
   required ScreenSchema screen,
   required SchemaActionDispatcher actionDispatcher,
@@ -55,6 +57,11 @@ SchemaWidgetRegistry buildCustomerComponentRegistry({
   );
   registerForEachSchemaComponent(registry: registry, context: componentContext);
   registerBoundActionCardSchemaComponent(
+    registry: registry,
+    context: componentContext,
+  );
+
+  registerCustomerCatalogItemTileSchemaComponent(
     registry: registry,
     context: componentContext,
   );

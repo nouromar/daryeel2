@@ -2,7 +2,7 @@
 description: "RFC: Runtime enhancements for cross-screen state, two-way bindings, interpolation, and generic state actions (enables schema-driven cart flows)."
 status: draft
 owner: schema-runtime
-last_updated: 2026-04-05
+last_updated: 2026-04-06
 ---
 
 # RFC: Runtime State Store + Two-Way Bindings (Cart-Ready Schema Runtime)
@@ -207,17 +207,22 @@ Both must be:
 
 #### Action: `set_state`
 
+Canonical schema shape (matches runtime implementation):
+
 ```json
 {
   "type": "set_state",
-  "path": "pharmacy.cart.itemsById.123.quantity",
-  "value": 2
+  "value": {
+    "path": "pharmacy.cart.itemsById.123.quantity",
+    "value": 2
+  }
 }
 ```
 
 Notes:
-- `path` is relative to `$state` root; implementation prepends `$state.`.
-- `value` must be JSON-serializable.
+- `path` is relative to `$state` root.
+- `path` supports interpolation (e.g. `"pharmacy.cart.itemsById.${item.id}.quantity"`).
+- `value` must be JSON-like (primitives, arrays, maps) and is sanitized/budgeted.
 
 #### Action: `patch_state`
 
@@ -226,19 +231,47 @@ Supports safe operations without exposing arbitrary scripting:
 ```json
 {
   "type": "patch_state",
-  "ops": [
-    {"op": "increment", "path": "pharmacy.cart.itemsById.123.quantity", "by": 1},
-    {"op": "set", "path": "pharmacy.cart.itemsById.123.title", "value": "Panadol"},
-    {"op": "remove", "path": "pharmacy.cart.itemsById.123"}
-  ]
+  "value": {
+    "ops": [
+      {
+        "op": "increment",
+        "path": "pharmacy.cart.itemsById.123.quantity",
+        "by": 1
+      },
+      {
+        "op": "set",
+        "path": "pharmacy.cart.itemsById.123.title",
+        "value": "Panadol"
+      },
+      {"op": "remove", "path": "pharmacy.cart.itemsById.123"}
+    ]
+  }
 }
 ```
 
 Supported ops (initial set):
 - `set`
 - `remove`
-- `increment` / `decrement` (numeric only)
+- `increment` (numeric only; use negative `by` for decrement)
 - `append` (array only)
+
+#### Ops ↔ store methods (implementation contract)
+The action dispatcher is intentionally a thin, allowlisted facade over `SchemaStateStore`.
+
+This table is the canonical mapping between schema ops and store methods:
+
+| Schema action/op | Payload shape (within `action.value`) | Dispatcher behavior | `SchemaStateStore` method |
+|---|---|---|---|
+| `set_state` | `{ "path": "<string>", "value": <json> }` | Interpolate `path`, sanitize `value`, set at path | `setValue(path, value)` |
+| `patch_state` / `set` | `{ "op": "set", "path": "<string>", "value": <json> }` | Interpolate `path`, sanitize `value`, set at path | `setValue(path, value)` |
+| `patch_state` / `remove` | `{ "op": "remove", "path": "<string>" }` | Interpolate `path`, remove if present | `removeValue(path)` |
+| `patch_state` / `increment` | `{ "op": "increment", "path": "<string>", "by": <num|string> }` | Interpolate `path`, parse `by`, increment numeric value (missing→0) | `incrementValue(path, by)` |
+| `patch_state` / `append` | `{ "op": "append", "path": "<string>", "value": <json> }` | Interpolate `path`, append to list (missing→new list) | `appendValue(path, value)` |
+
+Guardrails (must remain true as the surface area grows):
+- Hard cap on ops per action via `SecurityBudgets.maxStatePatchOpsPerAction`.
+- State value sanitizer enforces JSON-like shape and budgets (depth/node counts, map/list limits).
+- Unknown op or malformed payload shapes are ignored (fail-closed, no crash).
 
 #### Guardrails
 - Maximum op count per action (e.g. 10).
@@ -265,12 +298,26 @@ Example schema:
     "titlePath": "name",
     "subtitlePath": "subtitle"
   },
+  "actions": { "add": "pharmacy_add_to_cart" }
+}
+```
+
+With a corresponding screen action:
+
+```json
+{
   "actions": {
-    "add": {
+    "pharmacy_add_to_cart": {
       "type": "patch_state",
-      "ops": [
-        {"op": "increment", "path": "pharmacy.cart.itemsById.${item.id}.quantity", "by": 1}
-      ]
+      "value": {
+        "ops": [
+          {
+            "op": "increment",
+            "path": "pharmacy.cart.itemsById.${item.id}.quantity",
+            "by": 1
+          }
+        ]
+      }
     }
   }
 }
@@ -312,8 +359,19 @@ For v1, prefer explicit maintenance (simpler).
     "title": "Cart",
     "subtitle": "Items: ${state.pharmacy.cart.totalQuantity}"
   },
+  "actions": { "tap": "go_cart" }
+}
+```
+
+With a corresponding screen action:
+
+```json
+{
   "actions": {
-    "tap": {"type": "navigate", "route": "customer.pharmacy.cart"}
+    "go_cart": {
+      "type": "navigate",
+      "route": "customer.pharmacy.cart"
+    }
   }
 }
 ```
@@ -350,11 +408,11 @@ Then:
 {
   "type": "ForEach",
   "props": {
-    "items": {"$bind": "state.pharmacy.cart.items"},
-    "itemKey": "id"
+    "itemsPath": "$state.pharmacy.cart.items",
+    "itemKeyPath": "id"
   },
   "slots": {
-    "template": [
+    "item": [
       {
         "type": "Row",
         "slots": {
@@ -364,23 +422,33 @@ Then:
             {
               "type": "ActionCard",
               "props": {"title": "+"},
-              "actions": {
-                "tap": {
-                  "type": "patch_state",
-                  "ops": [
-                    {
-                      "op": "increment",
-                      "path": "pharmacy.cart.items.${index}.quantity",
-                      "by": 1
-                    }
-                  ]
-                }
-              }
+              "actions": { "tap": "cart_item_inc" }
             }
           ]
         }
       }
     ]
+  }
+}
+```
+
+With a corresponding screen action:
+
+```json
+{
+  "actions": {
+    "cart_item_inc": {
+      "type": "patch_state",
+      "value": {
+        "ops": [
+          {
+            "op": "increment",
+            "path": "pharmacy.cart.items.${index}.quantity",
+            "by": 1
+          }
+        ]
+      }
+    }
   }
 }
 ```
@@ -426,11 +494,17 @@ Integrate with the existing budget framework:
 ### Phase 1: State store + `set_state`
 - Implement runtime store in session.
 - Add `set_state` action dispatcher, policy allowlist, budgets, diagnostics.
+- Supported mutation methods/ops:
+  - `SchemaStateStore.setValue()` via `set_state {path,value}` (canonical)
 - No interpolation yet (bindings only via structured `$bind`).
 
 ### Phase 2: Interpolation + `patch_state`
 - Add interpolation parsing for string props (limited expression set).
-- Add `patch_state` operations (increment/remove/append).
+- Add `patch_state` operations:
+  - `set` → `SchemaStateStore.setValue()`
+  - `remove` → `SchemaStateStore.removeValue()`
+  - `increment` → `SchemaStateStore.incrementValue()` (negative `by` allowed)
+  - `append` → `SchemaStateStore.appendValue()`
 
 ### Phase 3: Component action delegation
 - Update `CatalogItemTile` (and other interactive widgets) to delegate actions from schema when provided.
@@ -455,8 +529,10 @@ Integrate with the existing budget framework:
 ```json
 {
   "type": "set_state",
-  "path": "<string>",
-  "value": "<any JSON>"
+  "value": {
+    "path": "<string>",
+    "value": "<any JSON>"
+  }
 }
 ```
 
@@ -465,12 +541,14 @@ Integrate with the existing budget framework:
 ```json
 {
   "type": "patch_state",
-  "ops": [
-    {"op": "set", "path": "<string>", "value": "<any JSON>"},
-    {"op": "remove", "path": "<string>"},
-    {"op": "increment", "path": "<string>", "by": 1},
-    {"op": "append", "path": "<string>", "value": "<any JSON>"}
-  ]
+  "value": {
+    "ops": [
+      {"op": "set", "path": "<string>", "value": "<any JSON>"},
+      {"op": "remove", "path": "<string>"},
+      {"op": "increment", "path": "<string>", "by": 1},
+      {"op": "append", "path": "<string>", "value": "<any JSON>"}
+    ]
+  }
 }
 ```
 

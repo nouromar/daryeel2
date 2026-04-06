@@ -10,7 +10,7 @@ void registerPrimaryActionBarSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('PrimaryActionBar', (node, componentRegistry) {
-    final label = node.props['primaryLabel'] as String? ?? 'Continue';
+    final labelTemplate = node.props['primaryLabel'] as String? ?? 'Continue';
     final contentAlign = node.props['contentAlign'] as String?;
     final expand = node.props['expand'] as bool? ?? true;
     final primaryAction = resolveComponentAction(
@@ -27,32 +27,49 @@ void registerPrimaryActionBarSchemaComponent({
 
     return Builder(
       builder: (buildContext) {
-        return PrimaryActionBarWidget(
-          primaryLabel: label,
-          contentAlignment: contentAlignment,
-          expand: expand,
-          onPrimaryPressed: primaryAction == null
-              ? null
-              : () async {
-                  final result = await tryDispatchComponentAction(
-                    context: buildContext,
-                    screen: context.screen,
-                    node: node,
-                    actionKey: 'primary',
-                    dispatcher: context.actionDispatcher,
-                    diagnostics: context.diagnostics,
-                    diagnosticsContext: context.diagnosticsContext,
-                  );
+        Widget buildBar() {
+          final label = interpolateSchemaString(labelTemplate, buildContext);
 
-                  final failure = result.failure;
-                  if (failure == null) return;
-                  if (!buildContext.mounted) return;
+          return PrimaryActionBarWidget(
+            primaryLabel: label,
+            contentAlignment: contentAlignment,
+            expand: expand,
+            onPrimaryPressed: primaryAction == null
+                ? null
+                : () async {
+                    final result = await tryDispatchComponentAction(
+                      context: buildContext,
+                      screen: context.screen,
+                      node: node,
+                      actionKey: 'primary',
+                      dispatcher: context.actionDispatcher,
+                      diagnostics: context.diagnostics,
+                      diagnosticsContext: context.diagnosticsContext,
+                    );
 
-                  ScaffoldMessenger.of(buildContext).showSnackBar(
-                    SnackBar(content: Text(failure.message)),
-                  );
-                },
-        );
+                    final failure = result.failure;
+                    if (failure == null) return;
+                    if (!buildContext.mounted) return;
+
+                    ScaffoldMessenger.of(buildContext).showSnackBar(
+                      SnackBar(content: Text(failure.message)),
+                    );
+                  },
+          );
+        }
+
+        final store = SchemaStateScope.maybeOf(buildContext);
+        final needsReactive =
+            store != null && hasSchemaInterpolation(labelTemplate);
+
+        if (needsReactive) {
+          return AnimatedBuilder(
+            animation: store,
+            builder: (_, __) => buildBar(),
+          );
+        }
+
+        return buildBar();
       },
     );
   });

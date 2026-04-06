@@ -27,6 +27,8 @@ export 'src/state/schema_state_store.dart';
 
 export 'src/data/schema_data_scope.dart';
 
+export 'src/bindings/schema_interpolation.dart';
+
 export 'src/queries/schema_query_scope.dart';
 export 'src/queries/schema_query_spec.dart';
 export 'src/queries/schema_query_store.dart';

@@ -10,8 +10,8 @@ void registerActionCardSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('ActionCard', (node, componentRegistry) {
-    final title = node.props['title'] as String? ?? 'Untitled';
-    final subtitle = node.props['subtitle'] as String? ?? '';
+    final titleTemplate = node.props['title'] as String? ?? 'Untitled';
+    final subtitleTemplate = node.props['subtitle'] as String? ?? '';
     final surface = node.props['surface'] as String? ?? 'raised';
     final icon = _resolveMaterialIcon(node.props['icon'] as String?);
 
@@ -23,33 +23,55 @@ void registerActionCardSchemaComponent({
 
     return Builder(
       builder: (buildContext) {
-        return ActionCardWidget(
-          title: title,
-          subtitle: subtitle,
-          icon: icon,
-          surface: surface,
-          onTap: tapAction == null
-              ? null
-              : () async {
-                  final result = await tryDispatchComponentAction(
-                    context: buildContext,
-                    screen: context.screen,
-                    node: node,
-                    actionKey: 'tap',
-                    dispatcher: context.actionDispatcher,
-                    diagnostics: context.diagnostics,
-                    diagnosticsContext: context.diagnosticsContext,
-                  );
+        Widget buildCard() {
+          final title = interpolateSchemaString(titleTemplate, buildContext);
+          final subtitle = interpolateSchemaString(
+            subtitleTemplate,
+            buildContext,
+          );
 
-                  final failure = result.failure;
-                  if (failure == null) return;
-                  if (!buildContext.mounted) return;
+          return ActionCardWidget(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            surface: surface,
+            onTap: tapAction == null
+                ? null
+                : () async {
+                    final result = await tryDispatchComponentAction(
+                      context: buildContext,
+                      screen: context.screen,
+                      node: node,
+                      actionKey: 'tap',
+                      dispatcher: context.actionDispatcher,
+                      diagnostics: context.diagnostics,
+                      diagnosticsContext: context.diagnosticsContext,
+                    );
 
-                  ScaffoldMessenger.of(buildContext).showSnackBar(
-                    SnackBar(content: Text(failure.message)),
-                  );
-                },
-        );
+                    final failure = result.failure;
+                    if (failure == null) return;
+                    if (!buildContext.mounted) return;
+
+                    ScaffoldMessenger.of(buildContext).showSnackBar(
+                      SnackBar(content: Text(failure.message)),
+                    );
+                  },
+          );
+        }
+
+        final store = SchemaStateScope.maybeOf(buildContext);
+        final needsReactive = store != null &&
+            (hasSchemaInterpolation(titleTemplate) ||
+                hasSchemaInterpolation(subtitleTemplate));
+
+        if (needsReactive) {
+          return AnimatedBuilder(
+            animation: store,
+            builder: (_, __) => buildCard(),
+          );
+        }
+
+        return buildCard();
       },
     );
   });

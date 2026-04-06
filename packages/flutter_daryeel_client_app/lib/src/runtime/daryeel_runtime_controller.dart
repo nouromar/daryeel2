@@ -990,6 +990,7 @@ class DaryeelRuntimeController {
         dispatchersByType: <String, SchemaActionDispatcher>{
           SchemaActionTypes.navigate: const NavigatorSchemaActionDispatcher(),
           SchemaActionTypes.setState: const NavigatorSchemaActionDispatcher(),
+          SchemaActionTypes.patchState: const NavigatorSchemaActionDispatcher(),
           SchemaActionTypes.openUrl: UrlSchemaActionDispatcher(
             openUrlHandler:
                 openUrlHandlerOverride ?? const UrlLauncherOpenUrlHandler(),

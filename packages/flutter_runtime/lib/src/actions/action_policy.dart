@@ -37,4 +37,7 @@ final class SchemaActionTypes {
   /// This is only effective when a [SchemaStateScope] is present in the widget
   /// tree (installed by the app shell).
   static const String setState = 'set_state';
+
+  /// Applies a list of safe mutation operations to `$state`.
+  static const String patchState = 'patch_state';
 }

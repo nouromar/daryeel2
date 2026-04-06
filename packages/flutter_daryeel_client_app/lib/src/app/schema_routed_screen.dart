@@ -165,6 +165,12 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
         final vm = snapshot.data!;
         final loaded = vm.screen;
 
+        // Ensure the shared `$state` store is wired to this screen's diagnostics.
+        session.stateStore.configureDiagnostics(
+          diagnostics: vm.diagnostics,
+          diagnosticsContext: vm.rendererDiagnosticsContext,
+        );
+
         session.queryStore.configure(
           diagnostics: vm.diagnostics,
           diagnosticsContext: <String, Object?>{
