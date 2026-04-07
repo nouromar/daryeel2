@@ -1,0 +1,30 @@
+{
+  "name": "IconButton",
+  "category": "content",
+  "version": "1.0",
+  "propsSchema": {
+    "name": "string",
+    "codePoint": "number",
+    "family": "enum",
+    "size": "number",
+    "color": "enum",
+    "semanticLabel": "string"
+  },
+  "defaults": {
+    "family": "material_icons",
+    "color": "default"
+  },
+  "styleContract": {
+    "family": [
+      "material_icons",
+      "material_symbols_outlined",
+      "material_symbols_rounded",
+      "material_symbols_sharp"
+    ],
+    "color": ["default", "muted", "primary", "secondary", "error"]
+  },
+  "slots": [],
+  "events": [],
+  "actions": ["tap"],
+  "fallbackBehavior": "omit"
+}

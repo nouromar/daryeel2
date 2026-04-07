@@ -9,7 +9,15 @@ We do this by:
 - Standardizing on a small number of core patterns.
 - Building reusable components at multiple levels (atoms → sections → flows).
 - Supporting managed extensions where domain-specific behavior is unavoidable.
-- Designing for testability from day 1 and enforcing strict coverage gates.
+- Designing for testability from day 1 and prioritizing high automated test coverage.
+
+## Current repo focus
+
+The current Daryeel2 repo is in a framework-first phase:
+- A bounded schema-driven UI runtime (Flutter) plus shared components.
+- A unified runtime delivery backend (`schema-service`) for schema/theme/config/telemetry.
+
+The “one spine, many services” model remains the long-term target, but most domain-service work is intentionally deferred until the schema-driven framework is stable.
 
 This document captures the philosophy and the “shape” of the system; subsequent docs specify backend entities and UI component inventory.
 
@@ -23,12 +31,15 @@ All services (mobility/taxi, courier delivery, ambulance, pharmacy, home visit) 
 The core platform owns the spine.
 Services plug into it.
 
-### 2) Code-based UI, modular and composable
-We intentionally choose a mostly code-based UI because:
-- We expect ~10 services.
-- Forms do not change frequently.
+### 2) Schema-driven UI, bounded and safe
+We intentionally invest in a schema-driven UI runtime so we can ship new screens and iterate quickly without app releases.
 
-Schema/config can still exist, but is “lightweight” (feature flags, service catalog metadata, small optional questions). The primary mechanism for reuse is code modularity.
+Constraints that keep it safe and maintainable:
+- No arbitrary scripting / expression language.
+- Only a bounded action set.
+- Strict schema + component contract validation.
+
+Code still matters: the schema runtime renders a closed set of native Flutter widgets (components) that remain testable, themeable, and versionable.
 
 ### 3) Reuse at multiple levels
 We design reuse as a layered system:
@@ -89,19 +100,19 @@ We default to:
 - Defense-in-depth (multiple layers, no single point of failure).
 
 ### 9) Testability is a first-class architecture constraint
-We aim for 100% automated test coverage from the start.
+We aim for high automated test coverage from the start.
 
 Definitions and guardrails:
 - Coverage is measured at least at the line level; prefer branch coverage where tools support it.
 - Generated code and third-party code are excluded from coverage calculation.
-- A coverage gate is enforced in CI for all Daryeel2 code.
+- Coverage gates may be added per package/service as the repo stabilizes.
 - High-risk areas (auth, authorization, payments, status transitions, dispatch) must have both unit tests and integration tests.
 - “Hard to test” is treated as a design smell; we refactor to make code testable.
 
 ## What we are NOT doing (non-goals)
-- We are not building a general-purpose remote UI interpreter as a first step.
+- We are not building a general-purpose scripting engine in schema/config.
 - We are not encoding arbitrary UI logic (scripts) in configuration.
-- We are not building separate backends per service.
+- We are not building separate runtime-delivery backends per product; delivery is centralized.
 
 ## Design constraints and guardrails
 - Closed set of shared statuses for the fulfillment spine.

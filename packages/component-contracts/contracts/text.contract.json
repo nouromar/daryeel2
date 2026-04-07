@@ -1,0 +1,34 @@
+{
+  "name": "Text",
+  "category": "typography",
+  "version": "1.0",
+  "propsSchema": {
+    "text": "string",
+    "variant": "enum",
+    "size": "number",
+    "weight": "enum",
+    "color": "enum",
+    "align": "enum",
+    "maxLines": "number",
+    "overflow": "enum",
+    "softWrap": "boolean"
+  },
+  "defaults": {
+    "variant": "body",
+    "align": "left",
+    "maxLines": 1,
+    "overflow": "ellipsis",
+    "softWrap": false
+  },
+  "styleContract": {
+    "variant": ["body", "label", "caption", "subtitle", "title"],
+    "weight": ["regular", "medium", "semibold", "bold"],
+    "color": ["default", "muted", "primary", "secondary", "error"],
+    "align": ["left", "center", "right"],
+    "overflow": ["ellipsis", "clip", "fade"]
+  },
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

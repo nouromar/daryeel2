@@ -6,7 +6,21 @@
 - Allow managed extensions for service-specific behavior.
 - Preserve auditability and operational visibility.
 - Treat security as a first-class cross-cutting requirement.
-- Enforce 100% automated test coverage for Daryeel2 backend code.
+- Prioritize high automated test coverage for Daryeel2 backend code.
+
+## Current repo state (implementation notes)
+
+This document is primarily a conceptual model. The current codebase has two backend services:
+- `services/schema-service/`: unified runtime delivery backend (schema/theme/config/telemetry) intended to be cache-friendly and largely public.
+- `services/api/`: product/domain APIs.
+
+API route convention (current repo rule): domain routes must be grouped by product service under a stable prefix:
+- `/v1/<service>/...` (example: `/v1/pharmacy/...`)
+
+Examples implemented today:
+- `GET /v1/service-definitions`
+- `GET /v1/pharmacy/catalog`
+- `POST /v1/pharmacy/prescriptions/upload`
 
 ## Conceptual model
 

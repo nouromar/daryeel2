@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "id": "pharmacy_checkout",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        { "type": "PharmacyCheckout" }
+      ],
+      "footer": [
+        {
+          "type": "PrimaryActionBar",
+          "props": { "primaryLabel": "Submit order", "expand": true },
+          "actions": { "primary": "submit" }
+        }
+      ]
+    }
+  },
+  "actions": {
+    "submit": { "type": "submit_form", "formId": "pharmacy_checkout" }
+  }
+}

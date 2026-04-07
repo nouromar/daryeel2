@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "id": "pharmacy_cart",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        { "type": "PharmacyCartItems" }
+      ]
+    }
+  }
+}

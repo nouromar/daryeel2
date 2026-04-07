@@ -8,15 +8,16 @@ The goal is to make the runtime concrete for Daryeel2's Flutter apps rather than
 
 ## 2. Suggested Flutter Runtime Structure
 
-Suggested top-level runtime areas:
-- `schema/` for schema models, parsing, validation, and refs
-- `contracts/` for component contract registration
-- `theme_runtime/` for token resolution and theme inheritance
-- `rendering/` for widget factories and screen composition
-- `actions/` for action dispatch and navigation handoff
-- `binding/` for form/view-model binding
-- `forms/` for schema-driven form state
-- `diagnostics/` for fallback reporting and inspection
+Current runtime package layout in this repo (Apr 2026):
+
+- `packages/schema_runtime_dart/` — typed schema models and core semantics
+- `packages/flutter_runtime/` — Flutter-facing runtime orchestration (actions, visibility, diagnostics)
+- `packages/flutter_schema_renderer/` — schema-to-widget rendering and registry types
+- `packages/flutter_components/` — core schema components (e.g. `ScreenTemplate`, layout primitives, `ForEach`, `Text`)
+- `packages/flutter_themes/` — token/theme resolution and Flutter integration
+- `packages/flutter_daryeel_client_app/` — shared client app bootstrap used by product shells
+
+The conceptual runtime areas (schema/contracts/themes/rendering/actions/diagnostics) are implemented across these packages rather than a single `lib/schema/...` folder.
 
 ## 3. Flutter Mapping by Engine
 

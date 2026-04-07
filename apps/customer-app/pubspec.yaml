@@ -20,6 +20,8 @@ dependencies:
   flutter_themes:
     path: ../../packages/flutter_themes
   http: ^1.5.0
+  image_picker: ^1.1.2
+  file_picker: ^10.3.2
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.0
 

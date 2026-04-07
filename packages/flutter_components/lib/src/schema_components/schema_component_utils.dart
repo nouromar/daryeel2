@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
-import 'package:schema_runtime_dart/schema_runtime_dart.dart';
 
 import 'schema_component_context.dart';
 

@@ -5,7 +5,8 @@ description: "Copilot workspace instructions for the Daryeel2 monorepo (schema-d
 Read [docs/ai-grounding.md](../docs/ai-grounding.md) first for the repo mental model and canonical doc links.
 
 Key rules:
-- Prefer editing shared Flutter client logic in `packages/flutter_daryeel_client_app/` over copying logic into apps.
+- Prefer using the shared Flutter client runtime/framework in `packages/*` over copying runtime logic into apps.
+- The runtime/framework under `packages/*` is nearing majority/stability: do NOT change anything under `packages/*` unless we explicitly discuss it first and you get explicit permission to proceed.
 - Keep Flutter apps under `apps/*` as thin wrappers: only branding + product/appId + fallback schema/fragments + local theme resolver + widget registry + compatibility rules.
 - Product-service specific client code lives in the app, grouped by service:
 	- Put schemas, UI components, and widgets that are specific to one product service (e.g. pharmacy, shopping) under the product app in a service-named folder.
@@ -14,13 +15,14 @@ Key rules:
 		- `apps/customer-app/schemas/services/<service>/{screens,fragments}/...`
 	- Keep cross-service or framework-level logic in `packages/*`.
 
-- App-first changes for service features (framework changes require approval):
+- App-first changes for service features (framework changes require explicit permission):
 	- When implementing a product service feature, prefer changes in `apps/*` (and the service folder) only.
-	- Do NOT modify `packages/*` as part of a service/feature request unless the user explicitly asks.
-	- If a framework change seems necessary or clearly preferable, STOP and propose it for review before making edits in `packages/*`.
+	- Implement product service features using the existing runtime/framework capabilities (schema-driven UI, existing components/actions/state) whenever possible.
+	- Do NOT modify `packages/*` as part of a service/feature request unless the user explicitly approves it in this conversation.
+	- If a framework change seems necessary, STOP and propose options before making edits in `packages/*`:
 		- Include: why it’s needed, exact files to change, and any tests to update/add.
-		- Provide an app-only fallback option when feasible.
-	- Only apply the framework change after the user approves.
+		- Provide a “use existing runtime” option and an app-only fallback option when feasible.
+	- Only apply the framework change after explicit user approval.
 - Backend API routes must be grouped by product service with a stable path prefix:
 	- In `services/api`, each product service must have its own route prefix and router/module.
 	- Use the short prefix convention: `/v1/<service>/...`.

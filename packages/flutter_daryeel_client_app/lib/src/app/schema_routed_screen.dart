@@ -8,6 +8,11 @@ import '../runtime/daryeel_runtime_view_model.dart';
 import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
 
+const int _debugScreenLoadDelayMs = int.fromEnvironment(
+  'DARYEEL_DEBUG_SCREEN_LOAD_DELAY_MS',
+  defaultValue: 0,
+);
+
 typedef SchemaRoutedScreenAppBarActionsBuilder =
     List<Widget> Function(BuildContext context, LoadedScreen loaded);
 
@@ -47,7 +52,8 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
   late final SchemaFormStore _formStore = SchemaFormStore();
 
   DaryeelRuntimeSession? _session;
-  late Future<DaryeelRuntimeViewModel> _future;
+  Future<DaryeelRuntimeViewModel>? _future;
+  int _loadGeneration = 0;
 
   @override
   void didChangeDependencies() {
@@ -55,13 +61,35 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
     final next = RuntimeSessionScope.of(context);
     if (!identical(_session, next)) {
       _session = next;
-      if (next.schemaBaseUrl.isNotEmpty) {
-        _future = _load(next);
-      }
+      _future = null;
+      _scheduleLoad(next);
     }
   }
 
-  Future<DaryeelRuntimeViewModel> _load(DaryeelRuntimeSession session) {
+  void _scheduleLoad(DaryeelRuntimeSession session) {
+    if (session.schemaBaseUrl.isEmpty) return;
+
+    // Defer work until after the first frame so route transitions paint
+    // immediately and the loading UI is visible right away.
+    final generation = ++_loadGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!identical(_session, session)) return;
+      if (_loadGeneration != generation) return;
+
+      setState(() {
+        _future = _load(session);
+      });
+    });
+  }
+
+  Future<DaryeelRuntimeViewModel> _load(DaryeelRuntimeSession session) async {
+    if (kDebugMode && _debugScreenLoadDelayMs > 0) {
+      await Future<void>.delayed(
+        Duration(milliseconds: _debugScreenLoadDelayMs),
+      );
+    }
+
     return session.loadScreen(
       screenId: widget.screenId,
       service: widget.service,
@@ -74,8 +102,9 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
     if (oldWidget.screenId != widget.screenId ||
         oldWidget.service != widget.service) {
       final session = _session;
-      if (session != null && session.schemaBaseUrl.isNotEmpty) {
-        _future = _load(session);
+      if (session != null) {
+        _future = null;
+        _scheduleLoad(session);
       }
     }
   }
@@ -158,8 +187,16 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
       );
     }
 
+    final future = _future;
+    if (future == null) {
+      return Scaffold(
+        appBar: AppBar(title: inspectorTitle()),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return FutureBuilder<DaryeelRuntimeViewModel>(
-      future: _future,
+      future: future,
       builder: (context, snapshot) {
         late final Widget current;
 

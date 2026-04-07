@@ -1,0 +1,19 @@
+{
+  "name": "TextButton",
+  "category": "controls",
+  "version": "1.0",
+  "propsSchema": {
+    "label": "string",
+    "align": "enum"
+  },
+  "defaults": {
+    "align": "left"
+  },
+  "styleContract": {
+    "align": ["left", "center", "right"]
+  },
+  "slots": [],
+  "events": ["tap"],
+  "actions": ["tap"],
+  "fallbackBehavior": "omit"
+}

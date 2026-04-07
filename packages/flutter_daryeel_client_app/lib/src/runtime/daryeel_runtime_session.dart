@@ -23,6 +23,7 @@ class DaryeelRuntimeSession {
     required this.apiBaseUrl,
     required int diagnosticsBufferMaxEvents,
     this.requestHeadersProvider,
+    this.submitFormHandlerOverride,
     http.Client? httpClient,
   }) : _ownsHttpClient = (httpClient == null) {
     _httpClient = httpClient ?? http.Client();
@@ -50,6 +51,7 @@ class DaryeelRuntimeSession {
       additionalDiagnosticsSinks: inMemoryDiagnosticsSink == null
           ? const <DiagnosticsSink>[]
           : <DiagnosticsSink>[inMemoryDiagnosticsSink!],
+      submitFormHandlerOverride: submitFormHandlerOverride,
     );
 
     queryStore = SchemaQueryStore(apiBaseUrl: apiBaseUrl, client: _httpClient);
@@ -66,6 +68,9 @@ class DaryeelRuntimeSession {
   ///
   /// Common use: `Authorization: Bearer ...`.
   final Map<String, String> Function()? requestHeadersProvider;
+
+  /// Optional override for the schema `submit_form` action handler.
+  final SubmitFormHandler? submitFormHandlerOverride;
 
   late final SchemaQueryStore queryStore;
   late final SchemaStateStore stateStore;

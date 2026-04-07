@@ -1,0 +1,19 @@
+{
+  "name": "If",
+  "category": "logic",
+  "version": "1.0",
+  "propsSchema": {
+    "valuePath": "string",
+    "op": "enum"
+  },
+  "defaults": {
+    "op": "isNotEmpty"
+  },
+  "styleContract": {
+    "op": ["isNull", "isNotNull", "isEmpty", "isNotEmpty", "isTrue", "isFalse"]
+  },
+  "slots": ["then", "else"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

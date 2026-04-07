@@ -29,10 +29,11 @@ Targets:
 Checklist:
 - [ ] Define/confirm contract fields: props (types/enums), defaults, slots, actions, fallbacks.
 - [x] Add contract introspection API (list components + props/slots/actions).
-- [ ] Ensure strict-mode behavior is consistent:
-  - unknown props rejected (or dropped deterministically with a diagnostic)
-  - unknown slots rejected (or ignored deterministically with a diagnostic)
-  - unknown actions rejected
+- [x] Ensure strict-mode behavior is consistent (schema-service validation):
+  - unknown props rejected
+  - unknown slots rejected
+  - unknown action keys rejected
+  - component action ids must exist in `screen.actions`
 - [ ] Add contract fixtures for 5–10 core components.
 
 Acceptance:
@@ -88,11 +89,11 @@ Targets:
 - `Daryeel2/apps/customer-app/`
 
 Checklist:
-- [ ] Centralize “compatibility rules” and apply before render:
-  - schemaVersion supported
-  - contract versions (if introduced)
-  - theme mode allowed
-- [ ] Ensure incompatible schema:
+- [x] Centralize “compatibility rules” and apply before render:
+  - `meta.minRuntimeApi` and `meta.requiresCapabilities` enforced via shared compatibility checker
+  - schemaVersion parsed strictly
+  - theme mode selection is bounded (local fallback always available)
+- [x] Ensure incompatible schema:
   - never partially renders
   - falls back to bundled screen
   - emits diagnostics with enough context

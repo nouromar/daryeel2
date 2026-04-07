@@ -12,7 +12,7 @@
         {
           "type": "Column",
           "props": {
-            "spacing": 12,
+            "spacing": 8,
             "crossAxisAlignment": "stretch",
             "mainAxisSize": "min"
           },
@@ -33,14 +33,21 @@
                 "slots": {
                   "child": [
                     {
-                      "type": "PrimaryActionBar",
-                      "props": {
-                        "primaryLabel": "Attach Prescription",
-                        "tone": "brand",
-                        "size": "large",
-                        "expand": false
-                      },
-                      "actions": { "primary": "go_prescription_upload" }
+                      "type": "SizedBox",
+                      "props": { "width": 240 },
+                      "slots": {
+                        "child": [
+                          {
+                            "type": "ActionCard",
+                            "props": {
+                              "title": "Attach Prescription",
+                              "subtitle": "",
+                              "surface": "flat"
+                            },
+                            "actions": { "tap": "go_prescription_upload" }
+                          }
+                        ]
+                      }
                     }
                   ]
                 }
@@ -85,7 +92,7 @@
             "item": [
               {
                 "type": "Padding",
-                "props": { "bottom": 12 },
+                "props": { "bottom": 8 },
                 "slots": {
                   "child": [
                     {
@@ -129,7 +136,8 @@
       "route": "customer.schema_screen",
       "value": {
         "screenId": "pharmacy_prescription_upload",
-        "title": "Attach Prescription"
+        "title": "Attach Prescription",
+        "chromePreset": "pharmacy_cart_badge"
       }
     }
   }

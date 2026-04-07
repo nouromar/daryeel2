@@ -56,6 +56,10 @@ Responsibilities:
 - validate props against contracts
 - validate slots, bindings, actions, visibility rules, and references
 
+v1 note (current implementation):
+- `visibleWhen` evaluation is intentionally narrow: only `visibleWhen.featureFlag` is supported.
+- Unknown `visibleWhen` keys should not break rendering; they should default to visible and emit diagnostics.
+
 Why it matters:
 - this is the main safety barrier between remote schema input and the renderer
 
@@ -129,9 +133,13 @@ Responsibilities:
 - reject unsupported action definitions
 - emit diagnostics for action failures
 
-Supported examples:
+Supported action types (implemented in the Flutter runtime as of Apr 2026):
 - navigate
+- open url
 - submit form
+- track event
+
+Planned (not currently implemented in this repo snapshot):
 - open modal
 - refresh data
 - select value

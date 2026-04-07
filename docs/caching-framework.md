@@ -49,7 +49,12 @@ Examples:
 
 Server:
 - MUST send `ETag`.
-- SHOULD send: `Cache-Control: public, max-age=60, stale-while-revalidate=300`.
+- SHOULD send a short-lived `Cache-Control` appropriate to the resource.
+
+Current schema-service defaults (repo state):
+- `/config/bootstrap`, `/schemas/bootstrap`, `/themes/catalog`: `public, max-age=60, stale-while-revalidate=300`
+- `/schemas/screens/{screen_id}`, `/schemas/fragments/{fragment_id}`: `public, max-age=300, stale-while-revalidate=3600`
+- `/themes/{theme_id}/{theme_mode}`: `public, max-age=3600, stale-while-revalidate=86400`
 - MUST support conditional requests:
   - request: `If-None-Match: <etag>`
   - response: `304 Not Modified` (no body) when unchanged
@@ -77,13 +82,13 @@ Over time, schema/theme should follow the snapshot pattern:
 - Schema screen documents should be addressable by stable IDs + versions.
 - Theme documents should be addressable by stable IDs + versions.
 
-DocId pinning (planned):
-- Selector (mutable) responses SHOULD include a stable `x-daryeel-doc-id` header so clients can pin the exact immutable document they just received.
-- Immutable documents SHOULD be fetchable by docId via endpoints like:
+DocId pinning (current repo):
+- Selector (mutable) responses include `x-daryeel-doc-id` so clients can pin the exact immutable document they just received.
+- Immutable documents are fetchable by docId:
   - `GET /schemas/screens/docs/by-id/{docId}`
+  - `GET /schemas/fragments/docs/by-id/{docId}`
   - `GET /themes/docs/by-id/{docId}`
-- Flutter client loaders already include support for these immutable-by-docId routes and header caching.
-- As of current repo state, `schema-service` does not yet expose the immutable-by-docId routes and does not emit `x-daryeel-doc-id` on selector responses, so full end-to-end pinning requires server work.
+- Flutter client loaders include support for these immutable-by-docId routes and use the docId for the schema/theme ladders.
 
 If the URL does **not** contain a version, treat it like bootstrap (revalidated + short TTL).
 

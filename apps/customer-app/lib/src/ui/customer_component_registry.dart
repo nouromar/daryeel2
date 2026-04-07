@@ -3,6 +3,9 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
+import '../services/pharmacy/ui/pharmacy_cart_items_schema_component.dart';
+import '../services/pharmacy/ui/pharmacy_checkout_schema_component.dart';
+import '../services/pharmacy/ui/pharmacy_prescription_upload_schema_component.dart';
 
 SchemaWidgetRegistry buildCustomerComponentRegistry({
   required ScreenSchema screen,
@@ -24,6 +27,21 @@ SchemaWidgetRegistry buildCustomerComponentRegistry({
   registerCoreSchemaComponents(registry: registry, context: componentContext);
 
   registerCustomerCatalogItemTileSchemaComponent(
+    registry: registry,
+    context: componentContext,
+  );
+
+  registerPharmacyCartItemsSchemaComponent(
+    registry: registry,
+    context: componentContext,
+  );
+
+  registerPharmacyCheckoutSchemaComponent(
+    registry: registry,
+    context: componentContext,
+  );
+
+  registerPharmacyPrescriptionUploadSchemaComponent(
     registry: registry,
     context: componentContext,
   );

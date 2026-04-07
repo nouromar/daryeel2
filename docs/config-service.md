@@ -15,6 +15,11 @@ The config service provides **versioned, cached, offline-safe configuration snap
 
 This document defines the target shape. The current framework implementation is a minimal `/config/bootstrap` endpoint in the unified schema-service.
 
+Current repo reality:
+- Config delivery is implemented in the unified `schema-service`.
+- Both `GET /config/bootstrap` and `GET /config/snapshots/{snapshotId}` exist.
+- Snapshots are currently deterministic, in-memory documents (file-free) intended to evolve toward DB-backed immutable snapshots.
+
 ## Goals
 - **Mobile-first**: offline-safe, low bandwidth, avoids chatty fetches.
 - **Near-zero runtime overhead**: config reads are in-memory, O(1), no polling in hot UI paths.
@@ -71,7 +76,28 @@ Request:
   - `platform` (optional)
   - `appVersion` (optional)
 
-Response (proposed; extends the current framework response):
+Response (current repo shape; served by `schema-service`):
+
+```json
+{
+  "bootstrapVersion": 1,
+  "product": "customer_app",
+  "initialScreenId": "customer_home",
+  "defaultThemeId": "customer-default",
+  "defaultThemeMode": "light",
+
+  "configSchemaVersion": 1,
+  "configSnapshotId": "cfg_customer_app_default_v1",
+  "configTtlSeconds": 3600,
+
+  "schemaServiceBaseUrl": "https://runtime.example.com",
+  "themeServiceBaseUrl": "https://runtime.example.com",
+  "configServiceBaseUrl": "https://runtime.example.com",
+  "telemetryIngestUrl": "https://runtime.example.com/telemetry/diagnostics"
+}
+```
+
+Response (target shape; optional future refactor):
 
 ```json
 {
@@ -158,6 +184,12 @@ Response (example):
 Caching:
 - `Cache-Control: public, max-age=31536000, immutable` (snapshots never change)
 - Optionally also include `ETag` for completeness.
+
+Implementation note (current repo):
+- Snapshot payload is intentionally flexible: clients must ignore unknown keys.
+- The runtime currently consumes:
+  - `flags.featureFlags` (list of enabled keys)
+  - `telemetry.enableRemoteIngest`, `telemetry.dedupeTtlSeconds`, `telemetry.maxInfoPerSession`, `telemetry.maxWarnPerSession`
 
 ## Client integration (Flutter)
 

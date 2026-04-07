@@ -7,7 +7,11 @@
 - Consistent, appealing UX across customer and provider experiences.
 - Ratings and feedback are a shared capability across services.
 - Security and privacy are first-class UX requirements across services.
-- 100% automated test coverage is a first-class quality gate for Daryeel2 UI code.
+- Target high automated test coverage for Daryeel2 UI code (treat 100% as an aspirational goal, not a current enforced gate).
+
+Current implementation note (this repo snapshot):
+- Schema-driven UI is validated against strict component contracts (`packages/component-contracts/`) and rendered in Flutter via the schema runtime packages.
+- A core schema `Text` component exists for titles/labels/one-line text with bounded styling props.
 
 Security UX principles:
 - Least privilege: show only what a user needs at each step.

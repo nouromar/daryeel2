@@ -77,57 +77,65 @@ Only for truly unique service workflows.
 
 ## 4. Contract Shape
 
-Each component contract should define:
-- `name`
+In this repo snapshot, component contracts are defined as JSON documents under:
+- `packages/component-contracts/contracts/*.contract.json`
+and registered via:
+- `packages/component-contracts/catalog.json`
+
+Each contract defines:
+- `name` (component type string used in schemas)
 - `category`
 - `version`
-- `description`
-- `propsSchema`
-- `defaults`
-- `styleContract`
-- `events`
-- `actions`
-- `slots`
-- `states`
-- `supportedPlatforms`
-- `fallbackBehavior`
+- `propsSchema` (prop name -> kind: `string` | `number` | `boolean` | `enum`)
+- `defaults` (optional)
+- `styleContract` (optional enums for styling-related props)
+- `slots` (list of allowed slot names)
+- `events` (optional)
+- `actions` (optional)
+- `fallbackBehavior` (e.g. `omit`, `reject_subtree`)
 
-Conceptual example:
+Concrete example (from `Text`):
 
 ```json
 {
-  "name": "AddressSection",
-  "category": "section",
+  "name": "Text",
+  "category": "typography",
   "version": "1.0",
   "propsSchema": {
-    "title": "string",
-    "mode": {
-      "type": "enum",
-      "values": ["pickup", "dropoff", "generic"]
-    },
-    "required": "boolean",
-    "showSavedPlaces": "boolean",
-    "showMapPreview": "boolean"
+    "text": "string",
+    "variant": "enum",
+    "size": "number",
+    "weight": "enum",
+    "color": "enum",
+    "align": "enum",
+    "maxLines": "number",
+    "overflow": "enum",
+    "softWrap": "boolean"
   },
   "defaults": {
-    "mode": "generic",
-    "required": true,
-    "showSavedPlaces": true,
-    "showMapPreview": false
+    "variant": "body",
+    "align": "left",
+    "maxLines": 1,
+    "overflow": "ellipsis",
+    "softWrap": false
   },
   "styleContract": {
-    "variant": ["default", "compact", "emphasized"],
-    "tone": ["default", "brand", "subtle"],
-    "surface": ["flat", "raised", "subtle"],
-    "density": ["compact", "comfortable"]
+    "variant": ["body", "label", "caption", "subtitle", "title"],
+    "weight": ["regular", "medium", "semibold", "bold"],
+    "color": ["default", "muted", "primary", "secondary", "error"],
+    "align": ["left", "center", "right"],
+    "overflow": ["ellipsis", "clip", "fade"]
   },
-  "events": ["address_selected", "address_cleared"],
-  "actions": ["open_address_search", "clear_value"],
   "slots": [],
-  "states": ["default", "disabled", "loading", "error"],
+  "events": [],
+  "actions": [],
   "fallbackBehavior": "omit"
 }
 ```
+
+Registration rules:
+- When adding a new contract file, add its path to `packages/component-contracts/catalog.json`.
+- The schema-service loads the catalog + contracts at runtime and uses them for strict validation before serving schemas.
 
 ## 5. Prop Design Guidelines
 
@@ -278,7 +286,7 @@ Each schema-renderable component should have:
 - Used by mobility services, not necessarily pharmacy.
 
 ### Service-specific component
-`PrescriptionUploadPanel`
+`PharmacyPrescriptionUpload`
 - Specific to healthcare/pharmacy workflows.
 
 ## 14. Rule of Thumb

@@ -275,12 +275,10 @@ Reserved for a future schema format version (not currently implemented):
 
 v1 should keep conditionals narrow.
 
-Supported patterns:
-- feature flag enabled
-- service equals known slug
-- role equals known product role
-- field present or field absent
-- state equals known enum
+Supported patterns (implemented in the Flutter runtime as of Apr 2026):
+- feature flag enabled (`visibleWhen.featureFlag`)
+
+Other conditional keys described in earlier drafts (service/role/state/etc.) are not implemented in the current runtime. Unknown keys are treated as visible (and should emit a diagnostic warning) to avoid accidental content loss.
 
 Example:
 

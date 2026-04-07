@@ -49,7 +49,15 @@ void registerForEachSchemaComponent({
         Widget buildList() {
           final items = resolveItems();
 
-          if (items is! List) {
+          // Treat `null` as "no items" so schemas can safely reference optional
+          // lists (especially under persisted state) without throwing.
+          // Still fail-closed for any other non-list value.
+          final List itemsList;
+          if (items == null) {
+            itemsList = const <Object?>[];
+          } else if (items is List) {
+            itemsList = items;
+          } else {
             return const UnknownSchemaWidget(
                 componentName: 'ForEach(items-not-list)');
           }
@@ -73,9 +81,9 @@ void registerForEachSchemaComponent({
           return ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
+            itemCount: itemsList.length,
             itemBuilder: (context, index) {
-              final item = items[index];
+              final item = itemsList[index];
               final stable = stableKeyForItem(item, index);
               final key = ValueKey<String>(
                 stable == null ? 'item_index:$index' : 'item:$stable',

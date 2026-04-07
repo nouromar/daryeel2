@@ -98,13 +98,33 @@ Schema service:
 
 ## Guardrails for AI changes
 
+The schema-driven runtime framework is nearing majority/stability.
+
+Rules:
+- Every code change must be accompanied by extensive unit tests.
+  - Aim for 100% code coverage of the changed/added logic (especially new branches and edge cases).
+- For Flutter changes, always run:
+  - `flutter test`
+  - `flutter analyze`
+  - Fix any issues they raise before considering the change complete.
+- Do not change anything under `packages/*` unless the user explicitly approves it first.
+  - If a `packages/*` change seems necessary, STOP and ask for permission before editing.
+- When implementing a product/service feature, prefer using existing runtime functionality (schema-driven UI, existing components/actions/state/persistence) in the app layer:
+  - schema changes in `apps/*/schemas/**`
+  - app wiring/widgets/components in `apps/*/lib/src/services/<service>/**`
+- Only when there is no reasonable app-level or schema-level path:
+  - propose 2–3 options (including “no framework change” if feasible)
+  - explain the smallest `packages/*` change that would unblock it
+  - wait for explicit confirmation before making that framework change.
+
 ## Copilot quick-start (how to use this repo context)
 
 When a request comes in, follow this order:
 1) Identify *what layer* the change belongs to (app wrapper vs shared shell vs schema renderer vs service).
-2) Prefer changing the shared layer (`packages/`) over duplicating code into an app.
-3) Make the smallest possible change; keep apps thin wrappers.
-4) Validate locally with the nearest tests/analyzer.
+2) For product/service features, prefer app + schema changes that use existing runtime capabilities.
+3) Treat `packages/*` as stable: only propose framework changes after offering alternatives, and only edit after explicit approval.
+4) Make the smallest possible change; keep apps thin wrappers.
+5) Validate locally with the nearest tests/analyzer (for Flutter: `flutter test` + `flutter analyze`).
 
 Decision hints:
 - UI rendering bugs or schema widget behavior: `packages/flutter_schema_renderer/` and the app registry in `apps/*/lib/src/ui/*_component_registry.dart`.
@@ -113,8 +133,9 @@ Decision hints:
 - Schema format/contracts: `packages/schema-contracts/` plus the schema docs listed above.
 - Backend schema service behavior: `services/schema-service/`.
 
-- Prefer editing shared logic in `packages/flutter_daryeel_client_app/` over copying code into apps.
+- Prefer using shared logic in `packages/*` over copying runtime behavior into apps.
 - Apps should not reintroduce “runtime/cache/actions/telemetry” duplicates; keep wrappers thin.
+- Any edits under `packages/*` must be explicitly approved first.
 - Don’t commit generated Flutter artifacts (`build/`, `.dart_tool/`, `ios/Pods/`, `*/Flutter/ephemeral/`, `android/local.properties`, IDE `.iml`).
 - When changing runtime behavior, add/adjust focused widget tests to lock in ladder/caching/compat behavior.
 

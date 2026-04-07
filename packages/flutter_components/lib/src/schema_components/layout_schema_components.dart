@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'schema_component_context.dart';
@@ -244,10 +243,6 @@ List<Widget> _withSpacing(List<Widget> children, Axis axis, double spacing) {
 
 double? _asDouble(Object? v) {
   return schemaAsDouble(v);
-}
-
-int? _asInt(Object? v) {
-  return schemaAsInt(v);
 }
 
 MainAxisAlignment _parseMainAxisAlignment(Object? raw) {

@@ -10,23 +10,112 @@
     "slots": {
       "body": [
         {
-          "type": "InfoCard",
+          "type": "Column",
           "props": {
-            "title": "Attach Prescription",
-            "subtitle": "Upload is coming next. For now this is a placeholder screen.",
-            "surface": "raised"
-          }
-        },
-        { "type": "Gap", "props": { "height": 12 } },
-        {
-          "type": "InfoCard",
-          "props": {
-            "title": "Next",
-            "subtitle": "We will add camera/gallery upload + preview + remove, and store a prescriptionUploadId on the order.",
-            "surface": "subtle"
+            "spacing": 12,
+            "crossAxisAlignment": "stretch",
+            "mainAxisSize": "min"
+          },
+          "slots": {
+            "children": [
+              { "type": "PharmacyPrescriptionUpload" },
+              {
+                "type": "If",
+                "props": {
+                  "valuePath": "$state.pharmacy.cart.prescriptionUploads",
+                  "op": "isNotEmpty"
+                },
+                "slots": {
+                  "then": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "text": "Uploaded prescriptions",
+                        "variant": "title",
+                        "weight": "semibold"
+                      }
+                    },
+                    {
+                      "type": "ForEach",
+                      "props": {
+                        "itemsPath": "$state.pharmacy.cart.prescriptionUploads"
+                      },
+                      "slots": {
+                        "item": [
+                          {
+                            "type": "Padding",
+                            "props": { "bottom": 6 },
+                            "slots": {
+                              "child": [
+                                {
+                                  "type": "Row",
+                                  "props": {
+                                    "crossAxisAlignment": "center",
+                                    "spacing": 12
+                                  },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "type": "Expanded",
+                                        "slots": {
+                                          "child": [
+                                            {
+                                              "type": "Text",
+                                              "props": {
+                                                "text": "${item.filename}",
+                                                "variant": "body",
+                                                "maxLines": 1,
+                                                "overflow": "ellipsis"
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "IconButton",
+                                        "props": {
+                                          "name": "delete",
+                                          "size": 18,
+                                          "color": "muted",
+                                          "semanticLabel": "Delete"
+                                        },
+                                        "actions": {
+                                          "tap": "remove_upload"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
           }
         }
       ]
+    }
+  },
+  "actions": {
+    "remove_upload": {
+      "type": "patch_state",
+      "value": {
+        "ops": [
+          {
+            "op": "remove",
+            "path": "pharmacy.cart.prescriptionUploads.${index}"
+          },
+          {
+            "op": "remove",
+            "path": "pharmacy.cart.prescriptionUploadId"
+          }
+        ]
+      }
     }
   }
 }

@@ -76,6 +76,10 @@ Client Runtime
 - Validate schema before publishing.
 - Deliver schema bundles and dependencies.
 
+Current implementation note (this repo snapshot):
+- `services/schema-service` performs strict validation using component contracts registered in `packages/component-contracts/catalog.json`.
+- Schemas and contracts are baked into the schema-service Docker image at build time (see `services/schema-service/Dockerfile`), so schema/contract changes require rebuilding that image.
+
 ### Client responsibilities
 - Fetch and cache schemas.
 - Validate schema compatibility.
@@ -125,6 +129,8 @@ Minimum contract shape:
 - fallback behavior
 
 This allows schema authors to customize components safely while preserving a stable runtime.
+
+In this repo snapshot, contracts live in `packages/component-contracts/` and are consumed by schema-service for server-side validation.
 
 ## 7. Customization Model
 
@@ -182,6 +188,9 @@ Schema should select among approved presentation variants like:
 - `density`
 
 These variant choices map to the active theme tokens in the client runtime.
+
+Concrete example (implemented):
+- A core `Text` schema component supports typography intent through bounded props like `variant`, `weight`, `color`, `align`, `maxLines`, and `overflow`.
 
 ### 9.3 Theme inheritance
 Themes should support layered inheritance, for example:

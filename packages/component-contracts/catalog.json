@@ -19,10 +19,18 @@
     "contracts/sized-box.contract.json",
     "contracts/expanded.contract.json",
     "contracts/for-each.contract.json",
+    "contracts/if.contract.json",
     "contracts/remote-query.contract.json",
     "contracts/remote-paged-list.contract.json",
+    "contracts/text.contract.json",
+    "contracts/icon.contract.json",
+    "contracts/icon-button.contract.json",
+    "contracts/text-button.contract.json",
     "contracts/text-input.contract.json",
     "contracts/address-section.contract.json",
-    "contracts/quote-summary-card.contract.json"
+    "contracts/quote-summary-card.contract.json",
+    "contracts/pharmacy-cart-items.contract.json",
+    "contracts/pharmacy-prescription-upload.contract.json",
+    "contracts/pharmacy-checkout.contract.json"
   ]
 }

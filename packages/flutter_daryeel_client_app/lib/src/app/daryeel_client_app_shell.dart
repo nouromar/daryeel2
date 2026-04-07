@@ -18,6 +18,7 @@ class DaryeelClientAppShell extends StatefulWidget {
     this.configBaseUrl = '',
     this.apiBaseUrl = '',
     this.requestHeadersProvider,
+    this.submitFormHandlerOverride,
     super.key,
   });
 
@@ -37,6 +38,12 @@ class DaryeelClientAppShell extends StatefulWidget {
   ///
   /// Common use: `Authorization: Bearer ...`.
   final Map<String, String> Function()? requestHeadersProvider;
+
+  /// Optional override for the schema `submit_form` action handler.
+  ///
+  /// Apps can provide domain-specific implementations (e.g. posting checkout
+  /// payloads to an API) while keeping schema-driven UI.
+  final SubmitFormHandler? submitFormHandlerOverride;
 
   @override
   State<DaryeelClientAppShell> createState() => _DaryeelClientAppShellState();
@@ -89,6 +96,7 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
       apiBaseUrl: widget.apiBaseUrl,
       diagnosticsBufferMaxEvents: widget.config.diagnosticsBufferMaxEvents,
       requestHeadersProvider: widget.requestHeadersProvider,
+      submitFormHandlerOverride: widget.submitFormHandlerOverride,
     );
 
     _session = next;

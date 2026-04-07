@@ -60,6 +60,9 @@ services:
       dockerfile: services/schema-service/Dockerfile
     ports:
       - "8011:8011"
+    volumes:
+      # Dev convenience: let local schema edits take effect on container restart.
+      - ./apps/customer-app/schemas:/workspace/daryeel/Daryeel2/apps/customer-app/schemas:ro
     environment:
       SCHEMA_SERVICE_APP_ENV: docker
       # Optional. When set, /config/bootstrap advertises this URL to clients.

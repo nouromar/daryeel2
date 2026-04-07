@@ -1,4 +1,4 @@
-# Diagnostics, Logs, and Telemetry (Daryeel)
+# Diagnostics, Logs, and Telemetry (Daryeel2)
 
 This document defines how Daryeel clients and services should emit diagnostics and telemetry in a way that is:
 
@@ -167,6 +167,12 @@ Clients should attach correlation IDs to API calls:
 
 Backends MUST include `x-request-id` in responses.
 
+Schema-service ingest (current repo):
+- `POST /telemetry/diagnostics` accepts bounded batches and returns `202` with:
+  - `accepted`
+  - `droppedDedupe`, `droppedBudget`, `droppedInvalid`
+- `GET /telemetry/diagnostics/recent` exists in development only.
+
 ## 7) PII, secrets, and redaction rules
 
 Hard rules:
@@ -218,9 +224,13 @@ Per session, cap diagnostics volume:
 When budgets are exceeded:
 
 - suppress events
-- emit a single summary event: `runtime.diagnostics.suppressed_summary` with counts by category.
+- increment suppression counters so QA/support can see what was dropped.
 
-Implementation note (Apr 2026 repo state):
+Current repo implementation notes:
+- The Flutter runtime tracks suppression counts in `RuntimeDiagnostics.stats` (by severity and fingerprint).
+- A dedicated “suppressed summary” event is not emitted by default today.
+
+Implementation note (current repo state):
 - The Flutter client applies TTL-based dedupe by fingerprint and per-session budgets.
 - Budget/TTL values are configurable from the immutable config snapshot telemetry section (client clamps to safe ranges).
 

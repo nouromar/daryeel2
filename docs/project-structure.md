@@ -41,12 +41,13 @@ Alternative if dispatch is even more central in naming:
 
 ## 3. Top-Level Structure
 
-Recommended top-level repository structure:
+Current repository structure (as of Apr 2026):
 
 ```text
 Daryeel2/
   README.md
   docs/
+  docker-compose.yml
 
   apps/
     customer-app/
@@ -56,11 +57,9 @@ Daryeel2/
   services/
     api/
     schema-service/
-    asset-service/
 
   packages/
     domain/
-    api-contracts/
     schema-contracts/
     theme-contracts/
     component-contracts/
@@ -68,44 +67,17 @@ Daryeel2/
     schema_runtime_dart/
     schema_runtime_ts/
 
+    flutter_daryeel_client_app/
     flutter_runtime/
     flutter_components/
     flutter_themes/
     flutter_schema_renderer/
-    flutter_schema_forms/
-    flutter_schema_actions/
-    flutter_schema_diagnostics/
-
-    web_runtime/
-    web_components/
-    web_themes/
-    web_schema_renderer/
-    web_schema_actions/
-    web_schema_diagnostics/
-
-    backend_core/
-    backend_modules/
-    backend_auth/
-    backend_dispatch/
-    backend_payments/
-    backend_events/
-
-  tooling/
-    schema-validator/
-    contract-linter/
-    schema-preview/
-    schema-inspector/
-
-  infra/
-    docker/
-    deploy/
-    observability/
-
-  examples/
-    schema-fixtures/
-    component-fixtures/
-    theme-fixtures/
 ```
+
+Optional future additions (not present in this repo snapshot):
+- `services/asset-service/`
+- web runtime packages for schema-driven admin
+- internal tooling (`schema-preview`, `contract-linter`, etc.)
 
 ## 4. Structure Rationale
 
@@ -115,8 +87,8 @@ It separates concerns into:
 - `apps/` for product shells
 - `services/` for deployable backend services
 - `packages/` for reusable libraries and contracts
-- `tooling/` for internal validation and preview tools
-- `examples/` for fixtures used in testing, previewing, and documentation
+- (optional) `tooling/` for internal validation and preview tools (not present in this repo snapshot)
+- (optional) `examples/` for fixtures used in testing, previewing, and documentation (not present in this repo snapshot)
 
 ## 5. Apps
 
@@ -142,7 +114,6 @@ Responsibilities:
 services/
   api/
   schema-service/
-  asset-service/
 ```
 
 ### `api/`
@@ -164,13 +135,8 @@ Unified runtime delivery service (merged MVP):
 
 These concerns can be split into dedicated services later, but Daryeel2 currently keeps them together to reduce moving pieces.
 
-### `asset-service/`
-Owns optional remote assets such as:
-- schema-managed icons and illustrations
-- content images
-- signed asset delivery if needed later
-
-This can be deferred or folded into existing storage early on.
+Optional future additions (not present in this repo snapshot):
+- `services/asset-service/` for schema-managed icons/illustrations and content assets
 
 ## 7. Shared Packages
 
@@ -179,7 +145,6 @@ This can be deferred or folded into existing storage early on.
 ```text
 packages/
   domain/
-  api-contracts/
   schema-contracts/
   theme-contracts/
   component-contracts/
@@ -214,12 +179,6 @@ Shared domain concepts:
 - event types
 - money and tracking concepts
 
-#### `api-contracts/`
-Transport contracts:
-- request and response DTOs
-- endpoint payload shapes
-- versioned server/client models
-
 #### `schema-contracts/`
 Schema document types:
 - screen schemas
@@ -248,16 +207,21 @@ Schema-renderable component contracts:
 
 ```text
 packages/
+  flutter_daryeel_client_app/
   flutter_runtime/
   flutter_components/
   flutter_themes/
   flutter_schema_renderer/
-  flutter_schema_forms/
-  flutter_schema_actions/
-  flutter_schema_diagnostics/
 ```
 
 This is intentionally split by responsibility rather than placed in one large runtime package.
+
+Note: Some planned packages mentioned in older docs (e.g. `flutter_schema_forms`, `flutter_schema_actions`, `flutter_schema_diagnostics`) are not present in this repo snapshot.
+
+### `flutter_daryeel_client_app/`
+Shared Flutter client app framework:
+- app bootstrap and wiring for schema-driven navigation
+- shared app-level utilities used by product shells
 
 ### `flutter_runtime/`
 Core runtime bootstrapping and orchestration.
@@ -271,65 +235,13 @@ Token resolution, theme inheritance, and Flutter theming integration.
 ### `flutter_schema_renderer/`
 Schema-to-widget composition and rendering.
 
-### `flutter_schema_forms/`
-Form binding, state, and validation orchestration.
+## 9. Optional Future Packages (Not In This Repo Snapshot)
 
-### `flutter_schema_actions/`
-Known action handlers and action dispatch.
+Older architecture drafts sometimes referenced additional package splits (web schema runtime packages, backend core modules, runtime diagnostics packages). These are not present in this repository snapshot; treat them as optional future modularization rather than current structure.
 
-### `flutter_schema_diagnostics/`
-Fallback, inspection, and runtime diagnostics.
+## 10. Tooling (Optional)
 
-## 9. Web Runtime Packages
-
-```text
-packages/
-  web_runtime/
-  web_components/
-  web_themes/
-  web_schema_renderer/
-  web_schema_actions/
-  web_schema_diagnostics/
-```
-
-These mirror the Flutter runtime concepts, while allowing the web platform to keep its own renderer and delivery concerns.
-
-## 10. Backend Core Packages
-
-```text
-packages/
-  backend_core/
-  backend_modules/
-  backend_auth/
-  backend_dispatch/
-  backend_payments/
-  backend_events/
-```
-
-### `backend_core/`
-Shared platform backend logic.
-
-### `backend_modules/`
-Per-service backend modules such as:
-- taxi
-- delivery
-- pharmacy
-- ambulance
-- home_visit
-
-### `backend_auth/`
-Identity, roles, memberships, and policy helpers.
-
-### `backend_dispatch/`
-Provider eligibility, offer lifecycle, retries, and scoring orchestration.
-
-### `backend_payments/`
-Payment and payout abstractions and processor integrations.
-
-### `backend_events/`
-Request timeline events, notifications, and audit fanout.
-
-## 11. Tooling
+Optional future additions (not present in this repo snapshot):
 
 ```text
 tooling/
@@ -339,9 +251,11 @@ tooling/
   schema-inspector/
 ```
 
-These tools are first-class because schema-driven UI depends heavily on validation and inspection.
+These tools are recommended because schema-driven UI depends heavily on validation and inspection.
 
-## 12. Examples and Fixtures
+## 11. Examples and Fixtures (Optional)
+
+Optional future additions (not present in this repo snapshot):
 
 ```text
 examples/
@@ -359,13 +273,16 @@ They help with:
 - schema validation
 - theme testing
 
-## 13. Recommended Reduced MVP Structure
+Note: `examples/` is not present in this repo snapshot.
+
+## 12. Recommended Reduced MVP Structure
 
 If you want a smaller starting footprint, use this reduced version first:
 
 ```text
 Daryeel2/
   docs/
+  docker-compose.yml
 
   apps/
     customer-app/
@@ -378,7 +295,6 @@ Daryeel2/
 
   packages/
     domain/
-    api-contracts/
     schema-contracts/
     theme-contracts/
     component-contracts/
@@ -387,26 +303,15 @@ Daryeel2/
     flutter_components/
     flutter_themes/
     flutter_schema_renderer/
-    flutter_schema_forms/
-    flutter_schema_actions/
+    flutter_daryeel_client_app/
 
-    web_runtime/
-    web_components/
-    web_themes/
-    web_schema_renderer/
-
-  tooling/
-    schema-validator/
-    schema-preview/
-
-  examples/
-    schema-fixtures/
-    theme-fixtures/
+    schema_runtime_dart/
+    schema_runtime_ts/
 ```
 
 This is enough to start without over-fragmenting the platform too early.
 
-## 14. Anti-Patterns to Avoid
+## 13. Anti-Patterns to Avoid
 
 Avoid:
 - organizing everything by service first
@@ -414,7 +319,7 @@ Avoid:
 - one monolithic schema runtime package containing rendering, forms, theme, actions, and diagnostics together
 - naming products in ways that conflict with the platform actor model
 
-## 15. Recommendation Summary
+## 14. Recommendation Summary
 
 Recommended naming and structure:
 - `customer-app`

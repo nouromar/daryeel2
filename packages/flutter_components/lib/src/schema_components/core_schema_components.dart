@@ -6,6 +6,9 @@ import 'bound_action_card_schema_component.dart';
 import 'catalog_item_tile_schema_component.dart';
 import 'for_each_schema_component.dart';
 import 'gap_schema_component.dart';
+import 'if_schema_component.dart';
+import 'icon_button_schema_component.dart';
+import 'icon_schema_component.dart';
 import 'info_card_schema_component.dart';
 import 'layout_schema_components.dart';
 import 'primary_action_bar_schema_component.dart';
@@ -13,6 +16,8 @@ import 'remote_paged_list_schema_component.dart';
 import 'remote_query_schema_component.dart';
 import 'schema_component_context.dart';
 import 'screen_template_schema_component.dart';
+import 'text_button_schema_component.dart';
+import 'text_schema_component.dart';
 import 'text_input_schema_component.dart';
 
 /// Registers the standard set of schema components shipped by `flutter_components`.
@@ -32,11 +37,16 @@ void registerCoreSchemaComponents({
   registerGapSchemaComponent(registry: registry, context: context);
   registerBottomTabsSchemaComponent(registry: registry, context: context);
   registerPrimaryActionBarSchemaComponent(registry: registry, context: context);
+  registerTextButtonSchemaComponent(registry: registry, context: context);
+  registerTextSchemaComponent(registry: registry, context: context);
+  registerIconSchemaComponent(registry: registry, context: context);
+  registerIconButtonSchemaComponent(registry: registry, context: context);
 
   // Data-driven components.
   registerRemoteQuerySchemaComponent(registry: registry, context: context);
   registerRemotePagedListSchemaComponent(registry: registry, context: context);
   registerForEachSchemaComponent(registry: registry, context: context);
+  registerIfSchemaComponent(registry: registry, context: context);
   registerBoundActionCardSchemaComponent(registry: registry, context: context);
   registerCatalogItemTileSchemaComponent(registry: registry, context: context);
 

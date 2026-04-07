@@ -221,9 +221,9 @@ Requirements:
 - MUST treat content as immutable
 - MUST send `Cache-Control: public, max-age=31536000, immutable`
 
-Note (Apr 2026 repo state):
-- Flutter clients already include loaders for `/schemas/screens/docs/by-id/{docId}` and `/themes/docs/by-id/{docId}`.
-- `schema-service` does not yet expose immutable-by-id routes and does not yet emit `x-daryeel-doc-id` on selector responses. Full pinning requires those server changes.
+Note (current repo state):
+- `schema-service` exposes immutable-by-id routes for screens, fragments, and themes.
+- Selector endpoints include `x-daryeel-doc-id` so clients can pin the exact immutable document they just received.
 
 ### 7.3 Rollback
 Rollback is performed server-side by changing selector mappings (e.g., `app/mappings.json`).
@@ -314,13 +314,13 @@ Remote config must not be able to expand what a binary accepts unless signed.
 
 ---
 
-## Appendix A — Current repo endpoints/headers (April 2026)
+## Appendix A — Current repo endpoints/headers
 - Selector schemas:
   - `GET /schemas/screens/{screen_id}`
   - `GET /schemas/fragments/{fragment_id}`
 - Immutable schemas:
-  - `GET /schemas/screens/docs/{docId}`
-  - `GET /schemas/fragments/docs/{docId}`
+  - `GET /schemas/screens/docs/by-id/{docId}`
+  - `GET /schemas/fragments/docs/by-id/{docId}`
 - Selector themes:
   - `GET /themes/{theme_id}/{theme_mode}`
 - Immutable themes:

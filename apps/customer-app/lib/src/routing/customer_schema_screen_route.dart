@@ -87,15 +87,35 @@ final class CustomerSchemaChromePresets {
       AnimatedBuilder(
         animation: store,
         builder: (context, _) {
-          final raw = store.getValue('pharmacy.cart.totalQuantity');
-          final count = (raw is num)
-              ? raw.toInt()
-              : int.tryParse('${raw ?? ''}');
-          final show = (count != null && count > 0);
+          final rawItems = store.getValue('pharmacy.cart.totalQuantity');
+          final items = (rawItems is num)
+              ? rawItems.toInt()
+              : int.tryParse('${rawItems ?? ''}') ?? 0;
+
+          final uploadsRaw = store.getValue(
+            'pharmacy.cart.prescriptionUploads',
+          );
+          final uploadsCount = (uploadsRaw is List) ? uploadsRaw.length : 0;
+
+          final legacyIdRaw = store.getValue(
+            'pharmacy.cart.prescriptionUploadId',
+          );
+          final legacyId = (legacyIdRaw is String) ? legacyIdRaw.trim() : '';
+          final prescriptions = uploadsCount > 0
+              ? uploadsCount
+              : (legacyId.isNotEmpty ? 1 : 0);
+
+          final show = items > 0 || prescriptions > 0;
+          final total = items + prescriptions;
+          final labelText = '$total';
+
+          final colors = Theme.of(context).colorScheme;
 
           final icon = show
               ? Badge(
-                  label: Text('$count'),
+                  backgroundColor: colors.primary,
+                  textColor: colors.onPrimary,
+                  label: Text(labelText),
                   child: const Icon(Icons.shopping_cart_outlined),
                 )
               : const Icon(Icons.shopping_cart_outlined);
@@ -103,9 +123,13 @@ final class CustomerSchemaChromePresets {
           return IconButton(
             icon: icon,
             onPressed: () {
-              // Cart screen route/schema not wired yet.
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Cart screen not wired yet.')),
+              Navigator.of(context).pushNamed(
+                CustomerSchemaScreenRoute.name,
+                arguments: const <String, Object?>{
+                  'screenId': 'pharmacy_cart',
+                  'title': 'Cart',
+                  'chromePreset': 'standard',
+                },
               );
             },
           );

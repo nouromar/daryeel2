@@ -200,4 +200,132 @@ void main() {
     expect(find.byKey(const ValueKey<String>('item_index:0')), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('item_index:1')), findsOneWidget);
   });
+
+  testWidgets('ForEach treats null items as empty list (data path)',
+      (tester) async {
+    final registry = SchemaWidgetRegistry();
+    registerForEachSchemaComponent(
+      registry: registry,
+      context: _testComponentContext(),
+    );
+
+    registry.register('Probe', (node, componentRegistry) {
+      return const Text('probe');
+    });
+
+    final root = _component(
+      'ForEach',
+      props: const <String, Object?>{
+        'itemsPath': 'items',
+      },
+      slots: <String, List<SchemaNode>>{
+        'item': <SchemaNode>[
+          _component('Probe'),
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SchemaDataScope(
+          data: const <String, Object?>{},
+          child: SchemaRenderer(rootNode: root, registry: registry).render(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Unsupported schema component: ForEach(items-not-list)'),
+      findsNothing,
+    );
+    expect(find.byType(ListView), findsOneWidget);
+    expect(find.text('probe'), findsNothing);
+  });
+
+  testWidgets('ForEach treats null items as empty list (state path)',
+      (tester) async {
+    final registry = SchemaWidgetRegistry();
+    registerForEachSchemaComponent(
+      registry: registry,
+      context: _testComponentContext(),
+    );
+
+    registry.register('Probe', (node, componentRegistry) {
+      return const Text('probe');
+    });
+
+    final root = _component(
+      'ForEach',
+      props: const <String, Object?>{
+        'itemsPath': r'$state.pharmacy.cart.prescriptionUploads',
+      },
+      slots: <String, List<SchemaNode>>{
+        'item': <SchemaNode>[
+          _component('Probe'),
+        ],
+      },
+    );
+
+    final store = SchemaStateStore(initial: const <String, Object?>{});
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SchemaStateScope(
+          store: store,
+          child: SchemaRenderer(rootNode: root, registry: registry).render(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Unsupported schema component: ForEach(items-not-list)'),
+      findsNothing,
+    );
+    expect(find.byType(ListView), findsOneWidget);
+    expect(find.text('probe'), findsNothing);
+  });
+
+  testWidgets('ForEach still errors for non-null non-List items',
+      (tester) async {
+    final registry = SchemaWidgetRegistry();
+    registerForEachSchemaComponent(
+      registry: registry,
+      context: _testComponentContext(),
+    );
+
+    final root = _component(
+      'ForEach',
+      props: const <String, Object?>{
+        'itemsPath': 'items',
+      },
+      slots: <String, List<SchemaNode>>{
+        'item': <SchemaNode>[
+          _component('Probe'),
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SchemaDataScope(
+          data: const <String, Object?>{'items': <String, Object?>{}},
+          child: SchemaRenderer(rootNode: root, registry: registry).render(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Unsupported schema component: ForEach(items-not-list)'),
+      findsOneWidget,
+    );
+  });
 }

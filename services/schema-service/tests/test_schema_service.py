@@ -131,6 +131,24 @@ def test_screen_customer_home_ok() -> None:
         assert second.text == ""
 
 
+def test_screen_pharmacy_cart_ok() -> None:
+    client = TestClient(app)
+    response = client.get("/schemas/screens/pharmacy_cart")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == "pharmacy_cart"
+    assert payload["schemaVersion"] == "1.0"
+
+
+def test_screen_pharmacy_checkout_ok() -> None:
+    client = TestClient(app)
+    response = client.get("/schemas/screens/pharmacy_checkout")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == "pharmacy_checkout"
+    assert payload["schemaVersion"] == "1.0"
+
+
 def test_ref_nodes_are_supported_by_models() -> None:
     # Contract allows refs in slots; ensure our Pydantic models accept it.
     client = TestClient(app)

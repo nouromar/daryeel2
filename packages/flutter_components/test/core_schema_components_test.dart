@@ -3,7 +3,6 @@ import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:schema_runtime_dart/schema_runtime_dart.dart';
 
 final class _NoopDispatcher extends SchemaActionDispatcher {
   const _NoopDispatcher();
