@@ -1,9 +1,9 @@
-/// A bounded query spec for schema-driven data fetching.
-///
-/// Design goals:
-/// - Only supports relative API paths (must start with `/`)
-/// - No arbitrary URLs, no `..`, no oversized inputs
-/// - Query params are stringified and constrained by conservative budgets
+// A bounded query spec for schema-driven data fetching.
+//
+// Design goals:
+// - Only supports relative API paths (must start with `/`)
+// - No arbitrary URLs, no `..`, no oversized inputs
+// - Query params are stringified and constrained by conservative budgets
 import '../forms/schema_form_store.dart';
 import '../state/schema_state_store.dart';
 

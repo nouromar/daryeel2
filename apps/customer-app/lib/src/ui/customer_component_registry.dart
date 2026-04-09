@@ -2,6 +2,7 @@ import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
+import '../actions/customer_action_dispatcher.dart';
 import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_cart_items_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_checkout_schema_component.dart';
@@ -16,9 +17,13 @@ SchemaWidgetRegistry buildCustomerComponentRegistry({
 }) {
   final registry = SchemaWidgetRegistry();
 
+  // Wrap the runtime dispatcher so the app can support higher-level behaviors
+  // (like list-based cart upserts) without changing packages/*.
+  final appDispatcher = CustomerActionDispatcher(delegate: actionDispatcher);
+
   final componentContext = SchemaComponentContext(
     screen: screen,
-    actionDispatcher: actionDispatcher,
+    actionDispatcher: appDispatcher,
     visibility: visibility,
     diagnostics: diagnostics,
     diagnosticsContext: diagnosticsContext,

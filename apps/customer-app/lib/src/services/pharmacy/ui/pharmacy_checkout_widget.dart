@@ -37,6 +37,17 @@ final class PharmacyCheckoutWidget extends StatelessWidget {
             : (prescriptionUploadId.isNotEmpty ? 1 : 0);
         final hasPrescription = uploadsCount > 0;
 
+        final deliveryAddressRaw = store.getValue(
+          'pharmacy.cart.deliveryAddress',
+        );
+        final deliveryAddress = (deliveryAddressRaw is Map)
+            ? deliveryAddressRaw
+                  .map((k, v) => MapEntry(k.toString(), v))
+                  .cast<String, Object?>()
+            : null;
+        final addressText = (deliveryAddress?['text'] is String)
+            ? (deliveryAddress?['text'] as String).trim()
+            : '';
 
         final formStore = SchemaFormScope.maybeOf(context);
         final submittingListenable = (formStore == null)
@@ -44,14 +55,21 @@ final class PharmacyCheckoutWidget extends StatelessWidget {
             : formStore.watchSubmitting('pharmacy_checkout');
 
         Widget buildSummary({required bool submitting}) {
+          final subtitleParts = <String>[];
+          if (addressText.isNotEmpty) {
+            subtitleParts.add('Deliver to: $addressText');
+          }
+          subtitleParts.add('Items: $totalQuantity');
+          if (hasPrescription) {
+            subtitleParts.add('Prescriptions attached: $uploadsCount');
+          }
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               InfoCardWidget(
                 title: 'Checkout',
-                subtitle: hasPrescription
-                    ? 'Items: $totalQuantity\nPrescriptions attached: $uploadsCount'
-                    : 'Items: $totalQuantity',
+                subtitle: subtitleParts.join('\n'),
                 surface: 'subtle',
               ),
               if (submitting) ...[

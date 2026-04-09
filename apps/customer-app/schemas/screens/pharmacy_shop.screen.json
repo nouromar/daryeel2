@@ -115,20 +115,12 @@
   },
   "actions": {
     "pharmacy_add_to_cart": {
-      "type": "patch_state",
+      "type": "pharmacy_cart_upsert",
       "value": {
-        "ops": [
-          {
-            "op": "increment",
-            "path": "pharmacy.cart.itemsById.${item.id}.quantity",
-            "by": 1
-          },
-          {
-            "op": "increment",
-            "path": "pharmacy.cart.totalQuantity",
-            "by": 1
-          }
-        ]
+        "id": "${item.id}",
+        "title": "${item.name}",
+        "subtitle": "${item.subtitle}",
+        "rxRequired": "${item.rx_required}"
       }
     },
     "go_prescription_upload": {

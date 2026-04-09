@@ -5,7 +5,14 @@
   "propsSchema": {
     "title": "string",
     "mode": "enum",
-    "variant": "enum"
+    "variant": "enum",
+    "sources": "object",
+    "defaultAddressBind": "string",
+    "currentLocationBind": "string",
+    "savedPlacesBind": "string",
+    "autoSelectDefault": "boolean",
+    "autoSelectCurrentLocation": "boolean",
+    "autocomplete": "object"
   },
   "defaults": {
     "mode": "generic",

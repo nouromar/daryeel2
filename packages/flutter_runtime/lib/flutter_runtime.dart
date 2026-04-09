@@ -1,5 +1,3 @@
-library flutter_runtime;
-
 export 'package:schema_runtime_dart/schema_runtime_dart.dart';
 
 export 'src/actions/action_dispatcher.dart';
@@ -28,6 +26,7 @@ export 'src/state/schema_state_store.dart';
 export 'src/data/schema_data_scope.dart';
 
 export 'src/bindings/schema_interpolation.dart';
+export 'src/bindings/schema_expression_engine.dart';
 
 export 'src/queries/schema_query_scope.dart';
 export 'src/queries/schema_query_spec.dart';

@@ -79,18 +79,6 @@ void registerCustomerCatalogItemTileSchemaComponent({
         }
 
         Future<void> onAdd() async {
-          final store = SchemaStateScope.maybeOf(buildContext);
-          if (store != null) {
-            final id = readJsonPath(item, 'id')?.toString().trim();
-            if (id != null && id.isNotEmpty) {
-              final prefix = 'pharmacy.cart.itemsById.$id';
-              store.setValue('$prefix.id', id);
-              store.setValue('$prefix.title', title);
-              store.setValue('$prefix.subtitle', subtitle);
-              store.setValue('$prefix.rxRequired', rxRequired);
-            }
-          }
-
           if (hasAddAction) {
             final result = await tryDispatchComponentAction(
               context: buildContext,

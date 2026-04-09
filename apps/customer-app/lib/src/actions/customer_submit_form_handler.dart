@@ -97,8 +97,9 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
         );
       }
 
-      store.removeValue('pharmacy.cart.itemsById');
+      store.setValue('pharmacy.cart.lines', const <Object?>[]);
       store.setValue('pharmacy.cart.totalQuantity', 0);
+      store.setValue('pharmacy.cart.hasRxItem', false);
       store.removeValue('pharmacy.cart.prescriptionUploadId');
       store.removeValue('pharmacy.cart.prescriptionUploads');
 
@@ -158,16 +159,16 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
   }
 
   Map<String, Object?> _buildPharmacyOrderPayload(SchemaStateStore store) {
-    final itemsById = _coerceStringKeyedMap(
-      store.getValue('pharmacy.cart.itemsById'),
-    );
-
     final cartLines = <Map<String, Object?>>[];
-    for (final entry in itemsById.entries) {
-      final id = entry.key;
-      final data = _coerceStringKeyedMap(entry.value);
 
-      final quantityRaw = data['quantity'];
+    final rawLines = store.getValue('pharmacy.cart.lines');
+    final lines = _coerceListOfStringKeyedMaps(rawLines);
+    for (final line in lines) {
+      final idRaw = line['id'];
+      final id = (idRaw is String) ? idRaw.trim() : '${idRaw ?? ''}'.trim();
+      if (id.isEmpty) continue;
+
+      final quantityRaw = line['quantity'];
       final quantity = (quantityRaw is num)
           ? quantityRaw.toInt()
           : int.tryParse('${quantityRaw ?? ''}') ?? 0;
@@ -207,15 +208,24 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
   }
 }
 
-Map<String, Object?> _coerceStringKeyedMap(Object? raw) {
-  if (raw is Map<String, Object?>) return raw;
-  if (raw is Map) {
-    final out = <String, Object?>{};
-    for (final entry in raw.entries) {
-      if (entry.key is! String) continue;
-      out[entry.key as String] = entry.value;
+List<Map<String, Object?>> _coerceListOfStringKeyedMaps(Object? raw) {
+  if (raw is! List) return const <Map<String, Object?>>[];
+
+  final out = <Map<String, Object?>>[];
+  for (final item in raw) {
+    if (item is Map<String, Object?>) {
+      out.add(item);
+      continue;
     }
-    return out;
+    if (item is Map) {
+      final m = <String, Object?>{};
+      for (final entry in item.entries) {
+        if (entry.key is! String) continue;
+        m[entry.key as String] = entry.value;
+      }
+      out.add(m);
+    }
   }
-  return const <String, Object?>{};
+
+  return out;
 }

@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  geocoding: ^4.0.0
+  geolocator: ^13.0.0
   flutter_runtime:
     path: ../flutter_runtime
   flutter_schema_renderer:

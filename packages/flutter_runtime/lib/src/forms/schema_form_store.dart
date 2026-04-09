@@ -449,12 +449,10 @@ final class SchemaFieldValidationRules {
     required int maxEnumValues,
     required int maxPatternLength,
   }) {
-    final normalizedEnum = enumValues == null
-        ? null
-        : enumValues!
-            .where((e) => e.trim().isNotEmpty)
-            .take(maxEnumValues)
-            .toList(growable: false);
+    final normalizedEnum = enumValues
+        ?.where((e) => e.trim().isNotEmpty)
+        .take(maxEnumValues)
+        .toList(growable: false);
 
     final normalizedPattern = pattern == null
         ? null

@@ -1,6 +1,6 @@
-/// Shared taxonomy for schema/theme fallback ladder diagnostics.
-///
-/// Keep these stable: dashboards and alerts will rely on them.
+// Shared taxonomy for schema/theme fallback ladder diagnostics.
+//
+// Keep these stable: dashboards and alerts will rely on them.
 
 enum SchemaLadderSource {
   pinnedImmutable,

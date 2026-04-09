@@ -1,8 +1,8 @@
-/// Shared taxonomy for screen-load observability.
-///
-/// Goal: standardize payloads so dashboards/alerts can rely on stable keys.
-///
-/// Keep these stable: event names and wire values are a compatibility surface.
+// Shared taxonomy for screen-load observability.
+//
+// Goal: standardize payloads so dashboards/alerts can rely on stable keys.
+//
+// Keep these stable: event names and wire values are a compatibility surface.
 
 abstract final class ScreenLoadEventNames {
   /// Emitted once per screen load attempt, when the app has selected the final

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:schema_runtime_dart/schema_runtime_dart.dart';
 
+import '../bindings/schema_expression_engine.dart';
 import '../bindings/schema_interpolation.dart';
 import '../security/security_budgets.dart';
 import '../state/schema_state_scope.dart';
@@ -42,7 +43,8 @@ class NavigatorSchemaActionDispatcher extends SchemaActionDispatcher {
         final path = resolvedPath.trim();
         if (path.isEmpty) return;
 
-        store.setValue(path, raw['value']);
+        final value = evaluateSchemaValue(raw['value'], context);
+        store.setValue(path, value);
         return;
 
       case 'patch_state':
@@ -72,21 +74,23 @@ class NavigatorSchemaActionDispatcher extends SchemaActionDispatcher {
 
           switch (op.trim().toLowerCase()) {
             case 'set':
-              store.setValue(path, opRaw['value']);
+              store.setValue(
+                  path, evaluateSchemaValue(opRaw['value'], context));
               break;
             case 'remove':
               store.removeValue(path);
               break;
             case 'increment':
-              final byRaw = opRaw['by'];
-              final by = (byRaw is num)
-                  ? byRaw
-                  : (byRaw is String ? num.tryParse(byRaw.trim()) : null);
+              final byValue = evaluateSchemaValue(opRaw['by'], context);
+              final by = (byValue is num)
+                  ? byValue
+                  : (byValue is String ? num.tryParse(byValue.trim()) : null);
               if (by == null) break;
               store.incrementValue(path, by);
               break;
             case 'append':
-              store.appendValue(path, opRaw['value']);
+              store.appendValue(
+                  path, evaluateSchemaValue(opRaw['value'], context));
               break;
             default:
               // Unknown op: ignore.

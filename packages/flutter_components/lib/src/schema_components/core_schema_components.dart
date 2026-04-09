@@ -1,6 +1,7 @@
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'action_card_schema_component.dart';
+import 'address_section_schema_component.dart';
 import 'bottom_tabs_schema_component.dart';
 import 'bound_action_card_schema_component.dart';
 import 'catalog_item_tile_schema_component.dart';
@@ -41,6 +42,7 @@ void registerCoreSchemaComponents({
   registerTextSchemaComponent(registry: registry, context: context);
   registerIconSchemaComponent(registry: registry, context: context);
   registerIconButtonSchemaComponent(registry: registry, context: context);
+  registerAddressSectionSchemaComponent(registry: registry, context: context);
 
   // Data-driven components.
   registerRemoteQuerySchemaComponent(registry: registry, context: context);

@@ -103,6 +103,68 @@ void main() {
     expect(store.getValue('limit'), 10);
   });
 
+  testWidgets(
+      'NavigatorSchemaActionDispatcher evaluates expressions in set_state/patch_state values',
+      (tester) async {
+    final store = SchemaStateStore();
+    store.setValue('a', 2);
+    const dispatcher = NavigatorSchemaActionDispatcher();
+
+    const setTyped = ActionDefinition(
+      type: 'set_state',
+      value: <String, Object?>{
+        'path': 'b',
+        'value': r'${state.a + 1}',
+      },
+    );
+
+    const setExprObject = ActionDefinition(
+      type: 'set_state',
+      value: <String, Object?>{
+        'path': 'c',
+        'value': <String, Object?>{r'$expr': 'state.a + 2'},
+      },
+    );
+
+    const patch = ActionDefinition(
+      type: 'patch_state',
+      value: <String, Object?>{
+        'ops': <Object?>[
+          <String, Object?>{
+            'op': 'increment',
+            'path': 'a',
+            'by': r'${2}',
+          },
+          <String, Object?>{
+            'op': 'set',
+            'path': 'msg',
+            'value': 'x \${state.a}',
+          },
+        ],
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SchemaStateScope(
+          store: store,
+          child: const _Home(),
+        ),
+      ),
+    );
+
+    final context = tester.element(find.byKey(const Key('home')));
+
+    await dispatcher.dispatch(context, setTyped);
+    await dispatcher.dispatch(context, setExprObject);
+    await dispatcher.dispatch(context, patch);
+
+    expect(store.getValue('b'), 3);
+    expect(store.getValue('c'), 4);
+    expect(store.getValue('a'), 4);
+    expect(store.getValue('msg'), 'x 4');
+  });
+
   testWidgets('NavigatorSchemaActionDispatcher supports patch_state ops',
       (tester) async {
     final store = SchemaStateStore();

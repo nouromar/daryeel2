@@ -1,6 +1,6 @@
-/// Stable event names and reason codes for schema-driven action security.
-///
-/// Keep payload values low-cardinality and avoid logging user data.
+// Stable event names and reason codes for schema-driven action security.
+//
+// Keep payload values low-cardinality and avoid logging user data.
 
 enum ActionPolicyReason {
   disallowedActionType,

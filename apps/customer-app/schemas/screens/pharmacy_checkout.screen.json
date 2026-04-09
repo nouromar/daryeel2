@@ -9,7 +9,36 @@
     "type": "ScreenTemplate",
     "slots": {
       "body": [
-        { "type": "PharmacyCheckout" }
+        {
+          "type": "Column",
+          "props": {
+            "spacing": 12,
+            "crossAxisAlignment": "stretch",
+            "mainAxisSize": "min"
+          },
+          "slots": {
+            "children": [
+              {
+                "type": "AddressSection",
+                "props": {
+                  "title": "Delivery address",
+                  "variant": "default",
+                  "sources": {
+                    "defaultAddress": true,
+                    "currentLocation": true,
+                    "providerAutocomplete": false,
+                    "savedPlaces": true,
+                    "recents": true,
+                    "manualEntry": true,
+                    "mapPin": true
+                  }
+                },
+                "bind": "$state.pharmacy.cart.deliveryAddress"
+              },
+              { "type": "PharmacyCheckout" }
+            ]
+          }
+        }
       ],
       "footer": [
         {

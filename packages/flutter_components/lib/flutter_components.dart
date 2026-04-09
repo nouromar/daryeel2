@@ -4,8 +4,13 @@ export 'src/widgets/info_card_widget.dart';
 export 'src/widgets/primary_action_bar_widget.dart';
 export 'src/widgets/screen_template_widget.dart';
 
+export 'src/location/address_picker_screen.dart';
+export 'src/location/location_value.dart';
+export 'src/location/map_pin_picker_screen.dart';
+
 export 'src/schema_components/schema_component_context.dart';
 export 'src/schema_components/action_card_schema_component.dart';
+export 'src/schema_components/address_section_schema_component.dart';
 export 'src/schema_components/bottom_tabs_schema_component.dart';
 export 'src/schema_components/bound_action_card_schema_component.dart';
 export 'src/schema_components/catalog_item_tile_schema_component.dart';

@@ -577,8 +577,9 @@ final class SchemaQueryStore extends ChangeNotifier {
 
     if (a.isEmpty || a == '/') return b;
 
-    if (a.endsWith('/') && b.startsWith('/'))
+    if (a.endsWith('/') && b.startsWith('/')) {
       return '${a.substring(0, a.length - 1)}$b';
+    }
     if (!a.endsWith('/') && !b.startsWith('/')) return '$a/$b';
     return '$a$b';
   }

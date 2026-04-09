@@ -71,6 +71,34 @@ class SecurityBudgets {
   static const int maxStatePatchOpsPerAction = 10;
 
   // -------------------------
+  // Expression engine budgets
+  // -------------------------
+
+  /// Max characters for a single `${...}` expression.
+  static const int maxExprChars = 2048;
+
+  /// Max tokens allowed per expression (post-lexing).
+  static const int maxExprTokens = 512;
+
+  /// Max characters allowed for a template string input.
+  static const int maxExprTemplateInputChars = 16 * 1024;
+
+  /// Max number of `${...}` parts in a single template.
+  static const int maxExprTemplateParts = 100;
+
+  /// Max output characters produced by a single template evaluation.
+  static const int maxExprTemplateOutputChars = 16 * 1024;
+
+  /// Max depth for recursive value interpolation in action payloads.
+  static const int maxExprValueDepth = 16;
+
+  /// Max nodes (map entries) visited while recursively interpolating a value.
+  static const int maxExprValueNodes = 2000;
+
+  static const int maxExprValueEntriesPerMap = 200;
+  static const int maxExprValueItemsPerList = 500;
+
+  // -------------------------
   // Form budgets
   // -------------------------
 

@@ -167,17 +167,12 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
                           onIncrement: () => incrementLine(line),
                           onDecrement: () => decrementLine(line),
                         ),
-                        if (line != lines.last)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            child: Divider(height: 1),
-                          ),
+                        if (line != lines.last) const SizedBox(height: 14),
                       ],
 
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Divider(height: 1),
-                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
 
                       Row(
                         children: [

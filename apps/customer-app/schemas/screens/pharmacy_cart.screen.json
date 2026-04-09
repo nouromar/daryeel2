@@ -7,10 +7,356 @@
   "themeMode": "light",
   "root": {
     "type": "ScreenTemplate",
+    "props": {
+      "stateDefaults": {
+        "pharmacy.cart.lines": [],
+        "pharmacy.cart.totalQuantity": 0,
+        "pharmacy.cart.hasRxItem": false
+      }
+    },
     "slots": {
       "body": [
-        { "type": "PharmacyCartItems" }
+        {
+          "type": "If",
+          "props": {
+            "valuePath": "$state.pharmacy.cart.lines",
+            "op": "isEmpty"
+          },
+          "slots": {
+            "then": [
+              {
+                "type": "If",
+                "props": {
+                  "valuePath": "$state.pharmacy.cart.prescriptionUploads",
+                  "op": "isEmpty"
+                },
+                "slots": {
+                  "then": [
+                    {
+                      "type": "If",
+                      "props": {
+                        "valuePath": "$state.pharmacy.cart.prescriptionUploadId",
+                        "op": "isEmpty"
+                      },
+                      "slots": {
+                        "then": [
+                          {
+                            "type": "InfoCard",
+                            "props": {
+                              "title": "Cart is empty",
+                              "subtitle": "Add items from the pharmacy catalog.",
+                              "surface": "subtle"
+                            }
+                          }
+                        ],
+                        "else": []
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              }
+            ],
+            "else": [
+              {
+                "type": "Column",
+                "props": {
+                  "spacing": 14,
+                  "crossAxisAlignment": "stretch",
+                  "mainAxisSize": "min"
+                },
+                "slots": {
+                  "children": [
+                    {
+                      "type": "ForEach",
+                      "props": {
+                        "itemsPath": "$state.pharmacy.cart.lines",
+                        "itemKeyPath": "id"
+                      },
+                      "slots": {
+                        "item": [
+                          {
+                            "type": "Row",
+                            "props": {
+                              "crossAxisAlignment": "start",
+                              "spacing": 12
+                            },
+                            "slots": {
+                              "children": [
+                                {
+                                  "type": "Expanded",
+                                  "slots": {
+                                    "child": [
+                                      {
+                                        "type": "Column",
+                                        "props": {
+                                          "spacing": 6,
+                                          "crossAxisAlignment": "stretch",
+                                          "mainAxisSize": "min"
+                                        },
+                                        "slots": {
+                                          "children": [
+                                            {
+                                              "type": "Text",
+                                              "props": {
+                                                "text": "${item.title}",
+                                                "variant": "title",
+                                                "weight": "medium",
+                                                "maxLines": 2
+                                              }
+                                            },
+                                            {
+                                              "type": "Text",
+                                              "props": {
+                                                "text": "${item.meta}",
+                                                "variant": "caption",
+                                                "color": "muted",
+                                                "maxLines": 2
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "Row",
+                                  "props": { "spacing": 10 },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "type": "IconButton",
+                                        "props": {
+                                          "name": "remove",
+                                          "semanticLabel": "Decrease quantity",
+                                          "size": 22
+                                        },
+                                        "actions": {
+                                          "tap": "pharmacy_cart_decrement"
+                                        }
+                                      },
+                                      {
+                                        "type": "Text",
+                                        "props": {
+                                          "text": "${item.quantity}",
+                                          "variant": "body",
+                                          "weight": "medium"
+                                        }
+                                      },
+                                      {
+                                        "type": "IconButton",
+                                        "props": {
+                                          "name": "add",
+                                          "semanticLabel": "Increase quantity",
+                                          "size": 22
+                                        },
+                                        "actions": {
+                                          "tap": "pharmacy_cart_increment"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "Row",
+                      "props": {
+                        "mainAxisAlignment": "spaceBetween"
+                      },
+                      "slots": {
+                        "children": [
+                          {
+                            "type": "Text",
+                            "props": {
+                              "text": "Total items",
+                              "variant": "subtitle"
+                            }
+                          },
+                          {
+                            "type": "Text",
+                            "props": {
+                              "text": "${state.pharmacy.cart.totalQuantity}",
+                              "variant": "subtitle",
+                              "weight": "semibold"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+
+        {
+          "type": "If",
+          "props": {
+            "valuePath": "$state.pharmacy.cart.hasRxItem",
+            "op": "isTrue"
+          },
+          "slots": {
+            "then": [
+              {
+                "type": "If",
+                "props": {
+                  "valuePath": "$state.pharmacy.cart.prescriptionUploads",
+                  "op": "isEmpty"
+                },
+                "slots": {
+                  "then": [
+                    {
+                      "type": "If",
+                      "props": {
+                        "valuePath": "$state.pharmacy.cart.prescriptionUploadId",
+                        "op": "isEmpty"
+                      },
+                      "slots": {
+                        "then": [
+                          {
+                            "type": "TextButton",
+                            "props": {
+                              "label": "Attach Prescription",
+                              "align": "right"
+                            },
+                            "actions": { "tap": "go_prescription_upload" }
+                          }
+                        ],
+                        "else": []
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              }
+            ],
+            "else": []
+          }
+        },
+
+        {
+          "type": "If",
+          "props": {
+            "valuePath": "$state.pharmacy.cart.prescriptionUploads",
+            "op": "isNotEmpty"
+          },
+          "slots": {
+            "then": [
+              {
+                "type": "ActionCard",
+                "props": {
+                  "title": "Prescription attached",
+                  "subtitle": "",
+                  "surface": "flat"
+                },
+                "actions": { "tap": "go_prescription_upload" }
+              },
+              {
+                "type": "ForEach",
+                "props": {
+                  "itemsPath": "$state.pharmacy.cart.prescriptionUploads"
+                },
+                "slots": {
+                  "item": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "text": "${item.filename}",
+                        "variant": "caption",
+                        "color": "muted",
+                        "maxLines": 1
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "else": [
+              {
+                "type": "If",
+                "props": {
+                  "valuePath": "$state.pharmacy.cart.prescriptionUploadId",
+                  "op": "isNotEmpty"
+                },
+                "slots": {
+                  "then": [
+                    {
+                      "type": "ActionCard",
+                      "props": {
+                        "title": "Prescription attached",
+                        "subtitle": "",
+                        "surface": "flat"
+                      },
+                      "actions": { "tap": "go_prescription_upload" }
+                    }
+                  ],
+                  "else": []
+                }
+              }
+            ]
+          }
+        },
+
+        {
+          "type": "If",
+          "props": {
+            "valuePath": "$state.pharmacy.cart.lines",
+            "op": "isNotEmpty"
+          },
+          "slots": {
+            "then": [
+              {
+                "type": "PrimaryActionBar",
+                "props": { "primaryLabel": "Checkout", "expand": true },
+                "actions": { "primary": "go_checkout" }
+              },
+              {
+                "type": "TextButton",
+                "props": { "label": "Clear cart", "align": "right" },
+                "actions": { "tap": "pharmacy_cart_clear" }
+              }
+            ],
+            "else": []
+          }
+        }
       ]
+    }
+  },
+  "actions": {
+    "pharmacy_cart_increment": {
+      "type": "pharmacy_cart_increment",
+      "value": { "id": "${item.id}" }
+    },
+    "pharmacy_cart_decrement": {
+      "type": "pharmacy_cart_decrement",
+      "value": { "id": "${item.id}" }
+    },
+    "pharmacy_cart_clear": {
+      "type": "pharmacy_cart_clear"
+    },
+    "go_prescription_upload": {
+      "type": "navigate",
+      "route": "customer.schema_screen",
+      "value": {
+        "screenId": "pharmacy_prescription_upload",
+        "title": "Attach Prescription",
+        "chromePreset": "pharmacy_cart_badge"
+      }
+    },
+    "go_checkout": {
+      "type": "navigate",
+      "route": "customer.schema_screen",
+      "value": {
+        "screenId": "pharmacy_checkout",
+        "title": "Checkout"
+      }
     }
   }
 }
