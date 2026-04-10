@@ -9,6 +9,7 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import 'schema_component_context.dart';
 import '../widgets/screen_primary_scroll_widget.dart';
 import 'schema_component_utils.dart';
+import 'schema_node_wrapper.dart';
 
 void registerRemotePagedListSchemaComponent({
   required SchemaWidgetRegistry registry,
@@ -63,6 +64,7 @@ void registerRemotePagedListSchemaComponent({
       template: template,
       node: node,
       registry: componentRegistry,
+      componentContext: context,
       diagnostics: context.diagnostics,
       diagnosticsContext: context.diagnosticsContext,
     );
@@ -82,6 +84,7 @@ class _RemotePagedListWidget extends StatefulWidget
     required this.template,
     required this.node,
     required this.registry,
+    required this.componentContext,
     required this.diagnostics,
     required this.diagnosticsContext,
   });
@@ -96,6 +99,7 @@ class _RemotePagedListWidget extends StatefulWidget
   final List<SchemaNode> template;
   final ComponentNode node;
   final SchemaWidgetRegistry registry;
+  final SchemaComponentContext componentContext;
   final RuntimeDiagnostics? diagnostics;
   final Map<String, Object?> diagnosticsContext;
 
@@ -143,6 +147,7 @@ class _RemotePagedListWidgetState extends State<_RemotePagedListWidget> {
     return buildSchemaSlotWidgets(
       widget.node.slots[slotName],
       widget.registry,
+      context: widget.componentContext,
     );
   }
 
@@ -172,7 +177,23 @@ class _RemotePagedListWidgetState extends State<_RemotePagedListWidget> {
     });
 
     if (_lastSignature == signature) return;
+
+    final hadPreviousSignature = _lastSignature != null;
     _lastSignature = signature;
+
+    // If the query changes (e.g., new filter/search), the list resets and
+    // should return the user to the top.
+    if (hadPreviousSignature) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!_controller.hasClients) return;
+        try {
+          _controller.jumpTo(0);
+        } catch (_) {
+          // No-op: can happen if the scrollable detaches mid-frame.
+        }
+      });
+    }
 
     _debounceTimer?.cancel();
 
@@ -224,6 +245,12 @@ class _RemotePagedListWidgetState extends State<_RemotePagedListWidget> {
           ? const _NoopListenable()
           : Listenable.merge(dependencyListenables),
       builder: (context, _) {
+        final wrapperBuilder = buildVisibleWhenWrapper(
+          visibility: widget.componentContext.visibility,
+          diagnostics: widget.diagnostics,
+          diagnosticsContext: widget.diagnosticsContext,
+        );
+
         final params = SchemaQuerySpec.sanitizeParams(
           SchemaQuerySpec.resolveParams(
             widget.rawParams,
@@ -346,6 +373,7 @@ class _RemotePagedListWidgetState extends State<_RemotePagedListWidget> {
                           (child) => SchemaRenderer(
                             rootNode: child,
                             registry: widget.registry,
+                            wrapperBuilder: wrapperBuilder,
                           ).render(),
                         )
                         .toList(growable: false),

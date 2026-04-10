@@ -7,18 +7,7 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": [
-        "navigate",
-        "open_url",
-        "set_state",
-        "patch_state",
-        "submit_form",
-        "track_event",
-        "open_modal",
-        "refresh_data",
-        "select_value",
-        "dismiss"
-      ]
+      "minLength": 1
     },
     "route": { "type": "string" },
     "formId": { "type": "string" },

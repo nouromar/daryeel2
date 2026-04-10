@@ -8,6 +8,7 @@ import '../runtime/daryeel_runtime_session.dart';
 import '../runtime/daryeel_runtime_view_model.dart';
 import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
+import 'schema_node_wrapper.dart';
 import 'schema_service_screen.dart';
 import 'schema_status_banner.dart';
 
@@ -190,6 +191,11 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
         diagnostics: vm.diagnostics,
         diagnosticsContext: vm.rendererDiagnosticsContext,
       ),
+      wrapperBuilder: buildVisibleWhenWrapperBuilder(
+        visibility: vm.visibility,
+        diagnostics: vm.diagnostics,
+        diagnosticsContext: vm.rendererDiagnosticsContext,
+      ),
     );
   }
 
@@ -236,10 +242,9 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
               themeMode: loadedScreen.resolvedThemeMode,
               themeDocId: loadedScreen.themeDocId,
               themeSource: themeSourceWire,
-              diagnostics:
-                  (_session?.inMemoryDiagnosticsSink?.events ??
-                          const <DiagnosticEvent>[])
-                      .toList(growable: false),
+              diagnostics: (_session?.inMemoryDiagnosticsSink?.events ??
+                      const <DiagnosticEvent>[])
+                  .toList(growable: false),
             ),
     };
   }
@@ -264,8 +269,7 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
 
         Map<String, String> extra;
         try {
-          extra =
-              session.requestHeadersProvider?.call() ??
+          extra = session.requestHeadersProvider?.call() ??
               const <String, String>{};
         } catch (_) {
           extra = const <String, String>{};

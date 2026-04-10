@@ -3,6 +3,7 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'schema_component_context.dart';
+import 'schema_node_wrapper.dart';
 
 void registerBottomTabsSchemaComponent({
   required SchemaWidgetRegistry registry,
@@ -97,32 +98,29 @@ class _BottomTabsWidgetState extends State<_BottomTabsWidget> {
   Widget _buildTabBody(List<SchemaNode> nodes) {
     if (nodes.isEmpty) return const SizedBox.shrink();
 
-    final visibleNodes = nodes.where((child) {
-      if (child is ComponentNode) {
-        return evaluateVisibleWhen(
-          child.visibleWhen,
-          widget.visibility,
-          diagnostics: widget.diagnostics,
-          diagnosticsContext: widget.diagnosticsContext,
-          nodeType: child.type,
-        );
-      }
-      return true;
-    }).toList(growable: false);
+    final wrapperBuilder = buildVisibleWhenWrapper(
+      visibility: widget.visibility,
+      diagnostics: widget.diagnostics,
+      diagnosticsContext: widget.diagnosticsContext,
+    );
 
-    if (visibleNodes.isEmpty) return const SizedBox.shrink();
-
-    if (visibleNodes.length == 1) {
+    if (nodes.length == 1) {
       return SchemaRenderer(
-              rootNode: visibleNodes.single, registry: widget.registry)
-          .render();
+        rootNode: nodes.single,
+        registry: widget.registry,
+        wrapperBuilder: wrapperBuilder,
+      ).render();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final child in visibleNodes)
-          SchemaRenderer(rootNode: child, registry: widget.registry).render(),
+        for (final child in nodes)
+          SchemaRenderer(
+            rootNode: child,
+            registry: widget.registry,
+            wrapperBuilder: wrapperBuilder,
+          ).render(),
       ],
     );
   }

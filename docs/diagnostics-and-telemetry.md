@@ -300,11 +300,10 @@ Events:
 - `runtime.visibility.unknown_rule_key` (warn, sampled)
 - `runtime.visibility.evaluation_failed` (warn/error)
 
-Visibility context:
-
-- `ruleKeys` (set of keys present)
-- `matched` (boolean)
-- `defaultedToVisible` (boolean)
+Notes:
+- Unknown `visibleWhen` keys must default to **visible** and emit `runtime.visibility.unknown_rule_key`.
+- Failed evaluations (wrong types, missing build context for `expr`, exceptions) must default to **visible** and emit `runtime.visibility.evaluation_failed`.
+- Payload is intentionally PII-safe and varies by failure mode; common fields include `nodeType`, `unknownKeys`, and a coarse `reason`.
 
 ### 9.7 Performance
 Minimum metrics (client):

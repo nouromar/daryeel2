@@ -10,8 +10,22 @@ void registerIfSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('If', (node, componentRegistry) {
+    final exprRaw = (node.props['expr'] as String?)?.trim();
+    final expr = (exprRaw == null || exprRaw.isEmpty) ? null : exprRaw;
     final valuePath = (node.props['valuePath'] as String?)?.trim();
     final opRaw = (node.props['op'] as String?)?.trim().toLowerCase();
+
+    String? normalizeExpr(String raw) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return null;
+      if (trimmed.startsWith(r'${') && trimmed.endsWith('}')) {
+        final inner = trimmed.substring(2, trimmed.length - 1).trim();
+        return inner.isEmpty ? null : inner;
+      }
+      return trimmed;
+    }
+
+    final normalizedExpr = (expr == null) ? null : normalizeExpr(expr);
 
     const statePrefixDot = r'$state.';
     const statePrefixColon = r'$state:';
@@ -64,6 +78,16 @@ void registerIfSchemaComponent({
     }
 
     Widget buildIf(BuildContext buildContext) {
+      if (normalizedExpr != null) {
+        try {
+          final result = evaluateSchemaExpression(normalizedExpr, buildContext);
+          final showThen = result == true;
+          return showThen ? buildSlot(thenNodes) : buildSlot(elseNodes);
+        } catch (_) {
+          return const UnknownSchemaWidget(componentName: 'If(expr-error)');
+        }
+      }
+
       Object? value;
       if (isStatePath) {
         final key = (stateKey ?? '').trim();
@@ -89,15 +113,21 @@ void registerIfSchemaComponent({
       return showThen ? buildSlot(thenNodes) : buildSlot(elseNodes);
     }
 
-    if (!isStatePath) {
-      return Builder(builder: buildIf);
-    }
-
     return Builder(
       builder: (buildContext) {
         final store = SchemaStateScope.maybeOf(buildContext);
+
         if (store == null) {
-          return const UnknownSchemaWidget(componentName: 'If(missing-state)');
+          if (isStatePath) {
+            return const UnknownSchemaWidget(
+                componentName: 'If(missing-state)');
+          }
+          return buildIf(buildContext);
+        }
+
+        final shouldListenToState = isStatePath || normalizedExpr != null;
+        if (!shouldListenToState) {
+          return buildIf(buildContext);
         }
 
         return AnimatedBuilder(

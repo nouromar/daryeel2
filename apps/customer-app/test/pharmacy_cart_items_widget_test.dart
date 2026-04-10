@@ -145,7 +145,8 @@ void main() {
     await tester.tap(find.byTooltip('Increase quantity'));
     await tester.pump();
 
-    expect(store.getValue('pharmacy.cart.itemsById.abc.quantity'), 2);
+    expect(store.getValue('pharmacy.cart.lines.0.id'), 'abc');
+    expect(store.getValue('pharmacy.cart.lines.0.quantity'), 2);
     expect(store.getValue('pharmacy.cart.totalQuantity'), 2);
   });
 
@@ -216,7 +217,8 @@ void main() {
     await tester.tap(find.byTooltip('Decrease quantity'));
     await tester.pump();
 
-    expect(store.getValue('pharmacy.cart.itemsById.abc.quantity'), 1);
+    expect(store.getValue('pharmacy.cart.lines.0.id'), 'abc');
+    expect(store.getValue('pharmacy.cart.lines.0.quantity'), 1);
     expect(store.getValue('pharmacy.cart.totalQuantity'), 1);
 
     await tester.tap(find.byTooltip('Decrease quantity'));

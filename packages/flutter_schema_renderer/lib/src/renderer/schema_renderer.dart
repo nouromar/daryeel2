@@ -4,11 +4,21 @@ import 'package:schema_runtime_dart/schema_runtime_dart.dart';
 import '../widgets/unknown_schema_widget.dart';
 import 'schema_widget_registry.dart';
 
+typedef SchemaNodeWrapperBuilder = Widget Function(
+  ComponentNode node,
+  Widget Function() buildChild,
+);
+
 class SchemaRenderer {
-  const SchemaRenderer({required this.rootNode, required this.registry});
+  const SchemaRenderer({
+    required this.rootNode,
+    required this.registry,
+    this.wrapperBuilder,
+  });
 
   final SchemaNode rootNode;
   final SchemaWidgetRegistry registry;
+  final SchemaNodeWrapperBuilder? wrapperBuilder;
 
   Widget render() {
     return _buildNode(rootNode);
@@ -33,6 +43,11 @@ class SchemaRenderer {
       return UnknownSchemaWidget(componentName: componentName);
     }
 
-    return builder(node, registry);
+    final wrapper = wrapperBuilder;
+    if (wrapper == null) {
+      return builder(node, registry);
+    }
+
+    return wrapper(node, () => builder(node, registry));
   }
 }

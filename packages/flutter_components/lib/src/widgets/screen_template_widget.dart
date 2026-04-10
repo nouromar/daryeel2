@@ -9,6 +9,7 @@ class ScreenTemplateWidget extends StatelessWidget {
     required this.body,
     required this.footer,
     this.headerGap = 8,
+    this.bodyScroll = true,
     this.bodyPadding = const EdgeInsets.all(16),
     this.primaryScrollPadding = const EdgeInsets.symmetric(horizontal: 16),
     this.footerPadding = const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -20,6 +21,13 @@ class ScreenTemplateWidget extends StatelessWidget {
 
   /// Spacing inserted between header and body when header is present.
   final double headerGap;
+
+  /// Whether the template should wrap the body in a scroll view when the body
+  /// does not contain a single primary scroll widget.
+  ///
+  /// When `false`, the body is rendered without a parent scroll view, allowing
+  /// a list widget in the body to own scrolling (useful for infinite scroll).
+  final bool bodyScroll;
 
   /// Padding applied to non-primary-scroll body content.
   final EdgeInsetsGeometry bodyPadding;
@@ -48,51 +56,60 @@ class ScreenTemplateWidget extends StatelessWidget {
     final scrollIndex =
         body.isNotEmpty ? _singlePrimaryScrollIndex(body) : null;
 
+    final Widget bodyWidget;
+    if (scrollIndex != null) {
+      bodyWidget = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (scrollIndex > 0)
+            Padding(
+              padding: bodyPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: body.take(scrollIndex).toList(growable: false),
+              ),
+            ),
+          Expanded(
+            child: Padding(
+              padding: primaryScrollPadding,
+              child: body[scrollIndex],
+            ),
+          ),
+          if (scrollIndex < body.length - 1)
+            Padding(
+              padding: bodyPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: body.skip(scrollIndex + 1).toList(growable: false),
+              ),
+            ),
+        ],
+      );
+    } else if (bodyScroll) {
+      bodyWidget = SingleChildScrollView(
+        padding: bodyPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: body,
+        ),
+      );
+    } else {
+      bodyWidget = Padding(
+        padding: bodyPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: body,
+        ),
+      );
+    }
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (header.isNotEmpty) ...[...header, SizedBox(height: headerGap)],
           Expanded(
-            child: (scrollIndex == null)
-                ? SingleChildScrollView(
-                    padding: bodyPadding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: body,
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (scrollIndex > 0)
-                        Padding(
-                          padding: bodyPadding,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: body.take(scrollIndex).toList(
-                                  growable: false,
-                                ),
-                          ),
-                        ),
-                      Expanded(
-                        child: Padding(
-                          padding: primaryScrollPadding,
-                          child: body[scrollIndex],
-                        ),
-                      ),
-                      if (scrollIndex < body.length - 1)
-                        Padding(
-                          padding: bodyPadding,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: body.skip(scrollIndex + 1).toList(
-                                  growable: false,
-                                ),
-                          ),
-                        ),
-                    ],
-                  ),
+            child: bodyWidget,
           ),
           if (footer.isNotEmpty)
             Padding(

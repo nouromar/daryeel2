@@ -263,7 +263,7 @@ Example:
 Not supported in v1:
 - arbitrary backend endpoints declared from schema
 - arbitrary multi-step logic graphs
-- arbitrary expressions that mutate data
+- unbounded scripting / expression programs (the runtime only supports a bounded, one-line expression engine in specific fields)
 
 Reserved for a future schema format version (not currently implemented):
 - `open_modal`
@@ -277,6 +277,7 @@ v1 should keep conditionals narrow.
 
 Supported patterns (implemented in the Flutter runtime as of Apr 2026):
 - feature flag enabled (`visibleWhen.featureFlag`)
+- expression evaluates to true (`visibleWhen.expr`)
 
 Other conditional keys described in earlier drafts (service/role/state/etc.) are not implemented in the current runtime. Unknown keys are treated as visible (and should emit a diagnostic warning) to avoid accidental content loss.
 
@@ -291,7 +292,26 @@ Example:
 }
 ```
 
-Avoid a general-purpose expression language in v1.
+Expression example:
+
+```json
+{
+  "type": "Text",
+  "props": {"text": "Only visible when state.showGreeting is true"},
+  "visibleWhen": {
+    "expr": "state.showGreeting == true"
+  }
+}
+```
+
+Notes:
+- `visibleWhen.expr` must evaluate to a boolean. Non-boolean results default to **visible** and emit a warning diagnostic.
+- `expr` may be written as either a plain expression (`"state.a > 0"`) or wrapped (`"${state.a > 0}"`).
+- If both `featureFlag` and `expr` are provided, they are combined with **AND**.
+
+For full branching (then/else subtrees), use the `If` component. It supports the legacy `valuePath`/`op` condition style and `props.expr`.
+
+Avoid using expressions for complex workflow logic in v1. The runtime expression engine is intentionally bounded, side-effect free, and budgeted.
 
 ## 9. Data Binding
 

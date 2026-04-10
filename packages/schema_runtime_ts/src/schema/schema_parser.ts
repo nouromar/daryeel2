@@ -113,6 +113,7 @@ export function parseScreenSchema(json: Record<string, unknown>): SchemaParseRes
         ? (eventPropertiesRaw as Record<string, unknown>)
         : undefined;
 
+
       actions[key] = {
         type: actionType,
         route: typeof rawValue['route'] === 'string' ? (rawValue['route'] as string) : undefined,

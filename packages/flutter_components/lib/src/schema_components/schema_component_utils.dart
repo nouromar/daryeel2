@@ -3,6 +3,7 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import 'schema_component_context.dart';
+import 'schema_node_wrapper.dart';
 
 /// Shared helpers for schema component implementations.
 ///
@@ -15,6 +16,14 @@ List<Widget> buildSchemaSlotWidgets(
   bool applyVisibilityWhen = false,
 }) {
   if (children == null || children.isEmpty) return const <Widget>[];
+
+  final wrapperBuilder = (context == null)
+      ? null
+      : buildVisibleWhenWrapper(
+          visibility: context.visibility,
+          diagnostics: context.diagnostics,
+          diagnosticsContext: context.diagnosticsContext,
+        );
 
   return children
       .where((child) {
@@ -31,7 +40,11 @@ List<Widget> buildSchemaSlotWidgets(
         return true;
       })
       .map(
-        (child) => SchemaRenderer(rootNode: child, registry: registry).render(),
+        (child) => SchemaRenderer(
+          rootNode: child,
+          registry: registry,
+          wrapperBuilder: wrapperBuilder,
+        ).render(),
       )
       .toList(growable: false);
 }
@@ -62,7 +75,18 @@ Widget? buildSingleChildSchemaSlotWidget(
     if (!visible) return null;
   }
 
-  return SchemaRenderer(rootNode: child, registry: registry).render();
+  final wrapperBuilder = buildVisibleWhenWrapper(
+    visibility: context?.visibility ?? const SchemaVisibilityContext(),
+    diagnostics: context?.diagnostics,
+    diagnosticsContext:
+        context?.diagnosticsContext ?? const <String, Object?>{},
+  );
+
+  return SchemaRenderer(
+    rootNode: child,
+    registry: registry,
+    wrapperBuilder: (context == null) ? null : wrapperBuilder,
+  ).render();
 }
 
 double? schemaAsDouble(Object? v) {

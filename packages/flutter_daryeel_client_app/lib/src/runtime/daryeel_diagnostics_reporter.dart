@@ -10,8 +10,8 @@ class DaryeelDiagnosticsReporter {
     required this.appId,
     required DiagnosticsSink? diagnosticsSinkOverride,
     List<DiagnosticsSink> additionalSinks = const <DiagnosticsSink>[],
-  }) : _diagnosticsSinkOverride = diagnosticsSinkOverride,
-       _additionalSinks = additionalSinks;
+  })  : _diagnosticsSinkOverride = diagnosticsSinkOverride,
+        _additionalSinks = additionalSinks;
 
   final String appId;
 
@@ -101,12 +101,10 @@ class DaryeelDiagnosticsReporter {
     return DiagnosticsConfig(
       enableDebug: kDebugMode,
       dedupeTtl: dedupeTtl,
-      maxInfoPerSession: maxInfoPerSession == null
-          ? 30
-          : clampInt(maxInfoPerSession, 0, 500),
-      maxWarnPerSession: maxWarnPerSession == null
-          ? 50
-          : clampInt(maxWarnPerSession, 0, 500),
+      maxInfoPerSession:
+          maxInfoPerSession == null ? 30 : clampInt(maxInfoPerSession, 0, 500),
+      maxWarnPerSession:
+          maxWarnPerSession == null ? 50 : clampInt(maxWarnPerSession, 0, 500),
     );
   }
 
@@ -277,7 +275,7 @@ class DaryeelDiagnosticsReporter {
         severity: DiagnosticSeverity.info,
         kind: DiagnosticKind.metric,
         fingerprint:
-            '${ThemeLadderEventNames.sourceUsed}:${req.product}:${req.screenId}:${themeId}:${themeMode}:${source.wireValue}',
+            '${ThemeLadderEventNames.sourceUsed}:${req.product}:${req.screenId}:$themeId:$themeMode:${source.wireValue}',
         context: contextForRequest(req, configSnapshotId: configSnapshotId),
         payload: <String, Object?>{
           'themeId': themeId,
@@ -304,7 +302,7 @@ class DaryeelDiagnosticsReporter {
         severity: DiagnosticSeverity.warn,
         kind: DiagnosticKind.diagnostic,
         fingerprint:
-            '${ThemeLadderEventNames.fallbackToLocal}:${req.product}:${req.screenId}:${themeId}:${themeMode}:${reason.wireValue}',
+            '${ThemeLadderEventNames.fallbackToLocal}:${req.product}:${req.screenId}:$themeId:$themeMode:${reason.wireValue}',
         context: contextForRequest(req, configSnapshotId: configSnapshotId),
         payload: <String, Object?>{
           'themeId': themeId,

@@ -11,7 +11,13 @@
       "stateDefaults": {
         "pharmacy.cart.lines": [],
         "pharmacy.cart.totalQuantity": 0,
-        "pharmacy.cart.hasRxItem": false
+        "pharmacy.cart.hasRxItem": false,
+        "pharmacy.cart.rxItemCount": 0,
+        "pharmacy.cart.prescriptionUploads": [],
+        "pharmacy.cart.prescriptionUploadId": "",
+        "pharmacy.cart.subtotal": 0,
+        "pharmacy.cart.tax": 0,
+        "pharmacy.cart.discount": 0
       }
     },
     "slots": {
@@ -43,8 +49,8 @@
                           {
                             "type": "InfoCard",
                             "props": {
-                              "title": "Cart is empty",
-                              "subtitle": "Add items from the pharmacy catalog.",
+                              "title": "Danbiishu Waa Faaruq",
+                              "subtitle": "Ku dar alaabo si aad u aragto halkan.",
                               "surface": "subtle"
                             }
                           }
@@ -314,12 +320,12 @@
             "then": [
               {
                 "type": "PrimaryActionBar",
-                "props": { "primaryLabel": "Checkout", "expand": true },
+                "props": { "primaryLabel": "Bixi", "expand": true },
                 "actions": { "primary": "go_checkout" }
               },
               {
                 "type": "TextButton",
-                "props": { "label": "Clear cart", "align": "right" },
+                "props": { "label": "Faarug kadhig Danbiisha", "align": "right" },
                 "actions": { "tap": "pharmacy_cart_clear" }
               }
             ],

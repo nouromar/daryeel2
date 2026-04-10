@@ -217,6 +217,8 @@ Implementation note (current repo):
 
 This keeps visibility evaluation purely local and cheap.
 
+Note: `visibleWhen.expr` (bounded boolean expressions) is evaluated against runtime scopes like `$state`/`item`/`data`/`params` and does not require config snapshot support.
+
 ## Server-side storage and governance (target)
 
 ### Storage model (recommended)

@@ -1,5 +1,8 @@
+import 'package:flutter/widgets.dart';
+
 import '../diagnostics/diagnostic_event.dart';
 import '../diagnostics/runtime_diagnostics.dart';
+import '../bindings/schema_expression_engine.dart';
 
 class SchemaVisibilityContext {
   const SchemaVisibilityContext({
@@ -28,10 +31,13 @@ bool evaluateVisibleWhen(
   RuntimeDiagnostics? diagnostics,
   Map<String, Object?> diagnosticsContext = const <String, Object?>{},
   String? nodeType,
+  BuildContext? buildContext,
 }) {
   if (visibleWhen == null || visibleWhen.isEmpty) return true;
 
-  final unknownKeys = visibleWhen.keys.where((k) => k != 'featureFlag').toList()
+  final unknownKeys = visibleWhen.keys
+      .where((k) => k != 'featureFlag' && k != 'expr')
+      .toList()
     ..sort();
   if (unknownKeys.isNotEmpty) {
     diagnostics?.emit(
@@ -51,18 +57,21 @@ bool evaluateVisibleWhen(
   }
 
   final featureFlag = visibleWhen['featureFlag'];
+  var featureFlagVisible = true;
   if (featureFlag is String) {
-    if (featureFlag.isEmpty) return true;
-    return context.enabledFeatureFlags.contains(featureFlag);
-  }
-
-  if (featureFlag is List) {
+    if (featureFlag.isEmpty) {
+      featureFlagVisible = true;
+    } else {
+      featureFlagVisible = context.enabledFeatureFlags.contains(featureFlag);
+    }
+  } else if (featureFlag is List) {
     final flags = featureFlag.whereType<String>().where((f) => f.isNotEmpty);
-    if (flags.isEmpty) return true;
-    return flags.any(context.enabledFeatureFlags.contains);
-  }
-
-  if (visibleWhen.containsKey('featureFlag') && featureFlag != null) {
+    if (flags.isEmpty) {
+      featureFlagVisible = true;
+    } else {
+      featureFlagVisible = flags.any(context.enabledFeatureFlags.contains);
+    }
+  } else if (visibleWhen.containsKey('featureFlag') && featureFlag != null) {
     diagnostics?.emit(
       DiagnosticEvent(
         eventName: 'runtime.visibility.evaluation_failed',
@@ -78,5 +87,89 @@ bool evaluateVisibleWhen(
     );
   }
 
-  return true;
+  var exprVisible = true;
+  final exprRaw = visibleWhen['expr'];
+  if (exprRaw is String) {
+    final trimmed = exprRaw.trim();
+    if (trimmed.isNotEmpty) {
+      if (buildContext == null) {
+        diagnostics?.emit(
+          DiagnosticEvent(
+            eventName: 'runtime.visibility.evaluation_failed',
+            severity: DiagnosticSeverity.warn,
+            kind: DiagnosticKind.diagnostic,
+            fingerprint: 'runtime.visibility.evaluation_failed:expr_no_context',
+            context: diagnosticsContext,
+            payload: <String, Object?>{
+              if (nodeType != null) 'nodeType': nodeType,
+              'reason': 'missing_build_context',
+            },
+          ),
+        );
+      } else {
+        String normalize(String raw) {
+          final t = raw.trim();
+          if (t.startsWith(r'${') && t.endsWith('}')) {
+            final inner = t.substring(2, t.length - 1).trim();
+            return inner;
+          }
+          return t;
+        }
+
+        try {
+          final normalized = normalize(trimmed);
+          if (normalized.isNotEmpty) {
+            final result = evaluateSchemaExpression(normalized, buildContext);
+            if (result is bool) {
+              exprVisible = result;
+            } else {
+              diagnostics?.emit(
+                DiagnosticEvent(
+                  eventName: 'runtime.visibility.evaluation_failed',
+                  severity: DiagnosticSeverity.warn,
+                  kind: DiagnosticKind.diagnostic,
+                  fingerprint: 'runtime.visibility.evaluation_failed:expr_type',
+                  context: diagnosticsContext,
+                  payload: <String, Object?>{
+                    if (nodeType != null) 'nodeType': nodeType,
+                    'exprResultType': result?.runtimeType.toString(),
+                  },
+                ),
+              );
+            }
+          }
+        } catch (_) {
+          diagnostics?.emit(
+            DiagnosticEvent(
+              eventName: 'runtime.visibility.evaluation_failed',
+              severity: DiagnosticSeverity.warn,
+              kind: DiagnosticKind.diagnostic,
+              fingerprint:
+                  'runtime.visibility.evaluation_failed:expr_exception',
+              context: diagnosticsContext,
+              payload: <String, Object?>{
+                if (nodeType != null) 'nodeType': nodeType,
+              },
+            ),
+          );
+        }
+      }
+    }
+  } else if (visibleWhen.containsKey('expr') && exprRaw != null) {
+    diagnostics?.emit(
+      DiagnosticEvent(
+        eventName: 'runtime.visibility.evaluation_failed',
+        severity: DiagnosticSeverity.warn,
+        kind: DiagnosticKind.diagnostic,
+        fingerprint: 'runtime.visibility.evaluation_failed:expr',
+        context: diagnosticsContext,
+        payload: <String, Object?>{
+          if (nodeType != null) 'nodeType': nodeType,
+          'exprType': exprRaw.runtimeType.toString(),
+        },
+      ),
+    );
+  }
+
+  return featureFlagVisible && exprVisible;
 }

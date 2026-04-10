@@ -7,14 +7,15 @@ import '../runtime/daryeel_runtime_session.dart';
 import '../runtime/daryeel_runtime_view_model.dart';
 import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
+import 'schema_node_wrapper.dart';
 
 const int _debugScreenLoadDelayMs = int.fromEnvironment(
   'DARYEEL_DEBUG_SCREEN_LOAD_DELAY_MS',
   defaultValue: 0,
 );
 
-typedef SchemaRoutedScreenAppBarActionsBuilder =
-    List<Widget> Function(BuildContext context, LoadedScreen loaded);
+typedef SchemaRoutedScreenAppBarActionsBuilder = List<Widget> Function(
+    BuildContext context, LoadedScreen loaded);
 
 class SchemaRoutedScreen extends StatefulWidget {
   const SchemaRoutedScreen({
@@ -161,10 +162,9 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
                 themeMode: loaded.resolvedThemeMode,
                 themeDocId: loaded.themeDocId,
                 themeSource: themeSourceWireValue(loaded),
-                diagnostics:
-                    (session.inMemoryDiagnosticsSink?.events ??
-                            const <DiagnosticEvent>[])
-                        .toList(growable: false),
+                diagnostics: (session.inMemoryDiagnosticsSink?.events ??
+                        const <DiagnosticEvent>[])
+                    .toList(growable: false),
               ),
             ),
           );
@@ -225,27 +225,27 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
           final vm = snapshot.data!;
           final loaded = vm.screen;
 
-        // Ensure the shared `$state` store is wired to this screen's diagnostics.
-        session.stateStore.configureDiagnostics(
-          diagnostics: vm.diagnostics,
-          diagnosticsContext: vm.rendererDiagnosticsContext,
-        );
+          // Ensure the shared `$state` store is wired to this screen's diagnostics.
+          session.stateStore.configureDiagnostics(
+            diagnostics: vm.diagnostics,
+            diagnosticsContext: vm.rendererDiagnosticsContext,
+          );
 
-        session.queryStore.configure(
-          diagnostics: vm.diagnostics,
-          diagnosticsContext: <String, Object?>{
-            ...vm.rendererDiagnosticsContext,
-            'screenLoad': <String, Object?>{
-              'id': session.diagnosticsReporter.screenLoadId,
+          session.queryStore.configure(
+            diagnostics: vm.diagnostics,
+            diagnosticsContext: <String, Object?>{
+              ...vm.rendererDiagnosticsContext,
+              'screenLoad': <String, Object?>{
+                'id': session.diagnosticsReporter.screenLoadId,
+              },
             },
-          },
-          defaultHeadersProvider: () =>
-              session.diagnosticsReporter.buildCorrelationHeaders(
-                schemaVersion:
-                    '${loaded.bundle.schemaId}@${loaded.bundle.schemaVersion}',
-                configSnapshotId: loaded.configSnapshotId,
-              ),
-        );
+            defaultHeadersProvider: () =>
+                session.diagnosticsReporter.buildCorrelationHeaders(
+              schemaVersion:
+                  '${loaded.bundle.schemaId}@${loaded.bundle.schemaVersion}',
+              configSnapshotId: loaded.configSnapshotId,
+            ),
+          );
 
           if (loaded.schema == null) {
             final errors =
@@ -267,23 +267,27 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
               ),
             );
           } else {
+            final renderer = SchemaRenderer(
+              rootNode: loaded.schema!.root,
+              registry: session.appConfig.buildRegistry(
+                screen: loaded.schema!,
+                actionDispatcher: vm.actionDispatcher,
+                visibility: vm.visibility,
+                diagnostics: vm.diagnostics,
+                diagnosticsContext: vm.rendererDiagnosticsContext,
+              ),
+              wrapperBuilder: buildVisibleWhenWrapperBuilder(
+                visibility: vm.visibility,
+                diagnostics: vm.diagnostics,
+                diagnosticsContext: vm.rendererDiagnosticsContext,
+              ),
+            );
 
-        final renderer = SchemaRenderer(
-          rootNode: loaded.schema!.root,
-          registry: session.appConfig.buildRegistry(
-            screen: loaded.schema!,
-            actionDispatcher: vm.actionDispatcher,
-            visibility: vm.visibility,
-            diagnostics: vm.diagnostics,
-            diagnosticsContext: vm.rendererDiagnosticsContext,
-          ),
-        );
-
-        final schemaIdentity =
-            loaded.bundle.docId ?? loaded.bundle.schemaVersion;
-        final schemaTreeKey = ValueKey<String>(
-          'schema:${loaded.bundle.schemaId}:$schemaIdentity',
-        );
+            final schemaIdentity =
+                loaded.bundle.docId ?? loaded.bundle.schemaVersion;
+            final schemaTreeKey = ValueKey<String>(
+              'schema:${loaded.bundle.schemaId}:$schemaIdentity',
+            );
 
             current = KeyedSubtree(
               key: schemaTreeKey,
@@ -292,8 +296,7 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
                 child: Scaffold(
                   appBar: AppBar(
                     title: inspectorTitle(loaded: loaded),
-                    actions:
-                        widget.appBarActionsBuilder?.call(context, loaded),
+                    actions: widget.appBarActionsBuilder?.call(context, loaded),
                   ),
                   body: SchemaRouteScope(
                     params: _coerceRouteParams(

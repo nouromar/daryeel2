@@ -37,6 +37,7 @@ _PHARMACY_CATALOG = [
         "id": "prod_paracetamol_500mg",
         "name": "Paracetamol 500mg",
         "rx_required": False,
+        "price": 1.00,
         "subtitle": "$1.00",
         "icon": "pharmacy",
         "route": "",
@@ -45,6 +46,7 @@ _PHARMACY_CATALOG = [
         "id": "prod_amoxicillin_500mg",
         "name": "Amoxicillin 500mg",
         "rx_required": True,
+        "price": 3.50,
         "subtitle": "$3.50",
         "icon": "pharmacy",
         "route": "",
@@ -53,6 +55,7 @@ _PHARMACY_CATALOG = [
         "id": "prod_cetirizine_10mg",
         "name": "Cetirizine 10mg",
         "rx_required": False,
+        "price": 2.00,
         "subtitle": "$2.00",
         "icon": "pharmacy",
         "route": "",
@@ -61,11 +64,49 @@ _PHARMACY_CATALOG = [
         "id": "prod_omeprazole_20mg",
         "name": "Omeprazole 20mg",
         "rx_required": True,
+        "price": 4.20,
         "subtitle": "$4.20",
         "icon": "pharmacy",
         "route": "",
     },
 ]
+
+
+def _build_extra_catalog_items(count: int = 120) -> list[dict[str, Any]]:
+    # Deterministic seed data for local development/infinite-scroll testing.
+    # Keep IDs stable across restarts so itemKeyPath remains meaningful.
+    bases = [
+        ("Vitamin C", "1000mg"),
+        ("Ibuprofen", "200mg"),
+        ("Aspirin", "81mg"),
+        ("Loratadine", "10mg"),
+        ("Zinc", "50mg"),
+        ("Magnesium", "250mg"),
+        ("Saline Nasal Spray", "50ml"),
+        ("Cough Syrup", "100ml"),
+    ]
+
+    items: list[dict[str, Any]] = []
+    for i in range(1, max(0, count) + 1):
+        base_name, dose = bases[(i - 1) % len(bases)]
+        rx_required = i % 9 == 0
+        price = 0.95 + (i % 25) * 0.15
+        items.append(
+            {
+                "id": f"prod_fixture_{i:03d}",
+                "name": f"{base_name} {dose} (Item {i:03d})",
+                "rx_required": rx_required,
+                "price": round(price, 2),
+                "subtitle": f"${price:.2f}",
+                "icon": "pharmacy",
+                "route": "",
+            }
+        )
+    return items
+
+
+# Expand the fixture set to support multi-page scrolling.
+_PHARMACY_CATALOG.extend(_build_extra_catalog_items(count=120))
 
 
 @router.get("/catalog")

@@ -136,6 +136,21 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
   final subtitle = readInterpolatedString('subtitle') ?? '';
   final rxRequired = readInterpolatedBool('rxRequired', fallback: false);
 
+  double? readInterpolatedDouble(String key) {
+    final v = raw[key];
+    if (v is num) return v.toDouble();
+    if (v is String) {
+      final resolved = interpolateSchemaString(v, context).trim();
+      return double.tryParse(resolved);
+    }
+    return null;
+  }
+
+  final unitPrice = readInterpolatedDouble('unitPrice');
+  final unitPriceEntry = (unitPrice == null)
+      ? null
+      : <String, Object?>{'unitPrice': unitPrice};
+
   final nextLines = _ensureCartLines(store);
 
   final idx = nextLines.indexWhere((e) => (e['id'] ?? '').toString() == id);
@@ -145,6 +160,7 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
       'title': title,
       'subtitle': subtitle,
       'rxRequired': rxRequired,
+      ...?unitPriceEntry,
       'quantity': 1,
       // Precomputed meta to avoid per-item conditional logic in schemas.
       'meta': _buildLineMeta(
@@ -163,6 +179,7 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
       'title': title,
       'subtitle': subtitle,
       'rxRequired': rxRequired,
+      ...?unitPriceEntry,
       'quantity': nextQ,
       'meta': _buildLineMeta(
         subtitle: subtitle,

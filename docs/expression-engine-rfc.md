@@ -1,14 +1,14 @@
 ---
-title: "Expression Engine RFC"
-status: "draft"
+title: "Expression Engine (Implemented)"
+status: "implemented"
 audience: ["schema-runtime", "flutter", "typescript"]
 lastUpdated: "2026-04-09"
 ---
 
-# Expression Engine RFC
+# Expression Engine (Implemented)
 
 ## 1. Summary
-We will add a **lightweight, sandboxed expression engine** to the schema runtime to enable:
+We added a **lightweight, sandboxed expression engine** to the schema runtime to enable:
 - One-line expressions inside `${...}` for **math, comparisons, boolean logic, and ternary `?:`**.
 - Typed evaluation (returning numbers/bools/maps/lists) when needed by actions and bindings.
 - Consistent behavior across **Dart (Flutter)** and **TypeScript** runtimes.
@@ -36,6 +36,7 @@ We need:
   - `state`: schema state
   - `data`: schema data scope
   - `item` and `index`: `ForEach` scope
+  - `params`: route params
 - Missing paths resolve to `null` **silently**; optionally emit **gated debug diagnostics**.
 
 ### Non-functional goals
@@ -200,7 +201,7 @@ Evaluation:
   - If `expr` is present, it takes priority over `valuePath/op`.
   - Backward compatible with current `If`.
 
-Future (optional): extend `visibleWhen` contract to allow `expr` directly.
+`visibleWhen.expr` is supported (bounded boolean expression).
 
 ### 8.3 Backward compatibility
 - Existing `${state.foo}` string interpolation continues to work.

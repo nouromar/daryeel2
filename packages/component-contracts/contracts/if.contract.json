@@ -3,6 +3,7 @@
   "category": "logic",
   "version": "1.0",
   "propsSchema": {
+    "expr": "string",
     "valuePath": "string",
     "op": "enum"
   },

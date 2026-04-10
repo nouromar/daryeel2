@@ -177,11 +177,12 @@ Cons:
 - Harder to validate reliably; more runtime parsing.
 
 #### Minimal supported expression set
-To keep the runtime safe and predictable, expressions should be limited:
+To keep the runtime safe and predictable, expressions are intentionally bounded:
 
-- Path reads: `state.<path>`, `item.<path>` (current `SchemaDataScope` item), `params.<path>` (route args), `env.<key>`.
-- Basic formatting: string concat; number to string.
-- No arbitrary function calls.
+- Roots/scopes: `state`, `data`, `item`, `index`, `params`
+- Operators: arithmetic, comparisons, boolean logic, `??`, ternary `?:`
+- Small allowlist of pure functions (see `docs/expression-engine-rfc.md`)
+- No loops, assignments, mutation, reflection, IO/network/time/randomness
 
 #### Re-render semantics
 Any widget using `$bind` or interpolation becomes “state-aware”:
@@ -223,6 +224,10 @@ Notes:
 - `path` is relative to `$state` root.
 - `path` supports interpolation (e.g. `"pharmacy.cart.itemsById.${item.id}.quantity"`).
 - `value` must be JSON-like (primitives, arrays, maps) and is sanitized/budgeted.
+- `value` supports bounded expression evaluation via:
+  - exact-placeholder typed strings (e.g. `"${state.profile.defaultAddress}"`)
+  - explicit typed objects (e.g. `{ "$expr": "state.profile.defaultAddress" }`)
+  - nested template strings inside maps/lists
 
 #### Action: `patch_state`
 
@@ -262,11 +267,11 @@ This table is the canonical mapping between schema ops and store methods:
 
 | Schema action/op | Payload shape (within `action.value`) | Dispatcher behavior | `SchemaStateStore` method |
 |---|---|---|---|
-| `set_state` | `{ "path": "<string>", "value": <json> }` | Interpolate `path`, sanitize `value`, set at path | `setValue(path, value)` |
-| `patch_state` / `set` | `{ "op": "set", "path": "<string>", "value": <json> }` | Interpolate `path`, sanitize `value`, set at path | `setValue(path, value)` |
+| `set_state` | `{ "path": "<string>", "value": <json> }` | Interpolate `path`, evaluate+sanitize `value`, set at path | `setValue(path, value)` |
+| `patch_state` / `set` | `{ "op": "set", "path": "<string>", "value": <json> }` | Interpolate `path`, evaluate+sanitize `value`, set at path | `setValue(path, value)` |
 | `patch_state` / `remove` | `{ "op": "remove", "path": "<string>" }` | Interpolate `path`, remove if present | `removeValue(path)` |
-| `patch_state` / `increment` | `{ "op": "increment", "path": "<string>", "by": <num|string> }` | Interpolate `path`, parse `by`, increment numeric value (missing→0) | `incrementValue(path, by)` |
-| `patch_state` / `append` | `{ "op": "append", "path": "<string>", "value": <json> }` | Interpolate `path`, append to list (missing→new list) | `appendValue(path, value)` |
+| `patch_state` / `increment` | `{ "op": "increment", "path": "<string>", "by": <num|expr> }` | Interpolate `path`, evaluate `by` to number, increment numeric value (missing→0) | `incrementValue(path, by)` |
+| `patch_state` / `append` | `{ "op": "append", "path": "<string>", "value": <json> }` | Interpolate `path`, evaluate+sanitize `value`, append to list (missing→new list) | `appendValue(path, value)` |
 
 Guardrails (must remain true as the surface area grows):
 - Hard cap on ops per action via `SecurityBudgets.maxStatePatchOpsPerAction`.

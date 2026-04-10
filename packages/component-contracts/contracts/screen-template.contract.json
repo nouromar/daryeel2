@@ -2,8 +2,13 @@
   "name": "ScreenTemplate",
   "category": "template",
   "version": "1.0",
-  "propsSchema": {},
-  "defaults": {},
+  "propsSchema": {
+    "stateDefaults": "object",
+    "bodyScroll": "boolean"
+  },
+  "defaults": {
+    "bodyScroll": true
+  },
   "styleContract": {
     "density": ["compact", "comfortable"]
   },

@@ -35,7 +35,7 @@ Services plug into it.
 We intentionally invest in a schema-driven UI runtime so we can ship new screens and iterate quickly without app releases.
 
 Constraints that keep it safe and maintainable:
-- No arbitrary scripting / expression language.
+- No arbitrary scripting. (A bounded, one-line expression engine is supported only in specific schema fields such as `${...}` interpolation, `If.expr`, and `visibleWhen.expr`.)
 - Only a bounded action set.
 - Strict schema + component contract validation.
 

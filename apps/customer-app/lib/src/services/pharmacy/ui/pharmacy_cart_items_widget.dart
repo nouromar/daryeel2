@@ -3,7 +3,10 @@ import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
+import '../../../actions/customer_action_dispatcher.dart';
 import '../../../routing/customer_schema_screen_route.dart';
+import '../../ecommerce/ui/cart/ecommerce_cart_models.dart';
+import '../../ecommerce/ui/cart/ecommerce_cart_widget.dart';
 
 final class PharmacyCartItemsWidget extends StatelessWidget {
   const PharmacyCartItemsWidget({super.key, this.surface = 'raised'});
@@ -22,121 +25,24 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) {
-        final prescriptionUploadIdRaw = store.getValue(
-          'pharmacy.cart.prescriptionUploadId',
-        );
-        final attachedPrescriptionId = (prescriptionUploadIdRaw is String)
-            ? prescriptionUploadIdRaw.trim()
-            : '';
-        final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
-        final uploadFilenames = _extractUploadFilenames(uploadsRaw);
-        final hasUploads = uploadFilenames.isNotEmpty;
-        final hasLegacyAttachment = attachedPrescriptionId.isNotEmpty;
-        final hasPrescription = hasUploads || hasLegacyAttachment;
+        migrateLegacyPharmacyCartState(store);
 
-        final itemsByIdRaw = store.getValue('pharmacy.cart.itemsById');
-        final itemsById = _coerceStringKeyedMap(itemsByIdRaw);
+        final lines = _readLines(store);
+        final hasPrescription = _hasPrescription(store);
+        final hasRxItem = _readHasRxItem(store, lines: lines);
+        final totals = _computeTotals(store, lines: lines);
 
-        final lines = <_CartLine>[];
-        var hasRxItem = false;
-
-        String? inferredCurrencySymbol;
-        var totalPrice = 0.0;
-
-        for (final entry in itemsById.entries) {
-          final id = entry.key;
-          final data = _coerceStringKeyedMap(entry.value);
-
-          final quantityRaw = data['quantity'];
-          final quantity = (quantityRaw is num)
-              ? quantityRaw.toInt()
-              : int.tryParse('${quantityRaw ?? ''}') ?? 0;
-          if (quantity <= 0) continue;
-
-          final title = (data['title'] is String)
-              ? (data['title'] as String).trim()
-              : '';
-          final subtitle = (data['subtitle'] is String)
-              ? (data['subtitle'] as String).trim()
-              : '';
-
-          final unitPrice = _tryParseMoney(subtitle);
-          if (unitPrice != null) {
-            totalPrice += unitPrice * quantity;
-            inferredCurrencySymbol ??= _inferCurrencySymbol(subtitle);
-          }
-
-          final rxRequiredRaw = data['rxRequired'];
-          final rxRequired =
-              rxRequiredRaw == true ||
-              (rxRequiredRaw is String &&
-                  rxRequiredRaw.trim().toLowerCase() == 'true');
-          if (rxRequired) hasRxItem = true;
-
-          lines.add(
-            _CartLine(
-              id: id,
-              title: title.isEmpty ? id : title,
-              subtitle: subtitle,
-              quantity: quantity,
-              rxRequired: rxRequired,
-            ),
+        void openCheckout() {
+          Navigator.of(context).pushNamed(
+            CustomerSchemaScreenRoute.name,
+            arguments: const <String, Object?>{
+              'screenId': 'pharmacy_checkout',
+              'title': 'Checkout',
+            },
           );
         }
 
-        lines.sort((a, b) => a.title.compareTo(b.title));
-
-        void clampTotalQuantity() {
-          final raw = store.getValue('pharmacy.cart.totalQuantity');
-          final current = (raw is num)
-              ? raw.toInt()
-              : int.tryParse('${raw ?? ''}') ?? 0;
-          if (current < 0) {
-            store.setValue('pharmacy.cart.totalQuantity', 0);
-          }
-        }
-
-        void incrementLine(_CartLine line) {
-          store.incrementValue(
-            'pharmacy.cart.itemsById.${line.id}.quantity',
-            1,
-          );
-          store.incrementValue('pharmacy.cart.totalQuantity', 1);
-        }
-
-        void decrementLine(_CartLine line) {
-          if (line.quantity <= 1) {
-            store.removeValue('pharmacy.cart.itemsById.${line.id}');
-          } else {
-            store.incrementValue(
-              'pharmacy.cart.itemsById.${line.id}.quantity',
-              -1,
-            );
-          }
-          store.incrementValue('pharmacy.cart.totalQuantity', -1);
-          clampTotalQuantity();
-        }
-
-        void clearCart() {
-          store.removeValue('pharmacy.cart.itemsById');
-          store.setValue('pharmacy.cart.totalQuantity', 0);
-          store.removeValue('pharmacy.cart.prescriptionUploadId');
-          store.removeValue('pharmacy.cart.prescriptionUploads');
-        }
-
-        if (lines.isEmpty && !hasPrescription) {
-          return const InfoCardWidget(
-            title: 'Cart is empty',
-            subtitle: 'Add items from the pharmacy catalog.',
-            surface: 'subtle',
-          );
-        }
-
-        final showAttachPrescriptionLink = hasRxItem && !hasPrescription;
-        final showAttachedPrescriptions = hasPrescription;
-        final canCheckout = lines.isNotEmpty || hasPrescription;
-
-        void goToPrescriptionUpload() {
+        void openPrescriptionUpload() {
           Navigator.of(context).pushNamed(
             CustomerSchemaScreenRoute.name,
             arguments: const <String, Object?>{
@@ -147,316 +53,371 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (lines.isNotEmpty)
-              Card(
-                elevation: switch (surface) {
-                  'flat' => 0,
-                  'subtle' => 0.5,
-                  _ => 1.5,
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      for (final line in lines) ...[
-                        _CartLineRow(
-                          line: line,
-                          onIncrement: () => incrementLine(line),
-                          onDecrement: () => decrementLine(line),
-                        ),
-                        if (line != lines.last) const SizedBox(height: 14),
-                      ],
+        void setLines(List<Map<String, Object?>> nextLines) {
+          store.setValue('pharmacy.cart.lines', nextLines);
 
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 12),
+          var totalQty = 0;
+          for (final line in nextLines) {
+            final qRaw = line['quantity'];
+            final q = (qRaw is num) ? qRaw.toInt() : int.tryParse('$qRaw') ?? 0;
+            if (q > 0) totalQty += q;
+          }
+          store.setValue('pharmacy.cart.totalQuantity', totalQty);
 
-                      Row(
-                        children: [
-                          Text(
-                            'Total',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          const Spacer(),
-                          Text(
-                            _formatMoney(totalPrice, inferredCurrencySymbol),
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          store.setValue(
+            'pharmacy.cart.hasRxItem',
+            _computeHasRxItem(nextLines),
+          );
+        }
 
-            if (showAttachedPrescriptions) ...[
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: goToPrescriptionUpload,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (hasUploads)
-                        for (final filename in uploadFilenames)
-                          Text(
-                            filename,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          )
-                      else
-                        const Text('Prescription attached'),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (showAttachPrescriptionLink) ...[
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: goToPrescriptionUpload,
-                  child: const Text('Attach Prescription'),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (canCheckout) ...[
-              PrimaryActionBarWidget(
-                primaryLabel: 'Checkout',
-                expand: true,
-                onPrimaryPressed: () {
-                  Navigator.of(context).pushNamed(
-                    'customer.schema_screen',
-                    arguments: const <String, Object?>{
-                      'screenId': 'pharmacy_checkout',
-                      'title': 'Checkout',
-                    },
-                  );
-                },
-              ),
-            ],
+        void increment(String id) {
+          final next = [...lines];
+          final idx = next.indexWhere((e) => e.id == id);
+          if (idx == -1) return;
 
-            if (lines.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Spacer(),
-                  TextButton(
-                    onPressed: clearCart,
-                    child: const Text('Clear cart'),
-                  ),
-                ],
-              ),
-            ],
-          ],
+          final current = next[idx];
+          next[idx] = EcommerceCartLine(
+            id: current.id,
+            title: current.title,
+            subtitle: current.subtitle,
+            quantity: current.quantity + 1,
+            rxRequired: current.rxRequired,
+            unitPrice: current.unitPrice,
+            currencySymbol: current.currencySymbol,
+          );
+
+          setLines(_serializeLines(next));
+        }
+
+        void decrement(String id) {
+          final next = [...lines];
+          final idx = next.indexWhere((e) => e.id == id);
+          if (idx == -1) return;
+
+          final current = next[idx];
+          final nextQty = current.quantity - 1;
+          if (nextQty <= 0) {
+            next.removeAt(idx);
+          } else {
+            next[idx] = EcommerceCartLine(
+              id: current.id,
+              title: current.title,
+              subtitle: current.subtitle,
+              quantity: nextQty,
+              rxRequired: current.rxRequired,
+              unitPrice: current.unitPrice,
+              currencySymbol: current.currencySymbol,
+            );
+          }
+
+          setLines(_serializeLines(next));
+        }
+
+        void clearCart() {
+          store.setValue('pharmacy.cart.lines', const <Object?>[]);
+          store.setValue('pharmacy.cart.totalQuantity', 0);
+          store.setValue('pharmacy.cart.hasRxItem', false);
+
+          // Keep older persisted shapes tidy/consistent.
+          store.removeValue('pharmacy.cart.itemsById');
+          store.removeValue('pharmacy.cart.prescriptionUploads');
+          store.removeValue('pharmacy.cart.prescriptionUploadId');
+        }
+
+        final prescriptionSection = _buildPrescriptionSection(
+          context,
+          store: store,
+          showCta: hasRxItem,
+          onOpen: openPrescriptionUpload,
+          onRemoveUploadAt: (idx) => _removePrescriptionUploadAt(store, idx),
+          onClearLegacyId: () =>
+              store.setValue('pharmacy.cart.prescriptionUploadId', ''),
+        );
+
+        return SingleChildScrollView(
+          child: EcommerceCartWidget(
+            lines: lines,
+            totals: totals,
+            hasPrescription: hasPrescription,
+            showPrescriptionCta: hasRxItem,
+            surface: surface,
+            emptyTitle: 'Cart is empty',
+            emptySubtitle: 'Add items from the pharmacy catalog.',
+            onIncrement: increment,
+            onDecrement: decrement,
+            onClear: clearCart,
+            onCheckout: openCheckout,
+            onAttachPrescription: openPrescriptionUpload,
+            prescriptionSection: prescriptionSection,
+          ),
         );
       },
     );
   }
 }
 
-final class _CartLine {
-  const _CartLine({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.quantity,
-    required this.rxRequired,
-  });
+List<EcommerceCartLine> _readLines(SchemaStateStore store) {
+  final raw = store.getValue('pharmacy.cart.lines');
+  if (raw is! List) return const <EcommerceCartLine>[];
 
-  final String id;
-  final String title;
-  final String subtitle;
-  final int quantity;
-  final bool rxRequired;
-}
+  final out = <EcommerceCartLine>[];
+  for (final entry in raw) {
+    if (entry is! Map) continue;
 
-List<String> _extractUploadFilenames(Object? uploadsRaw) {
-  if (uploadsRaw is! List) return const <String>[];
+    final id = (entry['id'] ?? '').toString().trim();
+    if (id.isEmpty) continue;
 
-  final filenames = <String>[];
-  for (final entry in uploadsRaw) {
-    if (entry is String) {
-      final trimmed = entry.trim();
-      if (trimmed.isNotEmpty) filenames.add(trimmed);
-      continue;
-    }
+    final title = (entry['title'] ?? id).toString().trim();
+    final subtitle = (entry['subtitle'] ?? entry['meta'] ?? '')
+        .toString()
+        .trim();
 
-    if (entry is Map) {
-      final filenameRaw = entry['filename'];
-      if (filenameRaw is String) {
-        final trimmed = filenameRaw.trim();
-        if (trimmed.isNotEmpty) filenames.add(trimmed);
-      }
-    }
+    final qRaw = entry['quantity'];
+    final quantity = (qRaw is num)
+        ? qRaw.toInt()
+        : int.tryParse('${qRaw ?? ''}') ?? 0;
+    if (quantity <= 0) continue;
+
+    final rxRaw = entry['rxRequired'];
+    final rxRequired =
+        rxRaw == true ||
+        (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
+
+    final unitPriceRaw = entry['unitPrice'];
+    final unitPrice = (unitPriceRaw is num)
+        ? unitPriceRaw.toDouble()
+        : double.tryParse('${unitPriceRaw ?? ''}') ?? _tryParseMoney(subtitle);
+
+    out.add(
+      EcommerceCartLine(
+        id: id,
+        title: title.isEmpty ? id : title,
+        subtitle: _stripMetaMarkers(subtitle),
+        quantity: quantity,
+        rxRequired: rxRequired,
+        unitPrice: unitPrice,
+        currencySymbol: _inferCurrencySymbol(subtitle) ?? r'$',
+      ),
+    );
   }
 
-  return filenames;
+  out.sort((a, b) => a.title.compareTo(b.title));
+  return out;
 }
 
-final class _CartLineRow extends StatelessWidget {
-  const _CartLineRow({
-    required this.line,
-    required this.onIncrement,
-    required this.onDecrement,
-  });
+List<Map<String, Object?>> _serializeLines(List<EcommerceCartLine> lines) {
+  return lines
+      .map((line) {
+        final unitPriceEntry = line.unitPrice == null
+            ? null
+            : <String, Object?>{'unitPrice': line.unitPrice};
 
-  final _CartLine line;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
+        return <String, Object?>{
+          'id': line.id,
+          'title': line.title,
+          'subtitle': line.subtitle,
+          'quantity': line.quantity,
+          'rxRequired': line.rxRequired,
+          ...?unitPriceEntry,
+        };
+      })
+      .toList(growable: false);
+}
 
-  @override
-  Widget build(BuildContext context) {
-    final metaParts = <String>[];
-    if (line.subtitle.trim().isNotEmpty) metaParts.add(line.subtitle.trim());
-    metaParts.add('Qty: ${line.quantity}');
+bool _readHasRxItem(
+  SchemaStateStore store, {
+  required List<EcommerceCartLine> lines,
+}) {
+  final raw = store.getValue('pharmacy.cart.hasRxItem');
+  if (raw is bool) return raw;
+  return lines.any((e) => e.rxRequired);
+}
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                line.title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    metaParts.join(' • '),
+bool _computeHasRxItem(List<Map<String, Object?>> lines) {
+  for (final line in lines) {
+    final qRaw = line['quantity'];
+    final q = (qRaw is num) ? qRaw.toInt() : int.tryParse('$qRaw') ?? 0;
+    if (q <= 0) continue;
+
+    final rxRaw = line['rxRequired'];
+    final rx =
+        rxRaw == true ||
+        (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
+    if (rx) return true;
+  }
+  return false;
+}
+
+EcommerceCartTotals _computeTotals(
+  SchemaStateStore store, {
+  required List<EcommerceCartLine> lines,
+}) {
+  var subtotal = 0.0;
+  for (final line in lines) {
+    final p = line.unitPrice;
+    if (p == null) continue;
+    subtotal += p * line.quantity;
+  }
+
+  final taxRaw = store.getValue('pharmacy.cart.tax');
+  final discountRaw = store.getValue('pharmacy.cart.discount');
+  final tax = (taxRaw is num) ? taxRaw.toDouble() : 0.0;
+  final discount = (discountRaw is num) ? discountRaw.toDouble() : 0.0;
+
+  return EcommerceCartTotals(subtotal: subtotal, tax: tax, discount: discount);
+}
+
+String _stripMetaMarkers(String subtitle) {
+  var s = subtitle.trim();
+  if (s.isEmpty) return s;
+
+  s = s
+      .replaceAll(RegExp(r'\bQty:\s*\d+\b'), '')
+      .replaceAll(RegExp(r'\b(r|R)(x|X)\b'), '')
+      .replaceAll(RegExp(r'\s*•\s*'), ' • ')
+      .replaceAll(RegExp(r'\s{2,}'), ' ')
+      .trim();
+
+  if (s == '•') return '';
+  if (s.startsWith('• ')) s = s.substring(2).trim();
+  if (s.endsWith(' •')) s = s.substring(0, s.length - 2).trim();
+  return s;
+}
+
+double? _tryParseMoney(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+
+  final cleaned = trimmed.replaceAll(RegExp(r'[^0-9.\-]'), '');
+  if (cleaned.isEmpty) return null;
+  return double.tryParse(cleaned);
+}
+
+String? _inferCurrencySymbol(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  final match = RegExp(r'^[^0-9\-\.]').firstMatch(trimmed);
+  return match?.group(0);
+}
+
+Widget? _buildPrescriptionSection(
+  BuildContext context, {
+  required SchemaStateStore store,
+  required bool showCta,
+  required VoidCallback onOpen,
+  required void Function(int index) onRemoveUploadAt,
+  required VoidCallback onClearLegacyId,
+}) {
+  final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
+  final uploads = _extractUploadFilenames(uploadsRaw);
+
+  final legacyIdRaw = store.getValue('pharmacy.cart.prescriptionUploadId');
+  final legacyId = (legacyIdRaw is String) ? legacyIdRaw.trim() : '';
+
+  final hasUploads = uploads.isNotEmpty;
+  final hasLegacyId = legacyId.isNotEmpty;
+
+  if (!showCta && !hasUploads && !hasLegacyId) return null;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (showCta && !hasUploads && !hasLegacyId)
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: onOpen,
+            child: const Text('Attach Prescription'),
+          ),
+        ),
+
+      if (hasUploads) ...[
+        ActionCardWidget(
+          title: 'Prescription attached',
+          subtitle: '',
+          surface: 'flat',
+          onTap: onOpen,
+        ),
+        const SizedBox(height: 8),
+        ...uploads.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final filename = entry.value;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    filename,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (line.rxRequired)
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Theme.of(context).dividerColor,
-                        ),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        child: Text(
-                          'Rx',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
+                ),
+                IconButton(
+                  tooltip: 'Remove prescription',
+                  onPressed: () => onRemoveUploadAt(idx),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+
+      if (!hasUploads && hasLegacyId) ...[
+        ActionCardWidget(
+          title: 'Prescription attached',
+          subtitle: '',
+          surface: 'flat',
+          onTap: onOpen,
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: onClearLegacyId,
+            child: const Text('Remove prescription'),
           ),
         ),
-        const SizedBox(width: 12),
-        _CompactStepper(
-          quantity: line.quantity,
-          onIncrement: onIncrement,
-          onDecrement: onDecrement,
-        ),
       ],
-    );
-  }
+    ],
+  );
 }
 
-final class _CompactStepper extends StatelessWidget {
-  const _CompactStepper({
-    required this.quantity,
-    required this.onIncrement,
-    required this.onDecrement,
-  });
-
-  final int quantity;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
-
-  @override
-  Widget build(BuildContext context) {
-    const buttonConstraints = BoxConstraints.tightFor(width: 36, height: 36);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          tooltip: 'Decrease quantity',
-          constraints: buttonConstraints,
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          onPressed: onDecrement,
-          icon: const Icon(Icons.remove_circle_outline),
-        ),
-        SizedBox(
-          width: 28,
-          child: Text(
-            '$quantity',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
-        IconButton(
-          tooltip: 'Increase quantity',
-          constraints: buttonConstraints,
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          onPressed: onIncrement,
-          icon: const Icon(Icons.add_circle_outline),
-        ),
-      ],
-    );
-  }
-}
-
-Map<String, Object?> _coerceStringKeyedMap(Object? raw) {
-  if (raw is Map<String, Object?>) return raw;
-  if (raw is Map) {
-    final out = <String, Object?>{};
-    for (final entry in raw.entries) {
-      if (entry.key is! String) continue;
-      out[entry.key as String] = entry.value;
+List<String> _extractUploadFilenames(Object? raw) {
+  if (raw is! List) return const <String>[];
+  final out = <String>[];
+  for (final e in raw) {
+    if (e is Map) {
+      final filename = e['filename'];
+      if (filename is String && filename.trim().isNotEmpty) {
+        out.add(filename.trim());
+      }
     }
-    return out;
   }
-  return const <String, Object?>{};
+  return out;
 }
 
-double? _tryParseMoney(String raw) {
-  final value = raw.trim();
-  if (value.isEmpty) return null;
+void _removePrescriptionUploadAt(SchemaStateStore store, int index) {
+  final raw = store.getValue('pharmacy.cart.prescriptionUploads');
+  if (raw is! List) return;
+  if (index < 0 || index >= raw.length) return;
 
-  final match = RegExp(r'(-?\d+(?:\.\d+)?)').firstMatch(value);
-  if (match == null) return null;
-  return double.tryParse(match.group(1) ?? '');
+  final next = [...raw]..removeAt(index);
+  store.setValue('pharmacy.cart.prescriptionUploads', next);
+  if (next.isEmpty) {
+    store.setValue('pharmacy.cart.prescriptionUploadId', '');
+  }
 }
 
-String? _inferCurrencySymbol(String raw) {
-  final value = raw.trim();
-  if (value.contains('\$')) return r'$';
-  if (value.contains('€')) return '€';
-  if (value.contains('£')) return '£';
-  return null;
-}
+bool _hasPrescription(SchemaStateStore store) {
+  final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
+  if (uploadsRaw is List && uploadsRaw.isNotEmpty) return true;
 
-String _formatMoney(double amount, String? currencySymbol) {
-  final fixed = amount.toStringAsFixed(2);
-  if (currencySymbol == null || currencySymbol.isEmpty) return fixed;
-  return '$currencySymbol$fixed';
+  final legacyIdRaw = store.getValue('pharmacy.cart.prescriptionUploadId');
+  return legacyIdRaw is String && legacyIdRaw.trim().isNotEmpty;
 }

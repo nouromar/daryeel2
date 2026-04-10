@@ -57,7 +57,9 @@ Responsibilities:
 - validate slots, bindings, actions, visibility rules, and references
 
 v1 note (current implementation):
-- `visibleWhen` evaluation is intentionally narrow: only `visibleWhen.featureFlag` is supported.
+- `visibleWhen` evaluation is intentionally narrow and safe:
+	- `visibleWhen.featureFlag` (feature flags)
+	- `visibleWhen.expr` (bounded one-line boolean expression)
 - Unknown `visibleWhen` keys should not break rendering; they should default to visible and emit diagnostics.
 
 Why it matters:

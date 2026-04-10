@@ -225,6 +225,7 @@ Checklist:
 - [ ] Define minimal local permission context (role/capabilities).
 - [ ] Extend `visibleWhen` in a bounded way:
   - `featureFlag` (already)
+  - `expr` (implemented; bounded one-line boolean expressions)
   - `role` (optional)
   - `capability` (optional)
 
@@ -276,7 +277,7 @@ Goal:
 - Keep the native work bounded: one query engine, one list engine, one mutation engine, plus a small set of components.
 
 Non-goals:
-- No general-purpose expression language.
+- No general-purpose scripting or free-form expression programs (bounded one-line expressions are allowed in specific fields).
 - No schema-defined arbitrary networking (must be bounded/allowlisted).
 
 ### F1) QuerySpec contract (bounded)
@@ -465,7 +466,7 @@ Acceptance:
 - [ ] Keep docs and code in sync (update the relevant doc whenever behavior changes).
 - [ ] Prefer shared engines in `schema_runtime_*` packages over duplicating logic in apps.
 - [ ] No raw style blobs; use tokens/variants/overrides only.
-- [ ] No general-purpose scripting/expression languages.
+- [ ] No general-purpose scripting/expression languages (bounded one-line expressions are OK in the approved surface area).
 
 ---
 

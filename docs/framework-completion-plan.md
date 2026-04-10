@@ -10,7 +10,7 @@ This plan intentionally focuses on the **framework** (contracts, runtime, delive
 
 Non-goals (until framework exit criteria are met):
 - building Daryeel2 domain services (Postgres/Alembic models, orchestration workflows)
-- adding arbitrary expression languages or free-form scripting in schema
+- adding arbitrary expression languages or free-form scripting in schema (bounded one-line expressions are allowed in specific fields)
 - allowing raw styling blobs as a primary styling mechanism
 
 Source-of-truth constraints (must remain consistent):
@@ -36,7 +36,9 @@ Based on repo state (Mar 2026):
 - **Flutter runtime** supports:
   - schema rendering via component mapping
   - deterministic action dispatch (`navigate`, `open_url`, `submit_form`, `track_event`) with an allowlist policy
-  - `visibleWhen` filtering (feature-flag based)
+  - bounded expression engine for `${...}` interpolation and typed evaluation
+  - `If.expr` and `visibleWhen.expr`
+  - `visibleWhen` filtering (feature-flag and expression based)
   - diagnostics pipeline (dedupe/budgets, remote ingest)
   - mobile-first HTTP JSON caching with SharedPreferences + ETag/304
 

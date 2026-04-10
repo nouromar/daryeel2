@@ -30,6 +30,7 @@ SchemaNode = "ComponentNode | RefNode"
 
 class ComponentNode(BaseModel):
     type: str
+    visibleWhen: dict[str, Any] | None = None
     props: dict[str, Any] = Field(default_factory=dict)
     slots: dict[str, list[ComponentNode | RefNode]] = Field(default_factory=dict)
     actions: dict[str, str] = Field(default_factory=dict)

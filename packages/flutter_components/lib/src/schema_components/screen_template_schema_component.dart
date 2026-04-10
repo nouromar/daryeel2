@@ -5,6 +5,7 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import '../widgets/screen_template_widget.dart';
 import 'schema_component_context.dart';
 import 'schema_component_utils.dart';
+import 'schema_node_wrapper.dart';
 
 void registerScreenTemplateSchemaComponent({
   required SchemaWidgetRegistry registry,
@@ -26,7 +27,7 @@ void registerScreenTemplateSchemaComponent({
       context: context,
       applyVisibilityWhen: true,
     );
-    final body = _buildSlot(
+    final body = _buildBodySlot(
       node.slots['body'],
       componentRegistry,
       context: context,
@@ -40,6 +41,7 @@ void registerScreenTemplateSchemaComponent({
     );
 
     final headerGap = schemaAsDouble(node.props['headerGap']) ?? 8;
+    final bodyScroll = _asBool(node.props['bodyScroll'], defaultValue: true);
     final bodyPadding = _parseEdgeInsets(
       node.props['bodyPadding'],
       fallback: const EdgeInsets.all(16),
@@ -60,12 +62,23 @@ void registerScreenTemplateSchemaComponent({
         body: body,
         footer: footer,
         headerGap: headerGap,
+        bodyScroll: bodyScroll,
         bodyPadding: bodyPadding,
         primaryScrollPadding: primaryScrollPadding,
         footerPadding: footerPadding,
       ),
     );
   });
+}
+
+bool _asBool(Object? raw, {required bool defaultValue}) {
+  if (raw is bool) return raw;
+  if (raw is String) {
+    final v = raw.trim().toLowerCase();
+    if (v == 'true') return true;
+    if (v == 'false') return false;
+  }
+  return defaultValue;
 }
 
 EdgeInsets _parseEdgeInsets(Object? raw, {required EdgeInsets fallback}) {
@@ -140,4 +153,41 @@ List<Widget> _buildSlot(
     context: context,
     applyVisibilityWhen: applyVisibilityWhen,
   );
+}
+
+List<Widget> _buildBodySlot(
+  List<SchemaNode>? children,
+  SchemaWidgetRegistry registry, {
+  required SchemaComponentContext context,
+  required bool applyVisibilityWhen,
+}) {
+  if (children == null || children.isEmpty) return const <Widget>[];
+
+  final wrapperBuilder = buildVisibleWhenWrapper(
+    visibility: context.visibility,
+    diagnostics: context.diagnostics,
+    diagnosticsContext: context.diagnosticsContext,
+  );
+
+  return children.where((child) {
+    if (!applyVisibilityWhen) return true;
+    if (child is ComponentNode) {
+      return evaluateVisibleWhen(
+        child.visibleWhen,
+        context.visibility,
+        diagnostics: context.diagnostics,
+        diagnosticsContext: context.diagnosticsContext,
+        nodeType: child.type,
+      );
+    }
+    return true;
+  }).map((child) {
+    final rendered = SchemaRenderer(
+      rootNode: child,
+      registry: registry,
+      wrapperBuilder: wrapperBuilder,
+    ).render();
+
+    return rendered;
+  }).toList(growable: false);
 }

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
+import 'schema_node_wrapper.dart';
 import 'schema_component_context.dart';
 
 void registerForEachSchemaComponent({
@@ -32,6 +33,11 @@ void registerForEachSchemaComponent({
     return Builder(
       builder: (buildContext) {
         final dataScope = SchemaDataScope.maybeOf(buildContext);
+        final wrapperBuilder = buildVisibleWhenWrapper(
+          visibility: context.visibility,
+          diagnostics: context.diagnostics,
+          diagnosticsContext: context.diagnosticsContext,
+        );
 
         Object? resolveItems() {
           if (isStateItemsPath) {
@@ -101,6 +107,7 @@ void registerForEachSchemaComponent({
                         (child) => SchemaRenderer(
                           rootNode: child,
                           registry: componentRegistry,
+                          wrapperBuilder: wrapperBuilder,
                         ).render(),
                       )
                       .toList(growable: false),

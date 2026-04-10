@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class UnknownSchemaWidget extends StatelessWidget {
-  const UnknownSchemaWidget({required this.componentName});
+  const UnknownSchemaWidget({super.key, required this.componentName});
 
   final String componentName;
 

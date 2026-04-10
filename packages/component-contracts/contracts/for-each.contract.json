@@ -3,7 +3,8 @@
   "category": "data",
   "version": "1.0",
   "propsSchema": {
-    "itemsPath": "string"
+    "itemsPath": "string",
+    "itemKeyPath": "string"
   },
   "defaults": {},
   "styleContract": {},

@@ -162,7 +162,7 @@ Possible expansions:
 ## 9. Non-Goals for Early Phases
 
 Avoid in early phases:
-- arbitrary expression languages
+- arbitrary scripting / expression languages (bounded one-line expressions are OK in the approved surface area)
 - dynamic endpoint definitions in schema
 - free-form styling blobs
 - generic workflow scripting

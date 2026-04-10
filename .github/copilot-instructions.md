@@ -7,6 +7,9 @@ Read [docs/ai-grounding.md](../docs/ai-grounding.md) first for the repo mental m
 Key rules:
 - Prefer using the shared Flutter client runtime/framework in `packages/*` over copying runtime logic into apps.
 - The runtime/framework under `packages/*` is nearing majority/stability: do NOT change anything under `packages/*` unless we explicitly discuss it first and you get explicit permission to proceed.
+- If we’ve explicitly agreed on a design/architecture in this conversation, do NOT change or replace that design without first:
+	- Asking the user to confirm they want to change it, and
+	- Presenting 2–3 concrete alternatives (including, when relevant, a “keep the design and change contracts/validation” option).
 - Keep Flutter apps under `apps/*` as thin wrappers: only branding + product/appId + fallback schema/fragments + local theme resolver + widget registry + compatibility rules.
 - Product-service specific client code lives in the app, grouped by service:
 	- Put schemas, UI components, and widgets that are specific to one product service (e.g. pharmacy, shopping) under the product app in a service-named folder.
