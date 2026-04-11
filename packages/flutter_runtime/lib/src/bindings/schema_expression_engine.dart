@@ -500,11 +500,14 @@ final class _Lexer {
         while (_i < source.length && _isIdentPart(source.codeUnitAt(_i))) {
           _i++;
         }
-        _tokens.add(_Token(
-          _TokenType.identifier,
-          source.substring(start, _i),
-          start,
-        ));
+        final lexeme = source.substring(start, _i);
+        final keywordType = switch (lexeme) {
+          'and' => _TokenType.andAnd,
+          'or' => _TokenType.orOr,
+          'not' => _TokenType.bang,
+          _ => _TokenType.identifier,
+        };
+        _tokens.add(_Token(keywordType, lexeme, start));
         continue;
       }
 

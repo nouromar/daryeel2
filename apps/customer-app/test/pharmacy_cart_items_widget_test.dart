@@ -11,15 +11,15 @@ void main() {
         initial: <String, Object?>{
           'pharmacy': <String, Object?>{
             'cart': <String, Object?>{
-              'totalQuantity': 1,
-              'itemsById': <String, Object?>{
-                'abc': <String, Object?>{
+              'lines': <Object?>[
+                <String, Object?>{
                   'id': 'abc',
                   'title': 'Rx Item',
                   'quantity': 1,
                   'rxRequired': true,
                 },
-              },
+              ],
+              'totalQuantity': 1,
             },
           },
         },
@@ -39,42 +39,6 @@ void main() {
     },
   );
 
-  testWidgets(
-    'shows "Prescription attached" when legacy prescriptionUploadId exists',
-    (tester) async {
-      final store = SchemaStateStore(
-        initial: <String, Object?>{
-          'pharmacy': <String, Object?>{
-            'cart': <String, Object?>{
-              'totalQuantity': 1,
-              'prescriptionUploadId': 'upload_123',
-              'itemsById': <String, Object?>{
-                'abc': <String, Object?>{
-                  'id': 'abc',
-                  'title': 'Rx Item',
-                  'quantity': 1,
-                  'rxRequired': true,
-                },
-              },
-            },
-          },
-        },
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SchemaStateScope(
-            store: store,
-            child: const Scaffold(body: PharmacyCartItemsWidget()),
-          ),
-        ),
-      );
-
-      expect(find.text('Prescription attached'), findsOneWidget);
-      expect(find.text('Attach Prescription'), findsNothing);
-    },
-  );
-
   testWidgets('shows attached filenames when prescriptionUploads exist', (
     tester,
   ) async {
@@ -82,19 +46,19 @@ void main() {
       initial: <String, Object?>{
         'pharmacy': <String, Object?>{
           'cart': <String, Object?>{
-            'totalQuantity': 1,
-            'prescriptionUploads': <Object?>[
-              <String, Object?>{'filename': 'rx1.jpg'},
-              <String, Object?>{'filename': 'rx2.pdf'},
-            ],
-            'itemsById': <String, Object?>{
-              'abc': <String, Object?>{
+            'lines': <Object?>[
+              <String, Object?>{
                 'id': 'abc',
                 'title': 'Rx Item',
                 'quantity': 1,
                 'rxRequired': true,
               },
-            },
+            ],
+            'totalQuantity': 1,
+            'prescriptionUploads': <Object?>[
+              <String, Object?>{'filename': 'rx1.jpg'},
+              <String, Object?>{'filename': 'rx2.pdf'},
+            ],
           },
         },
       },
@@ -119,15 +83,15 @@ void main() {
       initial: <String, Object?>{
         'pharmacy': <String, Object?>{
           'cart': <String, Object?>{
-            'totalQuantity': 1,
-            'itemsById': <String, Object?>{
-              'abc': <String, Object?>{
+            'lines': <Object?>[
+              <String, Object?>{
                 'id': 'abc',
                 'title': 'Item',
                 'quantity': 1,
                 'rxRequired': false,
               },
-            },
+            ],
+            'totalQuantity': 1,
           },
         },
       },
@@ -155,15 +119,15 @@ void main() {
       initial: <String, Object?>{
         'pharmacy': <String, Object?>{
           'cart': <String, Object?>{
-            'totalQuantity': 1,
-            'itemsById': <String, Object?>{
-              'abc': <String, Object?>{
+            'lines': <Object?>[
+              <String, Object?>{
                 'id': 'abc',
                 'title': 'Item',
                 'quantity': 1,
                 'rxRequired': false,
               },
-            },
+            ],
+            'totalQuantity': 1,
           },
         },
       },
@@ -181,7 +145,7 @@ void main() {
     await tester.tap(find.byTooltip('Decrease quantity'));
     await tester.pump();
 
-    expect(store.getValue('pharmacy.cart.itemsById.abc'), isNull);
+    expect((store.getValue('pharmacy.cart.lines') as List), isEmpty);
     expect(store.getValue('pharmacy.cart.totalQuantity'), 0);
     expect(find.text('Cart is empty'), findsOneWidget);
   });
@@ -191,15 +155,15 @@ void main() {
       initial: <String, Object?>{
         'pharmacy': <String, Object?>{
           'cart': <String, Object?>{
-            'totalQuantity': 2,
-            'itemsById': <String, Object?>{
-              'abc': <String, Object?>{
+            'lines': <Object?>[
+              <String, Object?>{
                 'id': 'abc',
                 'title': 'Item',
                 'quantity': 2,
                 'rxRequired': false,
               },
-            },
+            ],
+            'totalQuantity': 2,
           },
         },
       },
@@ -224,7 +188,7 @@ void main() {
     await tester.tap(find.byTooltip('Decrease quantity'));
     await tester.pump();
 
-    expect(store.getValue('pharmacy.cart.itemsById.abc'), isNull);
+    expect((store.getValue('pharmacy.cart.lines') as List), isEmpty);
     expect(store.getValue('pharmacy.cart.totalQuantity'), 0);
   });
 
@@ -233,18 +197,18 @@ void main() {
       initial: <String, Object?>{
         'pharmacy': <String, Object?>{
           'cart': <String, Object?>{
-            'totalQuantity': 2,
-            'prescriptionUploads': <Object?>[
-              <String, Object?>{'filename': 'rx1.jpg'},
-            ],
-            'itemsById': <String, Object?>{
-              'abc': <String, Object?>{
+            'lines': <Object?>[
+              <String, Object?>{
                 'id': 'abc',
                 'title': 'Item',
                 'quantity': 2,
                 'rxRequired': false,
               },
-            },
+            ],
+            'totalQuantity': 2,
+            'prescriptionUploads': <Object?>[
+              <String, Object?>{'filename': 'rx1.jpg'},
+            ],
           },
         },
       },
@@ -262,7 +226,7 @@ void main() {
     await tester.tap(find.text('Clear cart'));
     await tester.pump();
 
-    expect(store.getValue('pharmacy.cart.itemsById'), isNull);
+    expect((store.getValue('pharmacy.cart.lines') as List), isEmpty);
     expect(store.getValue('pharmacy.cart.totalQuantity'), 0);
     expect(store.getValue('pharmacy.cart.prescriptionUploads'), isNull);
     expect(find.text('Cart is empty'), findsOneWidget);

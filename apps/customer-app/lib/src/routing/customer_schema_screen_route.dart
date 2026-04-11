@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_daryeel_client_app/flutter_daryeel_client_app.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 
-import '../actions/customer_action_dispatcher.dart';
-
 /// Single stable route that can render any schema screen by id.
 ///
 /// Contract (Navigator arguments):
@@ -89,9 +87,6 @@ final class CustomerSchemaChromePresets {
       AnimatedBuilder(
         animation: store,
         builder: (context, _) {
-          // Keep older persisted state compatible with the new cart schema.
-          migrateLegacyPharmacyCartState(store);
-
           final rawItems = store.getValue('pharmacy.cart.totalQuantity');
           final items = (rawItems is num)
               ? rawItems.toInt()
@@ -101,14 +96,7 @@ final class CustomerSchemaChromePresets {
             'pharmacy.cart.prescriptionUploads',
           );
           final uploadsCount = (uploadsRaw is List) ? uploadsRaw.length : 0;
-
-          final legacyIdRaw = store.getValue(
-            'pharmacy.cart.prescriptionUploadId',
-          );
-          final legacyId = (legacyIdRaw is String) ? legacyIdRaw.trim() : '';
-          final prescriptions = uploadsCount > 0
-              ? uploadsCount
-              : (legacyId.isNotEmpty ? 1 : 0);
+          final prescriptions = uploadsCount;
 
           final show = items > 0 || prescriptions > 0;
           final total = items + prescriptions;

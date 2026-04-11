@@ -1,0 +1,13 @@
+{
+  "type": "pharmacy_cart_refresh_summary",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "valueKind": "object",
+  "valueSchema": {
+    "immediate": "boolean",
+    "debounceMs": "integer"
+  },
+  "required": [],
+  "allowNullValue": true
+}

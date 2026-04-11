@@ -8,6 +8,31 @@ import '../services/pharmacy/ui/pharmacy_cart_items_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_checkout_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_prescription_upload_schema_component.dart';
 
+typedef CustomerSchemaComponentRegistrar =
+    void Function({
+      required SchemaWidgetRegistry registry,
+      required SchemaComponentContext context,
+    });
+
+const Map<String, CustomerSchemaComponentRegistrar>
+_customerSchemaComponentRegistrarsByType =
+    <String, CustomerSchemaComponentRegistrar>{
+      'CatalogItemTile': registerCustomerCatalogItemTileSchemaComponent,
+      'PharmacyCartItems': registerPharmacyCartItemsSchemaComponent,
+      'PharmacyCheckout': registerPharmacyCheckoutSchemaComponent,
+      'PharmacyPrescriptionUpload':
+          registerPharmacyPrescriptionUploadSchemaComponent,
+    };
+
+void registerCustomerSchemaComponents({
+  required SchemaWidgetRegistry registry,
+  required SchemaComponentContext context,
+}) {
+  for (final registrar in _customerSchemaComponentRegistrarsByType.values) {
+    registrar(registry: registry, context: context);
+  }
+}
+
 SchemaWidgetRegistry buildCustomerComponentRegistry({
   required ScreenSchema screen,
   required SchemaActionDispatcher actionDispatcher,
@@ -31,22 +56,7 @@ SchemaWidgetRegistry buildCustomerComponentRegistry({
 
   registerCoreSchemaComponents(registry: registry, context: componentContext);
 
-  registerCustomerCatalogItemTileSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-
-  registerPharmacyCartItemsSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-
-  registerPharmacyCheckoutSchemaComponent(
-    registry: registry,
-    context: componentContext,
-  );
-
-  registerPharmacyPrescriptionUploadSchemaComponent(
+  registerCustomerSchemaComponents(
     registry: registry,
     context: componentContext,
   );

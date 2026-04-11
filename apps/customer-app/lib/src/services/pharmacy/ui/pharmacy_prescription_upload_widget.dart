@@ -208,9 +208,6 @@ class _PharmacyPrescriptionUploadWidgetState
         throw StateError('Upload succeeded but no id returned');
       }
 
-      // Back-compat: keep the single id key in sync with the newest upload.
-      store.setValue('pharmacy.cart.prescriptionUploadId', id);
-
       final filenameRaw = (decoded is Map) ? decoded['filename'] : null;
       final filename = (filenameRaw is String && filenameRaw.trim().isNotEmpty)
           ? filenameRaw.trim()

@@ -3,7 +3,6 @@ import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
-import '../../../actions/customer_action_dispatcher.dart';
 import '../../../routing/customer_schema_screen_route.dart';
 import '../../ecommerce/ui/cart/ecommerce_cart_models.dart';
 import '../../ecommerce/ui/cart/ecommerce_cart_widget.dart';
@@ -25,8 +24,6 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) {
-        migrateLegacyPharmacyCartState(store);
-
         final lines = _readLines(store);
         final hasPrescription = _hasPrescription(store);
         final hasRxItem = _readHasRxItem(store, lines: lines);
@@ -117,11 +114,7 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
           store.setValue('pharmacy.cart.lines', const <Object?>[]);
           store.setValue('pharmacy.cart.totalQuantity', 0);
           store.setValue('pharmacy.cart.hasRxItem', false);
-
-          // Keep older persisted shapes tidy/consistent.
-          store.removeValue('pharmacy.cart.itemsById');
           store.removeValue('pharmacy.cart.prescriptionUploads');
-          store.removeValue('pharmacy.cart.prescriptionUploadId');
         }
 
         final prescriptionSection = _buildPrescriptionSection(
@@ -130,8 +123,6 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
           showCta: hasRxItem,
           onOpen: openPrescriptionUpload,
           onRemoveUploadAt: (idx) => _removePrescriptionUploadAt(store, idx),
-          onClearLegacyId: () =>
-              store.setValue('pharmacy.cart.prescriptionUploadId', ''),
         );
 
         return SingleChildScrollView(
@@ -306,23 +297,18 @@ Widget? _buildPrescriptionSection(
   required bool showCta,
   required VoidCallback onOpen,
   required void Function(int index) onRemoveUploadAt,
-  required VoidCallback onClearLegacyId,
 }) {
   final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
   final uploads = _extractUploadFilenames(uploadsRaw);
 
-  final legacyIdRaw = store.getValue('pharmacy.cart.prescriptionUploadId');
-  final legacyId = (legacyIdRaw is String) ? legacyIdRaw.trim() : '';
-
   final hasUploads = uploads.isNotEmpty;
-  final hasLegacyId = legacyId.isNotEmpty;
 
-  if (!showCta && !hasUploads && !hasLegacyId) return null;
+  if (!showCta && !hasUploads) return null;
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (showCta && !hasUploads && !hasLegacyId)
+      if (showCta && !hasUploads)
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
@@ -367,23 +353,6 @@ Widget? _buildPrescriptionSection(
           );
         }),
       ],
-
-      if (!hasUploads && hasLegacyId) ...[
-        ActionCardWidget(
-          title: 'Prescription attached',
-          subtitle: '',
-          surface: 'flat',
-          onTap: onOpen,
-        ),
-        const SizedBox(height: 6),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: onClearLegacyId,
-            child: const Text('Remove prescription'),
-          ),
-        ),
-      ],
     ],
   );
 }
@@ -409,15 +378,9 @@ void _removePrescriptionUploadAt(SchemaStateStore store, int index) {
 
   final next = [...raw]..removeAt(index);
   store.setValue('pharmacy.cart.prescriptionUploads', next);
-  if (next.isEmpty) {
-    store.setValue('pharmacy.cart.prescriptionUploadId', '');
-  }
 }
 
 bool _hasPrescription(SchemaStateStore store) {
   final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
-  if (uploadsRaw is List && uploadsRaw.isNotEmpty) return true;
-
-  final legacyIdRaw = store.getValue('pharmacy.cart.prescriptionUploadId');
-  return legacyIdRaw is String && legacyIdRaw.trim().isNotEmpty;
+  return uploadsRaw is List && uploadsRaw.isNotEmpty;
 }

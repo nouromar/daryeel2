@@ -1,0 +1,17 @@
+{
+  "type": "pharmacy_cart_upsert",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "valueKind": "object",
+  "valueSchema": {
+    "id": "string",
+    "title": "string",
+    "subtitle": "string",
+    "rxRequired": "boolean",
+    "unitPrice": "number",
+    "currencySymbol": "string"
+  },
+  "required": ["id"],
+  "allowNullValue": false
+}

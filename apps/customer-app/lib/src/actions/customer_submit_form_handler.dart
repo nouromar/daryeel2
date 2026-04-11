@@ -100,7 +100,6 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
       store.setValue('pharmacy.cart.lines', const <Object?>[]);
       store.setValue('pharmacy.cart.totalQuantity', 0);
       store.setValue('pharmacy.cart.hasRxItem', false);
-      store.removeValue('pharmacy.cart.prescriptionUploadId');
       store.removeValue('pharmacy.cart.prescriptionUploads');
 
       if (context.mounted) {
@@ -191,16 +190,6 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
       }
       if (ids.isNotEmpty) {
         payload['prescription_upload_ids'] = ids;
-      }
-    } else {
-      final prescriptionUploadIdRaw = store.getValue(
-        'pharmacy.cart.prescriptionUploadId',
-      );
-      final prescriptionUploadId = (prescriptionUploadIdRaw is String)
-          ? prescriptionUploadIdRaw.trim()
-          : '';
-      if (prescriptionUploadId.isNotEmpty) {
-        payload['prescription_upload_id'] = prescriptionUploadId;
       }
     }
 

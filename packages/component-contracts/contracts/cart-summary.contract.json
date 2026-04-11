@@ -1,0 +1,27 @@
+{
+  "name": "CartSummary",
+  "category": "commerce",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "linesPath": "string",
+    "totalPath": "string",
+    "surface": "enum",
+    "density": "enum",
+    "hideZeroLines": "boolean"
+  },
+  "defaults": {
+    "title": "Order summary",
+    "surface": "raised",
+    "density": "comfortable",
+    "hideZeroLines": true
+  },
+  "styleContract": {
+    "surface": ["flat", "subtle", "raised"],
+    "density": ["compact", "comfortable"]
+  },
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

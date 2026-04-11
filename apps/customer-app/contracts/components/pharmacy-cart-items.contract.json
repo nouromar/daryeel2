@@ -1,0 +1,19 @@
+{
+  "name": "PharmacyCartItems",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "propsSchema": {
+    "surface": "enum"
+  },
+  "defaults": {
+    "surface": "raised"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"]
+  },
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

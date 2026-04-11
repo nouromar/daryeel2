@@ -24,17 +24,10 @@ final class PharmacyCheckoutWidget extends StatelessWidget {
             ? totalQuantityRaw.toInt()
             : int.tryParse('${totalQuantityRaw ?? ''}') ?? 0;
 
-        final prescriptionUploadIdRaw = store.getValue(
-          'pharmacy.cart.prescriptionUploadId',
-        );
-        final prescriptionUploadId = (prescriptionUploadIdRaw is String)
-            ? prescriptionUploadIdRaw.trim()
-            : '';
-
         final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
         final uploadsCount = (uploadsRaw is List)
             ? uploadsRaw.whereType<Map>().length
-            : (prescriptionUploadId.isNotEmpty ? 1 : 0);
+            : 0;
         final hasPrescription = uploadsCount > 0;
 
         final deliveryAddressRaw = store.getValue(

@@ -105,4 +105,12 @@ class ThemeDocument(BaseModel):
 class ComponentContractsResponse(BaseModel):
     package: str = "component-contracts"
     version: str = "0.0.0"
+    product: str | None = None
+    contracts: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ActionContractsResponse(BaseModel):
+    package: str = "action-contracts"
+    version: str = "0.0.0"
+    product: str | None = None
     contracts: list[dict[str, Any]] = Field(default_factory=list)

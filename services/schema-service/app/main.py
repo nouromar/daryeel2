@@ -8,6 +8,7 @@ from collections import deque
 from fastapi import FastAPI, HTTPException, Request
 from starlette.responses import JSONResponse, Response
 
+from app.action_contracts_registry import action_contracts_payload
 from app.cache import CacheValue, build_cache_backend
 from app.budgets import DEFAULT_DIAGNOSTICS_BUDGETS_PER_SESSION
 from app.component_contracts_registry import component_contracts_payload
@@ -21,6 +22,7 @@ from app.registry import (
     get_screen_by_doc_id,
 )
 from app.schemas import (
+    ActionContractsResponse,
     BootstrapResponse,
     ComponentContractsResponse,
     ConfigSnapshotResponse,
@@ -177,11 +179,29 @@ def health() -> HealthResponse:
 
 
 @app.get("/contracts/components", response_model=ComponentContractsResponse)
-def component_contracts(request: Request) -> ComponentContractsResponse | Response:
-    payload = component_contracts_payload()
+def component_contracts(
+    request: Request,
+    product: str | None = None,
+) -> ComponentContractsResponse | Response:
+    payload = component_contracts_payload(product=product)
     return _cached_json_response(
         request=request,
-        cache_key="contracts:components",
+        cache_key=f"contracts:components:{product or 'shared'}",
+        payload=payload,
+        cache_control="public, max-age=60, stale-while-revalidate=300",
+        ttl_seconds=300,
+    )
+
+
+@app.get("/contracts/actions", response_model=ActionContractsResponse)
+def action_contracts(
+    request: Request,
+    product: str | None = None,
+) -> ActionContractsResponse | Response:
+    payload = action_contracts_payload(product=product)
+    return _cached_json_response(
+        request=request,
+        cache_key=f"contracts:actions:{product or 'shared'}",
         payload=payload,
         cache_control="public, max-age=60, stale-while-revalidate=300",
         ttl_seconds=300,

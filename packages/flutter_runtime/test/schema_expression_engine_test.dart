@@ -7,6 +7,7 @@ void main() {
       (tester) async {
     final store = SchemaStateStore();
     store.setValue('a', 2);
+    store.setValue('items', const <Object?>['A', 'B']);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -36,6 +37,14 @@ void main() {
     expect(evaluateSchemaExpression('true && false', context), false);
     expect(evaluateSchemaExpression('true || false', context), true);
     expect(evaluateSchemaExpression('!false', context), true);
+    expect(evaluateSchemaExpression('true and false', context), false);
+    expect(evaluateSchemaExpression('true or false', context), true);
+    expect(evaluateSchemaExpression('not false', context), true);
+    expect(
+      evaluateSchemaExpression(
+          'len(state.items) == 2 and state.a == 2', context),
+      true,
+    );
 
     expect(evaluateSchemaExpression('state.a + 1', context), 3);
     expect(evaluateSchemaExpression('item.qty * 2', context), 4);
@@ -97,6 +106,7 @@ void main() {
       (tester) async {
     final store = SchemaStateStore();
     store.setValue('a', 2);
+    store.setValue('items', const <Object?>['x', 'y']);
 
     await tester.pumpWidget(
       MaterialApp(

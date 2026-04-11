@@ -1,0 +1,13 @@
+{
+  "name": "PharmacyPrescriptionUpload",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "propsSchema": {},
+  "defaults": {},
+  "styleContract": {},
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

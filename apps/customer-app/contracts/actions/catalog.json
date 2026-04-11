@@ -1,0 +1,11 @@
+{
+  "package": "customer-app-action-contracts",
+  "version": "0.1.0",
+  "contracts": [
+    "pharmacy-cart-upsert.action.json",
+    "pharmacy-cart-increment.action.json",
+    "pharmacy-cart-decrement.action.json",
+    "pharmacy-cart-clear.action.json",
+    "pharmacy-cart-refresh-summary.action.json"
+  ]
+}

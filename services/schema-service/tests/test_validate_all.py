@@ -140,3 +140,58 @@ def test_fragments_budget_exceeded(tmp_path: Path) -> None:
 
     issues = validate_examples(examples_dir=examples_dir, contracts_dir=COMPONENT_CONTRACTS_DIR)
     assert any(i.code == "fragments_budget_exceeded" for i in issues)
+
+
+def test_unknown_app_action_type_is_reported(tmp_path: Path) -> None:
+    examples_dir = tmp_path / "examples"
+    examples_dir.mkdir(parents=True)
+
+    screen_doc = {
+        "schemaVersion": "1.0",
+        "id": "unknown_app_action_test",
+        "documentType": "screen",
+        "product": "customer_app",
+        "themeId": "customer-default",
+        "themeMode": "light",
+        "root": {
+            "type": "ScreenTemplate",
+            "slots": {"body": []},
+        },
+        "actions": {
+            "bad": {
+                "type": "pharmacy_cart_not_real",
+            }
+        },
+    }
+    (examples_dir / "unknown_app_action_test.screen.json").write_text(json.dumps(screen_doc))
+
+    issues = validate_examples(examples_dir=examples_dir, contracts_dir=COMPONENT_CONTRACTS_DIR)
+    assert any(i.code == "unknown_action_type" for i in issues)
+
+
+def test_invalid_app_action_value_shape_is_reported(tmp_path: Path) -> None:
+    examples_dir = tmp_path / "examples"
+    examples_dir.mkdir(parents=True)
+
+    screen_doc = {
+        "schemaVersion": "1.0",
+        "id": "invalid_app_action_value_test",
+        "documentType": "screen",
+        "product": "customer_app",
+        "themeId": "customer-default",
+        "themeMode": "light",
+        "root": {
+            "type": "ScreenTemplate",
+            "slots": {"body": []},
+        },
+        "actions": {
+            "bad": {
+                "type": "pharmacy_cart_increment",
+                "value": {},
+            }
+        },
+    }
+    (examples_dir / "invalid_app_action_value_test.screen.json").write_text(json.dumps(screen_doc))
+
+    issues = validate_examples(examples_dir=examples_dir, contracts_dir=COMPONENT_CONTRACTS_DIR)
+    assert any(i.code == "missing_action_value_key" for i in issues)

@@ -1,0 +1,12 @@
+{
+  "type": "pharmacy_cart_decrement",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "valueKind": "object",
+  "valueSchema": {
+    "id": "string"
+  },
+  "required": ["id"],
+  "allowNullValue": false
+}

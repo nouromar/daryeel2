@@ -1,0 +1,8 @@
+{
+  "type": "pharmacy_cart_clear",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "valueKind": "null",
+  "allowNullValue": true
+}

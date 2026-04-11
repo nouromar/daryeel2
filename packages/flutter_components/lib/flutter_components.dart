@@ -1,5 +1,7 @@
 export 'src/widgets/action_card_widget.dart';
 export 'src/widgets/catalog_item_tile_widget.dart';
+export 'src/widgets/cart_item_widget.dart';
+export 'src/widgets/cart_summary_widget.dart';
 export 'src/widgets/info_card_widget.dart';
 export 'src/widgets/primary_action_bar_widget.dart';
 export 'src/widgets/screen_template_widget.dart';
@@ -14,6 +16,8 @@ export 'src/schema_components/address_section_schema_component.dart';
 export 'src/schema_components/bottom_tabs_schema_component.dart';
 export 'src/schema_components/bound_action_card_schema_component.dart';
 export 'src/schema_components/catalog_item_tile_schema_component.dart';
+export 'src/schema_components/cart_item_schema_component.dart';
+export 'src/schema_components/cart_summary_schema_component.dart';
 export 'src/schema_components/core_schema_components.dart';
 export 'src/schema_components/for_each_schema_component.dart';
 export 'src/schema_components/gap_schema_component.dart';

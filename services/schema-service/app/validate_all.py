@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 from typing import Any, Iterable
 
+from app.contract_catalog import load_action_contract_map, load_component_contract_map
 from app.validation import DARYEEL2_ROOT, validate_fragment_document, validate_screen_document
 from app.budgets import (
     MAX_FRAGMENTS_PER_SCREEN,
@@ -57,6 +58,142 @@ def _load_component_contracts(contracts_dir: Path = COMPONENT_CONTRACTS_DIR) -> 
         contracts[name] = contract
 
     return contracts
+
+
+def _load_component_contracts_for_product(
+    *,
+    product: str | None,
+    contracts_dir: Path = COMPONENT_CONTRACTS_DIR,
+) -> dict[str, dict[str, Any]]:
+    if contracts_dir != COMPONENT_CONTRACTS_DIR:
+        return _load_component_contracts(contracts_dir)
+    return load_component_contract_map(product=product)
+
+
+def _matches_action_value_kind(raw: Any, kind: str) -> bool:
+    if kind == "any":
+        return True
+    if kind == "null":
+        return raw is None
+    if kind == "string":
+        return isinstance(raw, str)
+    if kind == "boolean":
+        return isinstance(raw, (bool, str))
+    if kind == "integer":
+        return (isinstance(raw, int) and not isinstance(raw, bool)) or isinstance(raw, str)
+    if kind == "number":
+        return (isinstance(raw, (int, float)) and not isinstance(raw, bool)) or isinstance(raw, str)
+    if kind == "object":
+        return isinstance(raw, dict)
+    if kind == "list":
+        return isinstance(raw, list)
+    return False
+
+
+def _validate_action_definition_against_contract(
+    *,
+    action_id: str,
+    action: dict[str, Any],
+    action_contracts: dict[str, dict[str, Any]],
+    issue_path: str,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+
+    action_type = action.get("type")
+    if not isinstance(action_type, str) or not action_type:
+        issues.append(
+            ValidationIssue(
+                code="invalid_action_type",
+                message="Action definition must include string 'type'",
+                path=f"{issue_path}.actions.{action_id}.type",
+            )
+        )
+        return issues
+
+    contract = action_contracts.get(action_type)
+    if contract is None:
+        issues.append(
+            ValidationIssue(
+                code="unknown_action_type",
+                message=f"Unknown action type: {action_type}",
+                path=f"{issue_path}.actions.{action_id}.type",
+            )
+        )
+        return issues
+
+    raw_value = action.get("value")
+    value_kind = contract.get("valueKind", "any")
+    allow_null = bool(contract.get("allowNullValue", False))
+
+    if raw_value is None:
+        if value_kind not in {"any", "null"} and not allow_null:
+            issues.append(
+                ValidationIssue(
+                    code="missing_action_value",
+                    message=f"Action type '{action_type}' requires 'value'",
+                    path=f"{issue_path}.actions.{action_id}.value",
+                )
+            )
+        return issues
+
+    if not _matches_action_value_kind(raw_value, value_kind):
+        issues.append(
+            ValidationIssue(
+                code="invalid_action_value_type",
+                message=f"Action type '{action_type}' requires value kind '{value_kind}'",
+                path=f"{issue_path}.actions.{action_id}.value",
+            )
+        )
+        return issues
+
+    if value_kind != "object":
+        return issues
+
+    value_schema = contract.get("valueSchema")
+    if not isinstance(value_schema, dict):
+        value_schema = {}
+    required = contract.get("required")
+    if not isinstance(required, list):
+        required = []
+
+    assert isinstance(raw_value, dict)
+
+    for key in raw_value.keys():
+        if key not in value_schema:
+            issues.append(
+                ValidationIssue(
+                    code="unknown_action_value_key",
+                    message=f"Unknown key '{key}' for action type '{action_type}'",
+                    path=f"{issue_path}.actions.{action_id}.value.{key}",
+                )
+            )
+
+    for key in required:
+        if isinstance(key, str) and key not in raw_value:
+            issues.append(
+                ValidationIssue(
+                    code="missing_action_value_key",
+                    message=f"Missing required key '{key}' for action type '{action_type}'",
+                    path=f"{issue_path}.actions.{action_id}.value.{key}",
+                )
+            )
+
+    for key, raw in raw_value.items():
+        kind = value_schema.get(key)
+        if not isinstance(kind, str):
+            continue
+        if not _matches_action_value_kind(raw, kind):
+            issues.append(
+                ValidationIssue(
+                    code="invalid_action_value_property_type",
+                    message=(
+                        f"Action type '{action_type}' key '{key}' requires kind '{kind}'"
+                    ),
+                    path=f"{issue_path}.actions.{action_id}.value.{key}",
+                )
+            )
+
+    return issues
 
 
 def _iter_nodes(node: Any) -> Iterable[dict[str, Any]]:
@@ -680,6 +817,11 @@ def validate_examples(
 
         node = doc.get("node")
         if isinstance(node, dict):
+            fragment_product = "customer_app" if path.parent == CUSTOMER_FRAGMENTS_DIR else None
+            fragment_contracts = _load_component_contracts_for_product(
+                product=fragment_product,
+                contracts_dir=contracts_dir,
+            )
             if _node_count(node) > MAX_NODES_PER_DOCUMENT:
                 issues.append(
                     ValidationIssue(
@@ -694,13 +836,17 @@ def validate_examples(
                 issues.extend(
                     _validate_component_node_against_contract(
                         node=n,
-                        contracts=contracts,
+                        contracts=fragment_contracts,
                         issue_path=f"{path.name}.node[{idx}]",
                         action_ids=None,
                     )
                 )
 
     fragment_ids = set(fragment_docs.keys())
+    component_contracts_cache: dict[str | None, dict[str, dict[str, Any]]] = {
+        None: contracts,
+    }
+    action_contracts_cache: dict[str | None, dict[str, dict[str, Any]]] = {}
 
     # Ref depth budgets (compute after all fragments are loaded).
     for fragment_id, doc in fragment_docs.items():
@@ -772,6 +918,20 @@ def validate_examples(
             )
             continue
 
+        product_raw = doc.get("product")
+        product = product_raw if isinstance(product_raw, str) and product_raw else None
+        effective_contracts = component_contracts_cache.setdefault(
+            product,
+            _load_component_contracts_for_product(
+                product=product,
+                contracts_dir=contracts_dir,
+            ),
+        )
+        action_contracts = action_contracts_cache.setdefault(
+            product,
+            load_action_contract_map(product=product),
+        )
+
         if _node_count(root) > MAX_NODES_PER_DOCUMENT:
             issues.append(
                 ValidationIssue(
@@ -816,7 +976,7 @@ def validate_examples(
             issues.extend(
                 _validate_component_node_against_contract(
                     node=n,
-                    contracts=contracts,
+                    contracts=effective_contracts,
                     issue_path=f"{path.name}.root[{idx}]",
                     action_ids=action_ids,
                 )
@@ -845,6 +1005,15 @@ def validate_examples(
                         )
                     )
                     continue
+
+                issues.extend(
+                    _validate_action_definition_against_contract(
+                        action_id=action_id,
+                        action=action,
+                        action_contracts=action_contracts,
+                        issue_path=path.name,
+                    )
+                )
 
                 if action.get("type") == "navigate" and action.get("route") == _SCHEMA_SCREEN_ROUTE:
                     issues.extend(

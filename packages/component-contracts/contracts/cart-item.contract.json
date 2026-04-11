@@ -1,0 +1,27 @@
+{
+  "name": "CartItem",
+  "category": "commerce",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "subtitle": "string",
+    "quantity": "string",
+    "unitPriceText": "string",
+    "lineTotalText": "string",
+    "badgeLabel": "string",
+    "surface": "enum",
+    "density": "enum"
+  },
+  "defaults": {
+    "surface": "raised",
+    "density": "comfortable"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"],
+    "density": ["compact", "comfortable"]
+  },
+  "slots": [],
+  "events": ["increment", "decrement"],
+  "actions": ["increment", "decrement"],
+  "fallbackBehavior": "omit"
+}
