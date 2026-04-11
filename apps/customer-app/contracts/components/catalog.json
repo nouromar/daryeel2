@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "contracts": [
     "pharmacy-cart-items.contract.json",
-    "pharmacy-prescription-upload.contract.json",
-    "pharmacy-checkout.contract.json"
+    "pharmacy-prescription-upload.contract.json"
   ]
 }

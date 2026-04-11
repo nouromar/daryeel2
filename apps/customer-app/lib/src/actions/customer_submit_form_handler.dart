@@ -63,12 +63,16 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
       );
     }
 
-    final payload = _buildPharmacyOrderPayload(store);
-    final cartLines = payload['cart_lines'];
+    final payload = buildPharmacyServiceRequest(store);
+    final pharmacyPayload = payload['payload'];
+    final cartLines = (pharmacyPayload is Map)
+        ? pharmacyPayload['cart_lines']
+        : null;
+    final prescriptionUploadIds = (pharmacyPayload is Map)
+        ? pharmacyPayload['prescription_upload_ids']
+        : null;
     final hasPrescription =
-        payload['prescription_upload_id'] != null ||
-        (payload['prescription_upload_ids'] is List &&
-            (payload['prescription_upload_ids'] as List).isNotEmpty);
+        prescriptionUploadIds is List && prescriptionUploadIds.isNotEmpty;
 
     final hasLines = cartLines is List && cartLines.isNotEmpty;
     if (!hasLines && !hasPrescription) {
@@ -77,6 +81,9 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
         message: 'Nothing to checkout',
       );
     }
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final navigator = Navigator.maybeOf(context);
 
     _inFlight.add(request.formId);
     try {
@@ -97,17 +104,11 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
         );
       }
 
-      store.setValue('pharmacy.cart.lines', const <Object?>[]);
-      store.setValue('pharmacy.cart.totalQuantity', 0);
-      store.setValue('pharmacy.cart.hasRxItem', false);
-      store.removeValue('pharmacy.cart.prescriptionUploads');
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Order submitted')));
-        Navigator.of(context).pop();
-      }
+      _scheduleSuccessfulCheckoutCompletion(
+        store: store,
+        messenger: messenger,
+        navigator: navigator,
+      );
 
       return const SubmitFormResponse(ok: true);
     } catch (e) {
@@ -115,6 +116,29 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
     } finally {
       _inFlight.remove(request.formId);
     }
+  }
+
+  void _scheduleSuccessfulCheckoutCompletion({
+    required SchemaStateStore store,
+    required ScaffoldMessengerState? messenger,
+    required NavigatorState? navigator,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _clearPharmacyCheckoutState(store);
+      messenger?.showSnackBar(const SnackBar(content: Text('Order submitted')));
+      if (navigator != null && navigator.mounted && navigator.canPop()) {
+        navigator.pop();
+      }
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  void _clearPharmacyCheckoutState(SchemaStateStore store) {
+    store.setValue('pharmacy.cart.lines', const <Object?>[]);
+    store.setValue('pharmacy.cart.totalQuantity', 0);
+    store.setValue('pharmacy.cart.hasRxItem', false);
+    store.removeValue('pharmacy.cart.prescriptionUploads');
+    store.removeValue('pharmacy.checkout');
   }
 
   Uri? _buildUri(String baseUrl, String path) {
@@ -157,7 +181,43 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
     };
   }
 
-  Map<String, Object?> _buildPharmacyOrderPayload(SchemaStateStore store) {
+  @visibleForTesting
+  static Map<String, Object?> buildPharmacyServiceRequest(
+    SchemaStateStore store,
+  ) {
+    return <String, Object?>{
+      'service_id': 'pharmacy',
+      ..._buildCommonRequestFields(store),
+      'payload': _buildPharmacyOrderPayload(store),
+    };
+  }
+
+  static Map<String, Object?> _buildCommonRequestFields(
+    SchemaStateStore store,
+  ) {
+    final out = <String, Object?>{};
+
+    final deliveryLocation = _readDeliveryLocation(store);
+    if (deliveryLocation != null) {
+      out['delivery_location'] = deliveryLocation;
+    }
+
+    final notes = _readNotes(store);
+    if (notes != null) {
+      out['notes'] = notes;
+    }
+
+    final payment = _readPayment(store);
+    if (payment != null) {
+      out['payment'] = payment;
+    }
+
+    return out;
+  }
+
+  static Map<String, Object?> _buildPharmacyOrderPayload(
+    SchemaStateStore store,
+  ) {
     final cartLines = <Map<String, Object?>>[];
 
     final rawLines = store.getValue('pharmacy.cart.lines');
@@ -178,6 +238,18 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
 
     final payload = <String, Object?>{'cart_lines': cartLines};
 
+    final summaryLines = _coerceListOfStringKeyedMaps(
+      store.getValue('pharmacy.cart.summary.lines'),
+    );
+    if (summaryLines.isNotEmpty) {
+      payload['summary_lines'] = summaryLines;
+    }
+
+    final summaryTotalRaw = store.getValue('pharmacy.cart.summary.total');
+    if (summaryTotalRaw is Map) {
+      payload['summary_total'] = _coerceStringKeyedMap(summaryTotalRaw);
+    }
+
     final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
     if (uploadsRaw is List && uploadsRaw.isNotEmpty) {
       final ids = <String>[];
@@ -195,6 +267,44 @@ final class CustomerSubmitFormHandler extends SubmitFormHandler {
 
     return payload;
   }
+}
+
+Map<String, Object?>? _readDeliveryLocation(SchemaStateStore store) {
+  final raw = store.getValue('pharmacy.cart.deliveryAddress');
+  if (raw is! Map) return null;
+
+  final location = _coerceStringKeyedMap(raw);
+  final text = location['text']?.toString().trim() ?? '';
+  if (text.isEmpty) return null;
+
+  return location;
+}
+
+String? _readNotes(SchemaStateStore store) {
+  final raw = store.getValue('pharmacy.checkout.notes');
+  if (raw is! String) return null;
+  final trimmed = raw.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+Map<String, Object?>? _readPayment(SchemaStateStore store) {
+  final methodRaw = store.getValue('pharmacy.checkout.payment.method');
+  final timingRaw = store.getValue('pharmacy.checkout.payment.timing');
+
+  final method = (methodRaw is String) ? methodRaw.trim() : '';
+  final timing = (timingRaw is String) ? timingRaw.trim() : '';
+  if (method.isEmpty || timing.isEmpty) return null;
+
+  return <String, Object?>{'method': method, 'timing': timing};
+}
+
+Map<String, Object?> _coerceStringKeyedMap(Map raw) {
+  final out = <String, Object?>{};
+  for (final entry in raw.entries) {
+    if (entry.key is! String) continue;
+    out[entry.key as String] = entry.value;
+  }
+  return out;
 }
 
 List<Map<String, Object?>> _coerceListOfStringKeyedMaps(Object? raw) {

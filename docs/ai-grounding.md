@@ -62,7 +62,15 @@ Primary reuse point:
 Responsibilities (high level):
 - Owns the schema-driven client runtime (bootstrap + config snapshot + schema/theme loading).
 - Provides HTTP caching (ETag/304) and “pinning ladder” behavior (immutable docId pin).
+- Owns the screen/theme load ladders, compatibility checks, diagnostics emission, and runtime inspector.
+- Hosts the shared runtime action set and delegates product-specific actions/components to app-owned extension layers.
 - Emits diagnostics events (PII-safe) and provides a debug Runtime Inspector screen in debug builds.
+
+Key supporting shared packages:
+- `packages/flutter_runtime/` — state store, expression engine, visibility evaluation, action dispatch primitives, form/query helpers.
+- `packages/flutter_schema_renderer/` — schema-to-widget renderer and widget registry.
+- `packages/flutter_components/` — shared schema-renderable components and their Flutter implementations.
+- `packages/schema_runtime_dart/` — framework-agnostic schema core for parsing/normalization parity.
 
 ### Thin app wrappers
 
@@ -72,15 +80,50 @@ Each app under `apps/*` should be thin:
 - Provide bundled fallback screen + bundled fragments.
 - Provide a theme resolver (local fallback) and a widget registry.
 - Provide a schema compatibility policy.
+- Provide app-owned extension packs for product-specific widgets, actions, schemas, and contracts.
 
 See:
 - `apps/customer-app/lib/src/app/customer_app.dart`
 - `apps/provider-app/lib/src/app/provider_app.dart`
 
+### Runtime extension boundary (current design)
+
+The runtime is now explicitly two-tier:
+
+1. Runtime-owned core in `packages/*`
+  - Shared actions such as `navigate`, `open_url`, `submit_form`, `track_event`, `set_state`, and `patch_state`
+  - Shared schema components and renderer behavior
+  - Shared safety/diagnostics/caching logic
+2. App-owned extension layer in `apps/*`
+  - Product/service-specific components under `apps/*/lib/src/services/**`
+  - Product-specific schema component registries under `apps/*/lib/src/ui/*_component_registry.dart`
+  - Product-specific action dispatchers under `apps/*/lib/src/actions/**`
+  - Product-scoped component/action contracts under `apps/*/contracts/{components,actions}/`
+
+Current customer-app implementation:
+- Component registration is layered: register shared core first, then register app-owned components so app overrides are explicit.
+- Action dispatch is layered: app-owned actions are handled by a type-map dispatcher that falls back to the shared runtime dispatcher.
+- Product-specific pharmacy behaviors live in `apps/customer-app/`, not in `packages/*`.
+
+### Backend validation model (current design)
+
+`services/schema-service/` is the canonical validator and delivery layer for schemas.
+
+Current validation model:
+- Shared component contracts come from `packages/component-contracts/`.
+- Core runtime action contracts are built into the schema-service.
+- App-scoped component/action contracts are loaded from `apps/<product>/contracts/components/` and `apps/<product>/contracts/actions/`.
+- The schema-service merges shared + app contracts based on `product` when validating and serving contracts.
+
+This means app-level widgets and actions are first-class and backend-validatable; they are not “invisible” extensions.
+
 ## “Where do I change X?”
 
 - Add/modify schema-to-widget mapping: start with `packages/flutter_schema_renderer/` and the app registry builders under `apps/*/lib/src/ui/*_component_registry.dart`.
 - Change runtime loading behavior (bootstrap/config/schema/theme ladders, caching, pins): `packages/flutter_daryeel_client_app/`.
+- Add/modify app-specific widgets: `apps/*/lib/src/services/**` plus app registry wiring in `apps/*/lib/src/ui/*_component_registry.dart`.
+- Add/modify app-specific actions: `apps/*/lib/src/actions/**` plus action contracts in `apps/*/contracts/actions/`.
+- Add/modify app-specific contract validation: `apps/*/contracts/{components,actions}/` and `services/schema-service/app/contract_catalog.py`.
 - Update schema format: `packages/schema-contracts/` (examples/schemas) + `docs/schema_format_v1.md`.
 - Update server-side schema service: `services/schema-service/`.
 
@@ -129,7 +172,9 @@ When a request comes in, follow this order:
 Decision hints:
 - UI rendering bugs or schema widget behavior: `packages/flutter_schema_renderer/` and the app registry in `apps/*/lib/src/ui/*_component_registry.dart`.
 - Runtime behavior (bootstrap/config/schema/theme ladders, caching, pinning, diagnostics, runtime inspector): `packages/flutter_daryeel_client_app/`.
+- Shared expression/visibility/state/action primitives: `packages/flutter_runtime/`.
 - App-specific branding/config/fallback bundles/fragments/themes/compat policy: `apps/customer-app/lib/src/` or `apps/provider-app/lib/src/`.
+- App-specific schemas and service flows: `apps/*/schemas/**` and `apps/*/lib/src/services/**`.
 - Schema format/contracts: `packages/schema-contracts/` plus the schema docs listed above.
 - Backend schema service behavior: `services/schema-service/`.
 

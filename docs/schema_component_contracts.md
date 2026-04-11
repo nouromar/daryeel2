@@ -82,6 +82,13 @@ In this repo snapshot, component contracts are defined as JSON documents under:
 and registered via:
 - `packages/component-contracts/catalog.json`
 
+Current extension model (Apr 2026):
+- shared/runtime-owned component contracts still live under `packages/component-contracts/`
+- app-owned component contracts now live under `apps/<product>/contracts/components/`
+- the schema-service merges shared + app component contracts by `product` during validation and contract serving
+
+This lets app-specific widgets stay outside `packages/*` while still participating in the same backend validation model.
+
 Each contract defines:
 - `name` (component type string used in schemas)
 - `category`
@@ -136,6 +143,10 @@ Concrete example (from `Text`):
 Registration rules:
 - When adding a new contract file, add its path to `packages/component-contracts/catalog.json`.
 - The schema-service loads the catalog + contracts at runtime and uses them for strict validation before serving schemas.
+
+App-level registration rules:
+- When adding an app-specific component contract, add it to `apps/<product>/contracts/components/catalog.json`.
+- Keep app contracts product-scoped; do not add service-specific product widgets to the shared package catalog unless they are truly cross-product runtime capabilities.
 
 ## 5. Prop Design Guidelines
 

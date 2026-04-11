@@ -50,7 +50,6 @@ void main() {
 
     expect(registry.resolve('CatalogItemTile'), isNotNull);
     expect(registry.resolve('PharmacyCartItems'), isNotNull);
-    expect(registry.resolve('PharmacyCheckout'), isNotNull);
     expect(registry.resolve('PharmacyPrescriptionUpload'), isNotNull);
   });
 

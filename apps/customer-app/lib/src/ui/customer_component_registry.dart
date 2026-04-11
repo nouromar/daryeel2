@@ -5,7 +5,6 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import '../actions/customer_action_dispatcher.dart';
 import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_cart_items_schema_component.dart';
-import '../services/pharmacy/ui/pharmacy_checkout_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_prescription_upload_schema_component.dart';
 
 typedef CustomerSchemaComponentRegistrar =
@@ -19,7 +18,6 @@ _customerSchemaComponentRegistrarsByType =
     <String, CustomerSchemaComponentRegistrar>{
       'CatalogItemTile': registerCustomerCatalogItemTileSchemaComponent,
       'PharmacyCartItems': registerPharmacyCartItemsSchemaComponent,
-      'PharmacyCheckout': registerPharmacyCheckoutSchemaComponent,
       'PharmacyPrescriptionUpload':
           registerPharmacyPrescriptionUploadSchemaComponent,
     };

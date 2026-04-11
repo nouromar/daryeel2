@@ -52,8 +52,11 @@ def test_create_pharmacy_order_requires_cart_or_prescription() -> None:
         "/v1/pharmacy/orders",
         headers=_auth_header_for_user_id(1),
         json={
-            "cart_lines": [],
-            "prescription_upload_id": None,
+            "service_id": "pharmacy",
+            "payload": {
+                "cart_lines": [],
+                "prescription_upload_ids": [],
+            },
         },
     )
 
@@ -68,10 +71,18 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         "/v1/pharmacy/orders",
         headers=_auth_header_for_user_id(1),
         json={
-            "cart_lines": [{"product_id": "prod_paracetamol_500mg", "quantity": 2}],
+            "service_id": "pharmacy",
             "delivery_location": {"text": "Hodan", "lat": 2.046934, "lng": 45.318162, "accuracy_m": 15},
             "payment": {"method": "cash", "timing": "after_delivery"},
             "notes": "Leave at door",
+            "payload": {
+                "cart_lines": [{"product_id": "prod_paracetamol_500mg", "quantity": 2}],
+                "summary_lines": [
+                    {"id": "subtotal", "label": "Subtotal", "amount": 2, "amountText": "$2.00"}
+                ],
+                "summary_total": {"label": "Total", "amount": 2, "amountText": "$2.00"},
+                "prescription_upload_ids": [],
+            },
         },
     )
 
@@ -94,9 +105,29 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         sr = db.scalar(select(ServiceRequest).where(ServiceRequest.id == int(order["id"])))
         assert sr is not None
         assert sr.service_id == "pharmacy"
+        assert sr.notes == "Leave at door"
+        assert sr.payment_json == {"method": "cash", "timing": "after_delivery"}
+        assert sr.delivery_location_json["text"] == "Hodan"
+        assert sr.payload_json["summary_total"]["label"] == "Total"
 
         ev = db.scalar(select(RequestEvent).where(RequestEvent.request_id == sr.id))
         assert ev is not None
         assert ev.type == "created"
         assert ev.actor_type == "customer"
         assert ev.actor_id == 1
+
+
+def test_pharmacy_checkout_options_returns_payment_methods_and_timings() -> None:
+    _init_sqlite_db()
+    client = TestClient(app)
+
+    res = client.get("/v1/pharmacy/checkout_options")
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert "payment_options" in payload
+    payment_options = payload["payment_options"]
+    assert payment_options["methods"][0]["id"] == "cash"
+    assert payment_options["methods"][1]["id"] == "mobile_money"
+    assert payment_options["timings"][0]["id"] == "after_delivery"
+    assert payment_options["timings"][1]["id"] == "before_delivery"

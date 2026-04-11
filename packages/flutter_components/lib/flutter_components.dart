@@ -23,6 +23,7 @@ export 'src/schema_components/for_each_schema_component.dart';
 export 'src/schema_components/gap_schema_component.dart';
 export 'src/schema_components/info_card_schema_component.dart';
 export 'src/schema_components/layout_schema_components.dart';
+export 'src/schema_components/payment_options_section_schema_component.dart';
 export 'src/schema_components/primary_action_bar_schema_component.dart';
 export 'src/schema_components/remote_query_schema_component.dart';
 export 'src/schema_components/remote_paged_list_schema_component.dart';

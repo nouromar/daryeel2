@@ -7,6 +7,13 @@
   "themeMode": "light",
   "root": {
     "type": "ScreenTemplate",
+    "props": {
+      "stateDefaults": {
+        "pharmacy.checkout.notes": "",
+        "pharmacy.checkout.payment.method": "cash",
+        "pharmacy.checkout.payment.timing": "after_delivery"
+      }
+    },
     "slots": {
       "body": [
         {
@@ -35,7 +42,147 @@
                 },
                 "bind": "$state.pharmacy.cart.deliveryAddress"
               },
-              { "type": "PharmacyCheckout" }
+              {
+                "type": "TextInput",
+                "props": {
+                  "label": "Notes",
+                  "hint": "Add delivery instructions or pharmacy notes",
+                  "testId": "pharmacy-checkout-notes"
+                },
+                "bind": "$state.pharmacy.checkout.notes"
+              },
+              {
+                "type": "CartSummary",
+                "visibleWhen": {
+                  "expr": "len(state.pharmacy.cart.lines) > 0"
+                },
+                "props": {
+                  "title": "Order summary",
+                  "linesPath": "$state.pharmacy.cart.summary.lines",
+                  "totalPath": "$state.pharmacy.cart.summary.total",
+                  "surface": "raised"
+                }
+              },
+              {
+                "type": "If",
+                "props": {
+                  "valuePath": "$state.pharmacy.cart.prescriptionUploads",
+                  "op": "isNotEmpty"
+                },
+                "slots": {
+                  "then": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "text": "Uploaded files",
+                        "variant": "title",
+                        "weight": "semibold"
+                      }
+                    },
+                    {
+                      "type": "ForEach",
+                      "props": {
+                        "itemsPath": "$state.pharmacy.cart.prescriptionUploads"
+                      },
+                      "slots": {
+                        "item": [
+                          {
+                            "type": "Padding",
+                            "props": { "bottom": 6 },
+                            "slots": {
+                              "child": [
+                                {
+                                  "type": "Row",
+                                  "props": {
+                                    "crossAxisAlignment": "center",
+                                    "spacing": 12
+                                  },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "type": "Expanded",
+                                        "slots": {
+                                          "child": [
+                                            {
+                                              "type": "Text",
+                                              "props": {
+                                                "text": "${item.filename}",
+                                                "variant": "body",
+                                                "maxLines": 1,
+                                                "overflow": "ellipsis"
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "type": "IconButton",
+                                        "props": {
+                                          "name": "delete",
+                                          "size": 18,
+                                          "color": "muted",
+                                          "semanticLabel": "Delete"
+                                        },
+                                        "actions": {
+                                          "tap": "remove_upload"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "RemoteQuery",
+                "props": {
+                  "key": "pharmacy.checkout.options",
+                  "path": "/v1/pharmacy/checkout_options"
+                },
+                "slots": {
+                  "loading": [
+                    {
+                      "type": "InfoCard",
+                      "props": {
+                        "title": "Payment",
+                        "subtitle": "Loading payment options...",
+                        "surface": "subtle"
+                      }
+                    }
+                  ],
+                  "error": [
+                    {
+                      "type": "InfoCard",
+                      "props": {
+                        "title": "Payment",
+                        "subtitle": "Could not load payment options.",
+                        "surface": "subtle"
+                      }
+                    }
+                  ],
+                  "child": [
+                    {
+                      "type": "PaymentOptionsSection",
+                      "props": {
+                        "title": "Payment",
+                        "methodTitle": "Payment method",
+                        "methodsPath": "payment_options.methods",
+                        "timingsPath": "payment_options.timings",
+                        "methodBind": "$state.pharmacy.checkout.payment.method",
+                        "timingBind": "$state.pharmacy.checkout.payment.timing",
+                        "showTiming": false,
+                        "surface": "raised"
+                      }
+                    }
+                  ]
+                }
+              }
             ]
           }
         }
@@ -50,6 +197,17 @@
     }
   },
   "actions": {
+    "remove_upload": {
+      "type": "patch_state",
+      "value": {
+        "ops": [
+          {
+            "op": "remove",
+            "path": "pharmacy.cart.prescriptionUploads.${index}"
+          }
+        ]
+      }
+    },
     "submit": { "type": "submit_form", "formId": "pharmacy_checkout" }
   }
 }

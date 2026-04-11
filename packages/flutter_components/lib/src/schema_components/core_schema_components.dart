@@ -14,6 +14,7 @@ import 'icon_button_schema_component.dart';
 import 'icon_schema_component.dart';
 import 'info_card_schema_component.dart';
 import 'layout_schema_components.dart';
+import 'payment_options_section_schema_component.dart';
 import 'primary_action_bar_schema_component.dart';
 import 'remote_paged_list_schema_component.dart';
 import 'remote_query_schema_component.dart';
@@ -45,6 +46,10 @@ void registerCoreSchemaComponents({
   registerIconSchemaComponent(registry: registry, context: context);
   registerIconButtonSchemaComponent(registry: registry, context: context);
   registerAddressSectionSchemaComponent(registry: registry, context: context);
+  registerPaymentOptionsSectionSchemaComponent(
+    registry: registry,
+    context: context,
+  );
 
   // Data-driven components.
   registerRemoteQuerySchemaComponent(registry: registry, context: context);

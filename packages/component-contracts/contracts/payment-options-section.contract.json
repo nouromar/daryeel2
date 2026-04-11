@@ -1,0 +1,32 @@
+{
+  "name": "PaymentOptionsSection",
+  "category": "form",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "methodTitle": "string",
+    "timingTitle": "string",
+    "methodsPath": "string",
+    "timingsPath": "string",
+    "methodBind": "string",
+    "timingBind": "string",
+    "showTiming": "boolean",
+    "surface": "enum"
+  },
+  "defaults": {
+    "title": "Payment",
+    "methodTitle": "Payment method",
+    "timingTitle": "Payment timing",
+    "methodsPath": "payment_options.methods",
+    "timingsPath": "payment_options.timings",
+    "showTiming": true,
+    "surface": "raised"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"]
+  },
+  "slots": [],
+  "events": ["payment_method_changed", "payment_timing_changed"],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

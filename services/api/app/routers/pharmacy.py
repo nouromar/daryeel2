@@ -4,7 +4,7 @@ import os
 import shutil
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from fastapi import Body
@@ -108,6 +108,35 @@ def _build_extra_catalog_items(count: int = 120) -> list[dict[str, Any]]:
 # Expand the fixture set to support multi-page scrolling.
 _PHARMACY_CATALOG.extend(_build_extra_catalog_items(count=120))
 
+_PHARMACY_CHECKOUT_OPTIONS = {
+    "payment_options": {
+        "methods": [
+            {
+                "id": "cash",
+                "label": "Cash",
+                "description": "Pay with cash when the order arrives.",
+            },
+            {
+                "id": "mobile_money",
+                "label": "Mobile money",
+                "description": "Pay using EVC or Zaad.",
+            },
+        ],
+        "timings": [
+            {
+                "id": "after_delivery",
+                "label": "After delivery",
+                "description": "Pay after you receive the order.",
+            },
+            {
+                "id": "before_delivery",
+                "label": "Before delivery",
+                "description": "Pay before the order is dispatched.",
+            },
+        ],
+    }
+}
+
 
 @router.get("/catalog")
 def pharmacy_catalog(
@@ -145,10 +174,15 @@ def pharmacy_catalog(
     }
 
 
+@router.get("/checkout_options")
+def pharmacy_checkout_options() -> dict[str, Any]:
+    return _PHARMACY_CHECKOUT_OPTIONS
+
+
 class Location(BaseModel):
     text: str = Field(min_length=1, max_length=200)
-    lat: float
-    lng: float
+    lat: float | None = None
+    lng: float | None = None
     accuracy_m: float | None = None
     place_id: str | None = None
     region_id: str | None = None
@@ -164,13 +198,36 @@ class CartLine(BaseModel):
     quantity: int = Field(ge=1, le=999)
 
 
-class CreatePharmacyOrderRequest(BaseModel):
+class SummaryLine(BaseModel):
+    id: str | None = Field(default=None, max_length=128)
+    label: str = Field(min_length=1, max_length=128)
+    amount: float | int = 0
+    amountText: str | None = Field(default=None, max_length=128)
+    kind: str | None = Field(default=None, max_length=64)
+    emphasis: str | None = Field(default=None, max_length=64)
+
+
+class SummaryTotal(BaseModel):
+    label: str = Field(min_length=1, max_length=128)
+    amount: float | int = 0
+    amountText: str | None = Field(default=None, max_length=128)
+    kind: str | None = Field(default=None, max_length=64)
+    emphasis: str | None = Field(default=None, max_length=64)
+
+
+class PharmacyOrderPayload(BaseModel):
     cart_lines: list[CartLine] = Field(default_factory=list)
+    summary_lines: list[SummaryLine] = Field(default_factory=list)
+    summary_total: SummaryTotal | None = None
+    prescription_upload_ids: list[str] = Field(default_factory=list)
+
+
+class CreatePharmacyOrderRequest(BaseModel):
+    service_id: Literal["pharmacy"] = "pharmacy"
     delivery_location: Location | None = None
     payment: PaymentChoice | None = None
     notes: str | None = Field(default=None, max_length=500)
-    prescription_upload_id: str | None = Field(default=None, max_length=128)
-    prescription_upload_ids: list[str] = Field(default_factory=list)
+    payload: PharmacyOrderPayload = Field(default_factory=PharmacyOrderPayload)
 
 
 @router.post("/orders")
@@ -186,12 +243,7 @@ def create_pharmacy_order(
         raise HTTPException(status_code=401, detail="Unknown user")
 
     ids: list[str] = []
-    if payload.prescription_upload_id is not None:
-        p = payload.prescription_upload_id.strip()
-        if p:
-            ids.append(p)
-
-    for raw_id in payload.prescription_upload_ids:
+    for raw_id in payload.payload.prescription_upload_ids:
         if not isinstance(raw_id, str):
             continue
         p = raw_id.strip()
@@ -205,22 +257,27 @@ def create_pharmacy_order(
     if len(ids) > 10:
         ids = ids[:10]
 
-    if not payload.cart_lines and not ids:
+    if not payload.payload.cart_lines and not ids:
         raise HTTPException(
             status_code=400,
-            detail="Order must include cart_lines or prescription_upload_id",
+            detail="Order must include cart_lines or prescription_upload_ids",
         )
 
     order = ServiceRequest(
-        service_id="pharmacy",
+        service_id=payload.service_id,
         customer_user_id=user.id,
         status="created",
         notes=payload.notes,
         delivery_location_json=(payload.delivery_location.model_dump() if payload.delivery_location else None),
         payment_json=(payload.payment.model_dump() if payload.payment else None),
         payload_json={
-            "cart_lines": [x.model_dump() for x in payload.cart_lines],
-            "prescription_upload_id": (ids[0] if ids else None),
+            "cart_lines": [x.model_dump() for x in payload.payload.cart_lines],
+            "summary_lines": [x.model_dump() for x in payload.payload.summary_lines],
+            "summary_total": (
+                payload.payload.summary_total.model_dump()
+                if payload.payload.summary_total
+                else None
+            ),
             "prescription_upload_ids": ids,
         },
     )

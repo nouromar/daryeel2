@@ -27,6 +27,11 @@ Cross-platform design note:
 - the schema pipeline should be implemented as a language-level core (Dart core for Flutter apps; TypeScript core for Web admin)
 - rendering/actions/bindings are platform adapters built on top of the same normalized tree semantics
 
+Current implementation note (Apr 2026):
+- Daryeel2 uses a shared runtime core plus app-owned extension layers.
+- Shared runtime behavior lives in `packages/*`.
+- Product-specific widgets/actions/contracts live in `apps/*` and are validated/loaded product-by-product.
+
 ## 3. Schema Pipeline
 
 ### 3.1 Schema Fetch and Cache Engine
@@ -65,6 +70,11 @@ v1 note (current implementation):
 Why it matters:
 - this is the main safety barrier between remote schema input and the renderer
 
+Current implementation note:
+- Server-side validation in `services/schema-service/` now validates both shared runtime contracts and app-scoped extension contracts.
+- Component contracts are merged from shared `packages/component-contracts/` plus app-specific `apps/<product>/contracts/components/`.
+- Action contracts are merged from runtime core actions plus app-specific `apps/<product>/contracts/actions/`.
+
 ### 3.4 Reference Resolution Engine
 Responsibilities:
 - resolve `ref` nodes to approved fragments
@@ -95,6 +105,11 @@ Responsibilities:
 
 Why it matters:
 - the registry is the bridge between schema language and real UI
+
+Current implementation note:
+- Flutter apps build registries in two layers: shared core registration first, then app-owned registration.
+- App-owned registries may add new product components or intentionally override shared component mappings.
+- In customer-app, this composition lives in `apps/customer-app/lib/src/ui/customer_component_registry.dart`.
 
 ### 4.2 Theme Engine
 Responsibilities:
@@ -135,16 +150,25 @@ Responsibilities:
 - reject unsupported action definitions
 - emit diagnostics for action failures
 
-Supported action types (implemented in the Flutter runtime as of Apr 2026):
+Supported shared action types (implemented in the Flutter runtime as of Apr 2026):
 - navigate
 - open url
 - submit form
 - track event
+- set state
+- patch state
 
-Planned (not currently implemented in this repo snapshot):
-- open modal
-- refresh data
-- select value
+Current extension model:
+- Shared runtime actions are owned by `packages/flutter_runtime/` and the shared client shell.
+- App-specific actions are owned by app-layer dispatchers and registered by type.
+- In customer-app, product actions are handled by `CustomerActionDispatcher`, which uses a type-map dispatcher and falls back to the shared runtime dispatcher.
+
+Examples of app-owned actions in customer-app:
+- `pharmacy_cart_upsert`
+- `pharmacy_cart_increment`
+- `pharmacy_cart_decrement`
+- `pharmacy_cart_clear`
+- `pharmacy_cart_refresh_summary`
 
 ### 5.2 Navigation Engine
 Responsibilities:
@@ -181,6 +205,10 @@ Responsibilities:
 
 Why it matters:
 - schema-driven screens still need reliable local interaction state
+
+Current implementation note:
+- Shared runtime state is stored in the schema state store and may persist selected paths across app sessions.
+- Customer-app currently persists `pharmacy.cart` through runtime state persistence configured in the app shell.
 
 ## 6. Safety Pipeline
 
@@ -243,6 +271,27 @@ The runtime also needs adapters for platform-bound capabilities:
 - device theme mode
 
 These are not schema engines themselves, but the runtime depends on them.
+
+## 8.1 App extension layer
+
+In addition to platform adapters, each app provides a product extension layer.
+
+Responsibilities:
+- register product-specific components
+- register product-specific actions
+- hold product/service schemas, fallback documents, and contracts
+- keep product logic out of `packages/*` unless a true framework capability is missing
+
+Design rule:
+- treat `packages/*` as the stable runtime core
+- treat `apps/*` as extension packs and product shells
+
+Current file layout pattern:
+- components/widgets: `apps/*/lib/src/services/<service>/ui/**`
+- app registry: `apps/*/lib/src/ui/*_component_registry.dart`
+- app actions: `apps/*/lib/src/actions/**`
+- schemas: `apps/*/schemas/**`
+- app contracts: `apps/*/contracts/{components,actions}/**`
 
 ## 9. Multi-Platform Runtime Parity
 
