@@ -65,12 +65,10 @@
                     {
                       "type": "CartItem",
                       "props": {
-                        "title": "${item.title}",
+                        "title": "${item.name}",
                         "subtitle": "${item.subtitle}",
                         "quantity": "${item.quantity}",
-                        "unitPriceText": "${item.unitPriceText}",
-                        "lineTotalText": "${item.lineTotalText}",
-                        "badgeLabel": "${item.badgeLabel}",
+                        "unitPriceText": "$${item.price}",
                         "surface": "raised"
                       },
                       "actions": {

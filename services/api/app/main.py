@@ -22,11 +22,13 @@ from app.auth import create_access_token, verify_bearer_token
 from app.db import get_db
 from app.models import User
 from app.routers.pharmacy import router as pharmacy_router
+from app.routers.requests import router as requests_router
 from app.settings import load_settings
 
 app = FastAPI(title="Daryeel2 API", version="0.1.0")
 
 app.include_router(pharmacy_router)
+app.include_router(requests_router)
 
 _settings = load_settings()
 

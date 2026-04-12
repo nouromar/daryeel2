@@ -1,0 +1,313 @@
+{
+  "schemaVersion": "1.0",
+  "id": "customer_request_detail",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "slots": {
+      "body": [
+        {
+          "type": "RemoteQuery",
+          "props": {
+            "key": "customer.request_detail",
+            "path": "/v1/requests/detail",
+            "params": {
+              "requestId": "$route.requestId"
+            }
+          },
+          "slots": {
+            "loading": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Request",
+                  "subtitle": "Loading details...",
+                  "surface": "subtle"
+                }
+              }
+            ],
+            "error": [
+              {
+                "type": "InfoCard",
+                "props": {
+                  "title": "Request",
+                  "subtitle": "Could not load request details.",
+                  "surface": "subtle"
+                }
+              }
+            ],
+            "child": [
+              {
+                "type": "Column",
+                "props": {
+                  "spacing": 8,
+                  "crossAxisAlignment": "stretch",
+                  "mainAxisSize": "min"
+                },
+                "slots": {
+                  "children": [
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.detailSubtitle != null and data.request.detailSubtitle != ''"
+                      },
+                      "props": {
+                        "title": "${data.request.title}",
+                        "subtitle": "${data.request.detailSubtitle}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.detailSubtitle == null or data.request.detailSubtitle == ''"
+                      },
+                      "props": {
+                        "title": "${data.request.title}",
+                        "subtitle": "${data.request.subtitle}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.isAttentionRequired == true"
+                      },
+                      "props": {
+                        "title": "${data.request.attentionTitle}",
+                        "subtitle": "${data.request.attentionSubtitle}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.isUpdateAvailable == true"
+                      },
+                      "props": {
+                        "title": "${data.request.attentionTitle}",
+                        "subtitle": "${data.request.attentionSubtitle}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "If",
+                      "props": {
+                        "valuePath": "pendingActions",
+                        "op": "isNotEmpty"
+                      },
+                      "slots": {
+                        "then": [
+                          {
+                            "type": "Text",
+                            "props": {
+                              "text": "Pending actions",
+                              "variant": "title",
+                              "weight": "semibold"
+                            }
+                          },
+                          {
+                            "type": "ForEach",
+                            "props": {
+                              "itemsPath": "pendingActions"
+                            },
+                            "slots": {
+                              "item": [
+                                {
+                                  "type": "ActionCard",
+                                  "props": {
+                                    "title": "${item.title}",
+                                    "subtitle": "${item.subtitle}",
+                                    "surface": "flat"
+                                  }
+                                },
+                                {
+                                  "type": "Row",
+                                  "visibleWhen": {
+                                    "expr": "item.type == 'confirm_price' or item.type == 'confirm_substitution'"
+                                  },
+                                  "props": {
+                                    "spacing": 12,
+                                    "crossAxisAlignment": "center"
+                                  },
+                                  "slots": {
+                                    "children": [
+                                      {
+                                        "type": "TextButton",
+                                        "props": {
+                                          "label": "Approve"
+                                        },
+                                        "actions": {
+                                          "tap": "approve_pending_action"
+                                        }
+                                      },
+                                      {
+                                        "type": "TextButton",
+                                        "props": {
+                                          "label": "Reject"
+                                        },
+                                        "actions": {
+                                          "tap": "reject_pending_action"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "type": "TextButton",
+                                  "visibleWhen": {
+                                    "expr": "item.type == 'upload_document'"
+                                  },
+                                  "props": {
+                                    "label": "Upload now"
+                                  },
+                                  "actions": {
+                                    "tap": "open_upload_pending_action"
+                                  }
+                                },
+                                {
+                                  "type": "Gap",
+                                  "props": { "height": 8 }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.deliveryLocation.text != null and data.request.deliveryLocation.text != ''"
+                      },
+                      "props": {
+                        "title": "Delivery",
+                        "subtitle": "${data.request.deliveryLocation.text}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.notes != null and data.request.notes != ''"
+                      },
+                      "props": {
+                        "title": "Notes",
+                        "subtitle": "${data.request.notes}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "If",
+                      "props": {
+                        "valuePath": "serviceDetails.isPharmacy",
+                        "op": "isTrue"
+                      },
+                      "slots": {
+                        "then": [
+                          {
+                            "ref": "fragment:request_detail_pharmacy_v1"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "InfoCard",
+                      "visibleWhen": {
+                        "expr": "data.request.paymentSummaryText != null and data.request.paymentSummaryText != ''"
+                      },
+                      "props": {
+                        "title": "Payment",
+                        "subtitle": "${data.request.paymentSummaryText}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "Column",
+                      "visibleWhen": {
+                        "valuePath": "timeline",
+                        "op": "isNotEmpty"
+                      },
+                      "props": {
+                        "spacing": 8,
+                        "crossAxisAlignment": "stretch",
+                        "mainAxisSize": "min"
+                      },
+                      "slots": {
+                        "children": [
+                          {
+                            "type": "Text",
+                            "props": {
+                              "text": "Timeline",
+                              "variant": "title",
+                              "weight": "semibold"
+                            }
+                          },
+                          {
+                            "type": "ForEach",
+                            "props": {
+                              "itemsPath": "timeline"
+                            },
+                            "slots": {
+                              "item": [
+                                {
+                                  "type": "ActionCard",
+                                  "props": {
+                                    "title": "${item.title}",
+                                    "subtitle": "${item.subtitle}",
+                                    "surface": "flat"
+                                  }
+                                },
+                                {
+                                  "type": "Gap",
+                                  "props": { "height": 8 }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "actions": {
+    "approve_pending_action": {
+      "type": "customer_request_action",
+      "value": {
+        "mode": "submit",
+        "requestId": "${data.request.id}",
+        "actionId": "${item.id}",
+        "decision": "approve"
+      }
+    },
+    "reject_pending_action": {
+      "type": "customer_request_action",
+      "value": {
+        "mode": "submit",
+        "requestId": "${data.request.id}",
+        "actionId": "${item.id}",
+        "decision": "reject"
+      }
+    },
+    "open_upload_pending_action": {
+      "type": "customer_request_action",
+      "value": {
+        "mode": "navigate_upload",
+        "requestId": "${data.request.id}",
+        "actionId": "${item.id}",
+        "screenId": "pharmacy_prescription_upload",
+        "title": "Upload prescription"
+      }
+    }
+  }
+}

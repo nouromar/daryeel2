@@ -72,6 +72,7 @@ class _RemoteQueryWidgetState extends State<_RemoteQueryWidget> {
   ValueListenable<SchemaQuerySnapshot>? _listenable;
   String? _lastSignature;
   Timer? _debounceTimer;
+  VoidCallback? _queryListener;
 
   @override
   void didChangeDependencies() {
@@ -80,12 +81,31 @@ class _RemoteQueryWidgetState extends State<_RemoteQueryWidget> {
     final store = SchemaQueryScope.maybeOf(context);
     if (store == null) return;
 
-    _listenable ??= store.watchQuery(widget.queryKey);
+    final nextListenable = store.watchQuery(widget.queryKey);
+    if (!identical(_listenable, nextListenable)) {
+      if (_listenable != null && _queryListener != null) {
+        _listenable!.removeListener(_queryListener!);
+      }
+
+      _listenable = nextListenable;
+      _queryListener = () {
+        final snapshot = _listenable?.value;
+        if (snapshot != null && snapshot.hasError) {
+          // Allow the same query signature to be re-executed after a failure
+          // when an external rebuild happens, such as returning to a tab.
+          _lastSignature = null;
+        }
+      };
+      _listenable!.addListener(_queryListener!);
+    }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    if (_listenable != null && _queryListener != null) {
+      _listenable!.removeListener(_queryListener!);
+    }
     super.dispose();
   }
 

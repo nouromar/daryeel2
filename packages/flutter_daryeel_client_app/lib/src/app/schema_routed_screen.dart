@@ -5,6 +5,7 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../runtime/daryeel_runtime_session.dart';
 import '../runtime/daryeel_runtime_view_model.dart';
+import '../runtime/runtime_request_headers.dart';
 import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
 import 'schema_node_wrapper.dart';
@@ -239,11 +240,14 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
                 'id': session.diagnosticsReporter.screenLoadId,
               },
             },
-            defaultHeadersProvider: () =>
-                session.diagnosticsReporter.buildCorrelationHeaders(
-              schemaVersion:
-                  '${loaded.bundle.schemaId}@${loaded.bundle.schemaVersion}',
-              configSnapshotId: loaded.configSnapshotId,
+            defaultHeadersProvider: () => mergeRuntimeRequestHeaders(
+              correlationHeaders:
+                  session.diagnosticsReporter.buildCorrelationHeaders(
+                schemaVersion:
+                    '${loaded.bundle.schemaId}@${loaded.bundle.schemaVersion}',
+                configSnapshotId: loaded.configSnapshotId,
+              ),
+              requestHeadersProvider: session.requestHeadersProvider,
             ),
           );
 

@@ -14,7 +14,7 @@ Current scope (framework phase):
 	- `GET /themes/catalog`
 	- `GET /themes/{theme_id}/{theme_mode}`
 
-Config and theme delivery were merged into this service to reduce moving pieces early on.
+Config and theme delivery were merged into this service to reduce moving pieces early on. In Docker, this service is also the config-service endpoint exposed on port `8011`.
 
 ## Local development (pyenv)
 
@@ -56,13 +56,14 @@ Run via Daryeel2 compose (from the repo root):
 cd Daryeel2
 docker compose up --build
 curl http://localhost:8011/health
+curl "http://localhost:8011/config/bootstrap?product=customer_app"
 ```
 
-Enable Redis-backed caching (optional):
+The compose file already wires Redis for this service. To override the advertised public runtime/config URL:
 
 ```bash
 cd Daryeel2
-SCHEMA_SERVICE_REDIS_URL=redis://redis:6379/0 docker compose --profile redis up --build
+SCHEMA_SERVICE_PUBLIC_BASE_URL=https://runtime.example.com docker compose up --build
 ```
 
 Note: Redis-backed caching requires the `redis` Python package (included in

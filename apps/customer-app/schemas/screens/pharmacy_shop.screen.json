@@ -119,10 +119,11 @@
       "type": "pharmacy_cart_upsert",
       "value": {
         "id": "${item.id}",
-        "title": "${item.name}",
+        "name": "${item.name}",
         "subtitle": "${item.subtitle}",
-        "rxRequired": "${item.rx_required}",
-        "unitPrice": "${item.price}"
+        "rx_required": "${item.rx_required}",
+        "price": "${item.price}",
+        "icon": "${item.icon}"
       }
     },
     "go_prescription_upload": {

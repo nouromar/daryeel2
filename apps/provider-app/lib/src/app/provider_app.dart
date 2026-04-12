@@ -37,6 +37,7 @@ class _ProviderAppState extends State<ProviderApp> {
           product: 'provider_app',
           fallbackBundle: fallbackProviderHomeBundle,
           fallbackFragmentDocuments: fallbackFragmentDocuments,
+          enableSchemaPinning: true,
           resolveLocalTheme: resolveProviderTheme,
           resolveThemeMode: resolveThemeMode,
           defaultThemeId: 'provider-default',

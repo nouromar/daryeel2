@@ -1,0 +1,17 @@
+{
+  "type": "customer_request_action",
+  "scope": "app",
+  "category": "requests",
+  "version": "1.0",
+  "valueKind": "object",
+  "valueSchema": {
+    "mode": "string",
+    "requestId": "string",
+    "actionId": "string",
+    "decision": "string",
+    "screenId": "string",
+    "title": "string"
+  },
+  "required": ["mode", "requestId", "actionId"],
+  "allowNullValue": false
+}

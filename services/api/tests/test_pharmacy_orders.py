@@ -76,7 +76,16 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
             "payment": {"method": "cash", "timing": "after_delivery"},
             "notes": "Leave at door",
             "payload": {
-                "cart_lines": [{"product_id": "prod_paracetamol_500mg", "quantity": 2}],
+                "cart_lines": [
+                    {
+                        "id": "prod_paracetamol_500mg",
+                        "name": "Paracetamol 500mg",
+                        "price": 1.0,
+                        "subtitle": "$1.00",
+                        "rx_required": False,
+                        "quantity": 2,
+                    }
+                ],
                 "summary_lines": [
                     {"id": "subtotal", "label": "Subtotal", "amount": 2, "amountText": "$2.00"}
                 ],
@@ -109,6 +118,10 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         assert sr.payment_json == {"method": "cash", "timing": "after_delivery"}
         assert sr.delivery_location_json["text"] == "Hodan"
         assert sr.payload_json["summary_total"]["label"] == "Total"
+        assert sr.payload_json["cart_lines"][0]["id"] == "prod_paracetamol_500mg"
+        assert sr.payload_json["cart_lines"][0]["quantity"] == 2
+        assert sr.payload_json["cart_lines"][0]["price"] == 1.0
+        assert sr.payload_json["cart_lines"][0]["subtitle"] == "$1.00"
 
         ev = db.scalar(select(RequestEvent).where(RequestEvent.request_id == sr.id))
         assert ev is not None

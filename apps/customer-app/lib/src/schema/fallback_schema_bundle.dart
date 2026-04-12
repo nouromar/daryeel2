@@ -77,14 +77,7 @@ const fallbackCustomerHomeBundle = SchemaBundle(
             'type': 'ScreenTemplate',
             'slots': {
               'body': [
-                {
-                  'type': 'InfoCard',
-                  'props': {
-                    'title': 'Activities',
-                    'subtitle': 'Coming soon',
-                    'surface': 'subtle',
-                  },
-                },
+                {'ref': 'fragment:customer_requests_v1'},
               ],
             },
           },

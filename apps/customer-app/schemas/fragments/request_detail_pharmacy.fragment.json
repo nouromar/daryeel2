@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "1.0",
+  "id": "fragment:request_detail_pharmacy_v1",
+  "documentType": "fragment",
+  "node": {
+    "type": "Column",
+    "props": {
+      "spacing": 8,
+      "crossAxisAlignment": "stretch",
+      "mainAxisSize": "min"
+    },
+    "slots": {
+      "children": [
+        {
+          "type": "If",
+          "props": {
+            "valuePath": "serviceDetails.summary.items",
+            "op": "isNotEmpty"
+          },
+          "slots": {
+            "then": [
+              {
+                "type": "Text",
+                "props": {
+                  "text": "Items",
+                  "variant": "title",
+                  "weight": "semibold"
+                }
+              },
+              {
+                "type": "ForEach",
+                "props": {
+                  "itemsPath": "serviceDetails.summary.items"
+                },
+                "slots": {
+                  "item": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "text": "${item.title} ${item.subtitle}"
+                      }
+                    },
+                    {
+                      "type": "Gap",
+                      "props": { "height": 4 }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "InfoCard",
+          "visibleWhen": {
+            "expr": "data.serviceDetails.summary.summaryText != null and data.serviceDetails.summary.summaryText != ''"
+          },
+          "props": {
+            "title": "Summary",
+            "subtitle": "${data.serviceDetails.summary.summaryText}",
+            "surface": "flat"
+          }
+        },
+        {
+          "type": "If",
+          "props": {
+            "valuePath": "serviceDetails.prescriptionUploads",
+            "op": "isNotEmpty"
+          },
+          "slots": {
+            "then": [
+              {
+                "type": "Text",
+                "props": {
+                  "text": "Prescription",
+                  "variant": "title",
+                  "weight": "semibold"
+                }
+              },
+              {
+                "type": "ForEach",
+                "props": {
+                  "itemsPath": "serviceDetails.prescriptionUploads"
+                },
+                "slots": {
+                  "item": [
+                    {
+                      "type": "ActionCard",
+                      "props": {
+                        "title": "${item.title}",
+                        "subtitle": "${item.subtitle}",
+                        "surface": "flat"
+                      }
+                    },
+                    {
+                      "type": "Gap",
+                      "props": { "height": 8 }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

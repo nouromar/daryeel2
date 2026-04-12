@@ -66,6 +66,7 @@ class _CustomerAppState extends State<CustomerApp> {
           product: 'customer_app',
           fallbackBundle: fallbackCustomerHomeBundle,
           fallbackFragmentDocuments: fallbackFragmentDocuments,
+          enableSchemaPinning: true,
           resolveLocalTheme: resolveCustomerTheme,
           resolveThemeMode: resolveThemeMode,
           defaultThemeId: 'customer-default',

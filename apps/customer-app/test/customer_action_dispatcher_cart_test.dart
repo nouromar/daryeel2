@@ -55,10 +55,10 @@ void main() {
         type: CustomerActionDispatcher.pharmacyCartUpsert,
         value: <String, Object?>{
           'id': 'abc',
-          'title': 'Item',
-          'subtitle': r'$19',
-          'rxRequired': false,
-          'unitPrice': 19,
+          'name': 'Item',
+          'subtitle': '12 tablets',
+          'rx_required': 'false',
+          'price': 19,
         },
       ),
     );
@@ -71,8 +71,9 @@ void main() {
     expect((lines as List).length, 1);
     final first = lines.first as Map;
     expect(first['id'], 'abc');
+    expect(first['name'], 'Item');
     expect(first['quantity'], 1);
-    expect(first['unitPriceText'], r'$19.00');
+    expect(first['price'], 19);
     expect(store.getValue('pharmacy.cart.summary.isRefreshing'), true);
 
     await dispatcher.dispatch(
@@ -81,10 +82,10 @@ void main() {
         type: CustomerActionDispatcher.pharmacyCartUpsert,
         value: <String, Object?>{
           'id': 'abc',
-          'title': 'Item',
-          'subtitle': r'$19',
-          'rxRequired': false,
-          'unitPrice': 19,
+          'name': 'Item',
+          'subtitle': '12 tablets',
+          'rx_required': 'false',
+          'price': 19,
         },
       ),
     );
@@ -113,12 +114,11 @@ void main() {
             'lines': <Object?>[
               <String, Object?>{
                 'id': 'abc',
-                'title': 'Item',
+                'name': 'Item',
                 'subtitle': '',
-                'rxRequired': false,
+                'rx_required': false,
                 'quantity': 1,
-                'unitPrice': 19,
-                'meta': 'Qty: 1',
+                'price': 19,
               },
             ],
             'totalQuantity': 1,
@@ -173,11 +173,11 @@ void main() {
               'lines': <Object?>[
                 <String, Object?>{
                   'id': 'abc',
-                  'title': 'Item',
+                  'name': 'Item',
                   'subtitle': '',
-                  'rxRequired': false,
+                  'rx_required': false,
                   'quantity': 2,
-                  'unitPrice': 12.5,
+                  'price': 12.5,
                 },
               ],
               'discount': 2,

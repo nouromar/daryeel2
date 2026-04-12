@@ -65,8 +65,9 @@ services:
       - ./apps/customer-app/schemas:/workspace/daryeel/Daryeel2/apps/customer-app/schemas:ro
     environment:
       SCHEMA_SERVICE_APP_ENV: docker
-      # Optional. When set, /config/bootstrap advertises this URL to clients.
-      SCHEMA_SERVICE_PUBLIC_BASE_URL: ${SCHEMA_SERVICE_PUBLIC_BASE_URL:-}
+      # Unified runtime service for schema, theme, and config delivery.
+      # Bootstrap should advertise a usable host URL by default in Docker.
+      SCHEMA_SERVICE_PUBLIC_BASE_URL: ${SCHEMA_SERVICE_PUBLIC_BASE_URL:-http://localhost:8011}
       # Optional. When unset, schema-service uses in-process caching only.
       SCHEMA_SERVICE_REDIS_URL: ${SCHEMA_SERVICE_REDIS_URL:-redis://redis:6379/0}
       SCHEMA_SERVICE_REDIS_KEY_PREFIX: ${SCHEMA_SERVICE_REDIS_KEY_PREFIX:-daryeel2:schema-service:}

@@ -1,18 +1,32 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
+// ignore: implementation_imports
+import 'package:flutter_daryeel_client_app/src/app/runtime_session_scope.dart';
 import 'package:flutter_runtime/flutter_runtime.dart';
+
+import '../routing/customer_schema_screen_route.dart';
 
 /// App-level action dispatcher that adds customer-app specific action types.
 ///
 /// We keep this in the app so we can add higher-level behaviors (like cart
 /// list upserts) without changing the shared runtime in `packages/*`.
 final class CustomerActionDispatcher extends SchemaActionDispatcher {
-  CustomerActionDispatcher({required this.delegate})
-    : _dispatcher = TypeMapSchemaActionDispatcher(
-        dispatchersByType: _customerActionDispatchersByType,
-        fallback: delegate,
-      );
+  CustomerActionDispatcher({
+    required this.delegate,
+    Future<void> Function(
+      BuildContext context,
+      CustomerRequestActionCommand command,
+    )?
+    requestActionExecutor,
+  }) : _dispatcher = TypeMapSchemaActionDispatcher(
+         dispatchersByType: _buildCustomerActionDispatchersByType(
+           requestActionExecutor: requestActionExecutor,
+         ),
+         fallback: delegate,
+       );
 
   final SchemaActionDispatcher delegate;
   final SchemaActionDispatcher _dispatcher;
@@ -23,23 +37,71 @@ final class CustomerActionDispatcher extends SchemaActionDispatcher {
   static const String pharmacyCartClear = 'pharmacy_cart_clear';
   static const String pharmacyCartRefreshSummary =
       'pharmacy_cart_refresh_summary';
+  static const String customerRequestAction = 'customer_request_action';
 
   @override
   Future<void> dispatch(BuildContext context, ActionDefinition action) =>
       _dispatcher.dispatch(context, action);
 }
 
-const Map<String, SchemaActionDispatcher>
-_customerActionDispatchersByType = <String, SchemaActionDispatcher>{
-  CustomerActionDispatcher.pharmacyCartUpsert: _PharmacyCartUpsertDispatcher(),
-  CustomerActionDispatcher.pharmacyCartIncrement:
-      _PharmacyCartIncrementDispatcher(),
-  CustomerActionDispatcher.pharmacyCartDecrement:
-      _PharmacyCartDecrementDispatcher(),
-  CustomerActionDispatcher.pharmacyCartClear: _PharmacyCartClearDispatcher(),
-  CustomerActionDispatcher.pharmacyCartRefreshSummary:
-      _PharmacyCartRefreshSummaryDispatcher(),
-};
+Map<String, SchemaActionDispatcher> _buildCustomerActionDispatchersByType({
+  Future<void> Function(
+    BuildContext context,
+    CustomerRequestActionCommand command,
+  )?
+  requestActionExecutor,
+}) {
+  return <String, SchemaActionDispatcher>{
+    CustomerActionDispatcher.pharmacyCartUpsert:
+        _PharmacyCartUpsertDispatcher(),
+    CustomerActionDispatcher.pharmacyCartIncrement:
+        _PharmacyCartIncrementDispatcher(),
+    CustomerActionDispatcher.pharmacyCartDecrement:
+        _PharmacyCartDecrementDispatcher(),
+    CustomerActionDispatcher.pharmacyCartClear: _PharmacyCartClearDispatcher(),
+    CustomerActionDispatcher.pharmacyCartRefreshSummary:
+        _PharmacyCartRefreshSummaryDispatcher(),
+    CustomerActionDispatcher.customerRequestAction:
+        _CustomerRequestActionDispatcher(executor: requestActionExecutor),
+  };
+}
+
+enum CustomerRequestActionMode { submit, navigateUpload }
+
+final class CustomerRequestActionCommand {
+  const CustomerRequestActionCommand({
+    required this.mode,
+    required this.requestId,
+    required this.actionId,
+    this.decision,
+    this.screenId,
+    this.title,
+  });
+
+  final CustomerRequestActionMode mode;
+  final String requestId;
+  final String actionId;
+  final String? decision;
+  final String? screenId;
+  final String? title;
+}
+
+final class _CustomerRequestActionDispatcher extends SchemaActionDispatcher {
+  const _CustomerRequestActionDispatcher({this.executor});
+
+  final Future<void> Function(
+    BuildContext context,
+    CustomerRequestActionCommand command,
+  )?
+  executor;
+
+  @override
+  Future<void> dispatch(BuildContext context, ActionDefinition action) async {
+    final command = _parseCustomerRequestActionCommand(context, action.value);
+    final runner = executor ?? _defaultCustomerRequestActionExecutor;
+    await runner(context, command);
+  }
+}
 
 final class _PharmacyCartUpsertDispatcher extends SchemaActionDispatcher {
   const _PharmacyCartUpsertDispatcher();
@@ -87,6 +149,150 @@ final class _PharmacyCartRefreshSummaryDispatcher
   }
 }
 
+CustomerRequestActionCommand _parseCustomerRequestActionCommand(
+  BuildContext context,
+  Object? raw,
+) {
+  if (raw is! Map) {
+    throw ArgumentError('customer_request_action requires an object value');
+  }
+
+  String? readString(String key) {
+    final value = raw[key];
+    if (value is! String) return null;
+    final resolved = interpolateSchemaString(value, context).trim();
+    return resolved.isEmpty ? null : resolved;
+  }
+
+  final modeRaw = readString('mode');
+  final requestId = readString('requestId');
+  final actionId = readString('actionId');
+  if (modeRaw == null || requestId == null || actionId == null) {
+    throw ArgumentError(
+      'customer_request_action requires mode, requestId, and actionId',
+    );
+  }
+
+  final mode = switch (modeRaw) {
+    'submit' => CustomerRequestActionMode.submit,
+    'navigate_upload' => CustomerRequestActionMode.navigateUpload,
+    _ => throw ArgumentError(
+      'Unsupported customer_request_action mode: $modeRaw',
+    ),
+  };
+
+  return CustomerRequestActionCommand(
+    mode: mode,
+    requestId: requestId,
+    actionId: actionId,
+    decision: readString('decision'),
+    screenId: readString('screenId'),
+    title: readString('title'),
+  );
+}
+
+Future<void> _defaultCustomerRequestActionExecutor(
+  BuildContext context,
+  CustomerRequestActionCommand command,
+) async {
+  switch (command.mode) {
+    case CustomerRequestActionMode.navigateUpload:
+      final screenId = command.screenId;
+      if (screenId == null || screenId.isEmpty) {
+        throw ArgumentError('navigate_upload requires screenId');
+      }
+      await Navigator.of(context).pushNamed(
+        CustomerSchemaScreenRoute.name,
+        arguments: <String, Object?>{
+          'screenId': screenId,
+          'title': command.title ?? 'Upload prescription',
+          'params': <String, Object?>{
+            'requestId': command.requestId,
+            'actionId': command.actionId,
+          },
+        },
+      );
+      return;
+    case CustomerRequestActionMode.submit:
+      final session = RuntimeSessionScope.of(context);
+      final uri = _buildCustomerRequestActionUri(
+        apiBaseUrl: session.apiBaseUrl,
+        requestId: command.requestId,
+        actionId: command.actionId,
+      );
+      if (uri == null) {
+        throw StateError('API base URL is not configured');
+      }
+
+      final decision = command.decision;
+      if (decision == null || decision.isEmpty) {
+        throw ArgumentError('submit mode requires decision');
+      }
+
+      final headers = <String, String>{'content-type': 'application/json'};
+      try {
+        headers.addAll(
+          session.requestHeadersProvider?.call() ?? const <String, String>{},
+        );
+      } catch (_) {}
+
+      final client = http.Client();
+      try {
+        final response = await client.post(
+          uri,
+          headers: headers,
+          body: jsonEncode(<String, Object?>{'decision': decision}),
+        );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          final decoded = jsonDecode(response.body);
+          final detail = (decoded is Map && decoded['detail'] is String)
+              ? decoded['detail'] as String
+              : 'HTTP ${response.statusCode}';
+          throw StateError(detail);
+        }
+      } finally {
+        client.close();
+      }
+
+      if (!context.mounted) return;
+      await _refreshRequestQueries(context, requestId: command.requestId);
+      return;
+  }
+}
+
+Uri? _buildCustomerRequestActionUri({
+  required String apiBaseUrl,
+  required String requestId,
+  required String actionId,
+}) {
+  final base = apiBaseUrl.trim();
+  if (base.isEmpty) return null;
+  final parsed = Uri.parse(base);
+  final normalizedBasePath = parsed.path.endsWith('/')
+      ? parsed.path.substring(0, parsed.path.length - 1)
+      : parsed.path;
+  final path = '$normalizedBasePath/v1/requests/$requestId/actions/$actionId';
+  return parsed.replace(path: path);
+}
+
+Future<void> _refreshRequestQueries(
+  BuildContext context, {
+  required String requestId,
+}) async {
+  final session = RuntimeSessionScope.of(context);
+  await session.queryStore.executeGet(
+    key: 'customer.requests',
+    path: '/v1/requests',
+    forceRefresh: true,
+  );
+  await session.queryStore.executeGet(
+    key: 'customer.request_detail',
+    path: '/v1/requests/detail',
+    params: <String, String>{'requestId': requestId},
+    forceRefresh: true,
+  );
+}
+
 const Duration _defaultPharmacyCartSummaryDebounce = Duration(
   milliseconds: 300,
 );
@@ -107,22 +313,6 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
     return resolved.isEmpty ? null : resolved;
   }
 
-  bool readInterpolatedBool(String key, {required bool fallback}) {
-    final v = raw[key];
-    if (v is bool) return v;
-    if (v is num) return v != 0;
-    if (v is String) {
-      final resolved = interpolateSchemaString(v, context).trim().toLowerCase();
-      if (resolved == 'true' || resolved == '1' || resolved == 'yes') {
-        return true;
-      }
-      if (resolved == 'false' || resolved == '0' || resolved == 'no') {
-        return false;
-      }
-    }
-    return fallback;
-  }
-
   double? readInterpolatedDouble(String key) {
     final v = raw[key];
     if (v is num) return v.toDouble();
@@ -136,43 +326,44 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
   final id = readInterpolatedString('id');
   if (id == null) return;
 
-  final title = readInterpolatedString('title') ?? id;
+  final name = readInterpolatedString('name') ?? id;
   final subtitle = readInterpolatedString('subtitle') ?? '';
-  final rxRequired = readInterpolatedBool('rxRequired', fallback: false);
-  final unitPrice = readInterpolatedDouble('unitPrice');
-  final currencySymbol = readInterpolatedString('currencySymbol') ?? r'$';
+  final rxRequiredRaw = readInterpolatedString('rx_required');
+  final rxRequired =
+      rxRequiredRaw?.trim().toLowerCase() == 'true' || rxRequiredRaw == '1';
+  final price = readInterpolatedDouble('price');
+  final icon = readInterpolatedString('icon');
 
   final nextLines = _ensureCartLines(store);
 
   final idx = nextLines.indexWhere((e) => (e['id'] ?? '').toString() == id);
   if (idx == -1) {
-    nextLines.add(
-      _buildCartLine(
-        id: id,
-        title: title,
-        subtitle: subtitle,
-        rxRequired: rxRequired,
-        quantity: 1,
-        unitPrice: unitPrice,
-        currencySymbol: currencySymbol,
-      ),
-    );
+    final line = <String, Object?>{
+      'id': id,
+      'name': name,
+      'subtitle': subtitle,
+      'quantity': 1,
+      'rx_required': rxRequired,
+      ...?price == null ? null : <String, Object?>{'price': price},
+      ...?icon == null ? null : <String, Object?>{'icon': icon},
+    };
+    nextLines.add(line);
   } else {
     final current = nextLines[idx];
     final qRaw = current['quantity'];
     final q = (qRaw is num) ? qRaw.toInt() : int.tryParse('$qRaw') ?? 0;
     final nextQ = q + 1;
 
-    nextLines[idx] = _buildCartLine(
-      id: id,
-      title: title,
-      subtitle: subtitle,
-      rxRequired: rxRequired,
-      quantity: nextQ,
-      unitPrice: unitPrice ?? _readLineUnitPrice(current),
-      currencySymbol: current['currencySymbol']?.toString() ?? currencySymbol,
-      existing: current,
-    );
+    nextLines[idx] = <String, Object?>{
+      ...current,
+      'quantity': nextQ,
+      // Prefer freshest catalog fields when provided.
+      'name': name,
+      'subtitle': subtitle,
+      'rx_required': rxRequired,
+      ...?price == null ? null : <String, Object?>{'price': price},
+      ...?icon == null ? null : <String, Object?>{'icon': icon},
+    };
   }
 
   store.setValue('pharmacy.cart.lines', nextLines);
@@ -211,22 +402,7 @@ void _pharmacyCartChangeQuantity(
   if (nextQ <= 0) {
     nextLines.removeAt(idx);
   } else {
-    final subtitle = (current['subtitle'] ?? '').toString();
-    final rxRaw = current['rxRequired'];
-    final rxRequired =
-        rxRaw == true ||
-        (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
-
-    nextLines[idx] = _buildCartLine(
-      id: (current['id'] ?? '').toString(),
-      title: (current['title'] ?? '').toString(),
-      subtitle: subtitle,
-      rxRequired: rxRequired,
-      quantity: nextQ,
-      unitPrice: _readLineUnitPrice(current),
-      currencySymbol: current['currencySymbol']?.toString() ?? r'$',
-      existing: current,
-    );
+    nextLines[idx] = <String, Object?>{...current, 'quantity': nextQ};
   }
 
   store.setValue('pharmacy.cart.lines', nextLines);
@@ -316,7 +492,7 @@ void _recomputeHasRxItem(
     final q = (qRaw is num) ? qRaw.toInt() : int.tryParse('$qRaw') ?? 0;
     if (q <= 0) continue;
 
-    final rxRaw = line['rxRequired'];
+    final rxRaw = line['rx_required'];
     final rx =
         rxRaw == true ||
         (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
@@ -328,64 +504,12 @@ void _recomputeHasRxItem(
   store.setValue('pharmacy.cart.hasRxItem', hasRx);
 }
 
-Map<String, Object?> _buildCartLine({
-  required String id,
-  required String title,
-  required String subtitle,
-  required bool rxRequired,
-  required int quantity,
-  required double? unitPrice,
-  required String currencySymbol,
-  Map<String, Object?>? existing,
-}) {
-  final normalizedCurrencySymbol = currencySymbol.trim().isEmpty
-      ? r'$'
-      : currencySymbol.trim();
-  final safeQuantity = quantity < 0 ? 0 : quantity;
-  final unitPriceText = unitPrice == null
-      ? null
-      : _formatMoneyValue(unitPrice, normalizedCurrencySymbol);
-  final lineTotalText = unitPrice == null
-      ? null
-      : _formatMoneyValue(unitPrice * safeQuantity, normalizedCurrencySymbol);
-
-  return <String, Object?>{
-    ...?existing,
-    'id': id,
-    'title': title,
-    'subtitle': subtitle,
-    'rxRequired': rxRequired,
-    'quantity': safeQuantity,
-    'currencySymbol': normalizedCurrencySymbol,
-    'badgeLabel': rxRequired ? 'Rx' : '',
-    ...?unitPrice == null ? null : <String, Object?>{'unitPrice': unitPrice},
-    ...?unitPriceText == null
-        ? null
-        : <String, Object?>{'unitPriceText': unitPriceText},
-    ...?lineTotalText == null
-        ? null
-        : <String, Object?>{'lineTotalText': lineTotalText},
-    'meta': _buildLineMeta(
-      subtitle: subtitle,
-      rxRequired: rxRequired,
-      qty: safeQuantity,
-    ),
-  };
-}
-
 double? _readLineUnitPrice(Map data) {
-  final raw = data['unitPrice'];
+  final raw = data['price'] ?? data['unitPrice'];
   if (raw is num) return raw.toDouble();
   if (raw is String) return double.tryParse(raw.trim());
-  return null;
-}
-
-String _readLineCurrencySymbol(Map data) {
-  final raw = data['currencySymbol'];
-  if (raw is String && raw.trim().isNotEmpty) {
-    return raw.trim();
-  }
-  return r'$';
+  final subtitle = (data['subtitle'] ?? '').toString();
+  return _tryParseMoney(subtitle);
 }
 
 void _schedulePharmacyCartSummaryRefresh(
@@ -415,9 +539,7 @@ void _cancelPharmacyCartSummaryRefresh(SchemaStateStore store) {
 
 void _applyPharmacyCartSummary(SchemaStateStore store) {
   final lines = _ensureCartLines(store);
-  final currencySymbol = lines.isNotEmpty
-      ? _readLineCurrencySymbol(lines.first)
-      : r'$';
+  const currencySymbol = r'$';
 
   var subtotal = 0.0;
   for (final line in lines) {
@@ -484,19 +606,15 @@ double _readNumericState(SchemaStateStore store, String key) {
   return 0.0;
 }
 
-String _formatMoneyValue(double amount, String currencySymbol) {
-  return '$currencySymbol${amount.toStringAsFixed(2)}';
+double? _tryParseMoney(String text) {
+  final input = text.trim();
+  if (input.isEmpty) return null;
+
+  final match = RegExp(r'\$\s*([0-9]+(?:\.[0-9]+)?)').firstMatch(input);
+  if (match == null) return null;
+  return double.tryParse(match.group(1) ?? '');
 }
 
-String _buildLineMeta({
-  required String subtitle,
-  required bool rxRequired,
-  required int qty,
-}) {
-  final parts = <String>[];
-  final s = subtitle.trim();
-  if (s.isNotEmpty) parts.add(s);
-  parts.add('Qty: $qty');
-  if (rxRequired) parts.add('Rx');
-  return parts.join(' • ');
+String _formatMoneyValue(double amount, String currencySymbol) {
+  return '$currencySymbol${amount.toStringAsFixed(2)}';
 }

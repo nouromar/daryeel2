@@ -193,11 +193,6 @@ class PaymentChoice(BaseModel):
     timing: str = Field(pattern=r"^(before_delivery|after_delivery)$")
 
 
-class CartLine(BaseModel):
-    product_id: str = Field(min_length=1, max_length=128)
-    quantity: int = Field(ge=1, le=999)
-
-
 class SummaryLine(BaseModel):
     id: str | None = Field(default=None, max_length=128)
     label: str = Field(min_length=1, max_length=128)
@@ -216,7 +211,8 @@ class SummaryTotal(BaseModel):
 
 
 class PharmacyOrderPayload(BaseModel):
-    cart_lines: list[CartLine] = Field(default_factory=list)
+    # Preserve the client-provided cart line record (same shape as catalog item + quantity).
+    cart_lines: list[dict[str, Any]] = Field(default_factory=list)
     summary_lines: list[SummaryLine] = Field(default_factory=list)
     summary_total: SummaryTotal | None = None
     prescription_upload_ids: list[str] = Field(default_factory=list)
@@ -263,6 +259,29 @@ def create_pharmacy_order(
             detail="Order must include cart_lines or prescription_upload_ids",
         )
 
+    cart_lines: list[dict[str, Any]] = []
+    for raw_line in payload.payload.cart_lines:
+        if not isinstance(raw_line, dict):
+            continue
+
+        qty_raw = raw_line.get("quantity")
+        if isinstance(qty_raw, int):
+            qty = qty_raw
+        elif isinstance(qty_raw, float):
+            qty = int(qty_raw)
+        elif isinstance(qty_raw, str):
+            try:
+                qty = int(qty_raw.strip())
+            except ValueError:
+                qty = 0
+        else:
+            qty = 0
+
+        if qty <= 0:
+            continue
+
+        cart_lines.append({**raw_line, "quantity": qty})
+
     order = ServiceRequest(
         service_id=payload.service_id,
         customer_user_id=user.id,
@@ -271,7 +290,7 @@ def create_pharmacy_order(
         delivery_location_json=(payload.delivery_location.model_dump() if payload.delivery_location else None),
         payment_json=(payload.payment.model_dump() if payload.payment else None),
         payload_json={
-            "cart_lines": [x.model_dump() for x in payload.payload.cart_lines],
+            "cart_lines": cart_lines,
             "summary_lines": [x.model_dump() for x in payload.payload.summary_lines],
             "summary_total": (
                 payload.payload.summary_total.model_dump()

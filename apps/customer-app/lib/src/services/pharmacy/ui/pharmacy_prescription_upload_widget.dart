@@ -136,6 +136,47 @@ class _PharmacyPrescriptionUploadWidgetState
     return extra;
   }
 
+  Uri? _buildRequestActionUri(
+    DaryeelRuntimeSession session, {
+    required String requestId,
+    required String actionId,
+  }) {
+    final base = session.apiBaseUrl.trim();
+    if (base.isEmpty) return null;
+
+    final uri = Uri.parse(base);
+    final normalizedBasePath = uri.path.endsWith('/')
+        ? uri.path.substring(0, uri.path.length - 1)
+        : uri.path;
+    final path = '$normalizedBasePath/v1/requests/$requestId/actions/$actionId';
+    return uri.replace(path: path);
+  }
+
+  Future<void> _refreshRequestQueries(
+    DaryeelRuntimeSession session, {
+    required String requestId,
+  }) async {
+    await session.queryStore.executeGet(
+      key: 'customer.requests',
+      path: '/v1/requests',
+      forceRefresh: true,
+    );
+    await session.queryStore.executeGet(
+      key: 'customer.request_detail',
+      path: '/v1/requests/detail',
+      params: <String, String>{'requestId': requestId},
+      forceRefresh: true,
+    );
+  }
+
+  String? _routeParamString(String key) {
+    final params = SchemaRouteScope.maybeParamsOf(context);
+    final raw = params?[key];
+    if (raw is! String) return null;
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
   Future<void> _upload() async {
     if (_uploading) return;
 
@@ -228,6 +269,61 @@ class _PharmacyPrescriptionUploadWidgetState
       }
       if (sizeBytes != null) {
         uploadEntry['sizeBytes'] = sizeBytes;
+      }
+
+      final requestId = _routeParamString('requestId');
+      final actionId = _routeParamString('actionId');
+      final isRequestActionUpload =
+          requestId != null && actionId != null && actionId.isNotEmpty;
+
+      if (isRequestActionUpload) {
+        final actionUri = _buildRequestActionUri(
+          session,
+          requestId: requestId,
+          actionId: actionId,
+        );
+        if (actionUri == null) {
+          throw StateError('API base URL is not configured');
+        }
+
+        final client = http.Client();
+        late final http.Response response;
+        try {
+          response = await client.post(
+            actionUri,
+            headers: <String, String>{
+              ..._buildHeaders(session),
+              'content-type': 'application/json',
+            },
+            body: jsonEncode(<String, Object?>{
+              'decision': 'upload',
+              'payload': <String, Object?>{
+                'uploadIds': <String>[id],
+              },
+            }),
+          );
+        } finally {
+          client.close();
+        }
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          final shortBody = response.body.length > 300
+              ? '${response.body.substring(0, 300)}…'
+              : response.body;
+          throw StateError('HTTP ${response.statusCode}: $shortBody');
+        }
+
+        await _refreshRequestQueries(session, requestId: requestId);
+
+        if (mounted) {
+          setState(() => _selected = null);
+        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Prescription uploaded')));
+        Navigator.of(context).pop();
+        return;
       }
 
       store.appendValue('pharmacy.cart.prescriptionUploads', uploadEntry);

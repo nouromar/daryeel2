@@ -4,6 +4,7 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../config/daryeel_client_config.dart';
+import '../runtime/runtime_request_headers.dart';
 import '../runtime/daryeel_runtime_session.dart';
 import '../runtime/daryeel_runtime_view_model.dart';
 import 'runtime_inspector_screen.dart';
@@ -261,25 +262,15 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
     final session = _session;
     if (session != null) {
       Map<String, String> buildDefaultHeaders() {
-        final correlation = session.diagnosticsReporter.buildCorrelationHeaders(
-          schemaVersion:
-              '${loadedScreen.bundle.schemaId}@${loadedScreen.bundle.schemaVersion}',
-          configSnapshotId: loadedScreen.configSnapshotId,
+        return mergeRuntimeRequestHeaders(
+          correlationHeaders:
+              session.diagnosticsReporter.buildCorrelationHeaders(
+            schemaVersion:
+                '${loadedScreen.bundle.schemaId}@${loadedScreen.bundle.schemaVersion}',
+            configSnapshotId: loadedScreen.configSnapshotId,
+          ),
+          requestHeadersProvider: session.requestHeadersProvider,
         );
-
-        Map<String, String> extra;
-        try {
-          extra = session.requestHeadersProvider?.call() ??
-              const <String, String>{};
-        } catch (_) {
-          extra = const <String, String>{};
-        }
-
-        if (extra.isEmpty) return correlation;
-        if (correlation.isEmpty) return extra;
-
-        // Let the runtime keep control of correlation IDs.
-        return <String, String>{...extra, ...correlation};
       }
 
       session.queryStore.configure(

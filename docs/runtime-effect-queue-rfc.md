@@ -26,6 +26,8 @@ without a framework-owned, phase-safe commit boundary.
 
 This RFC moves those side effects into a runtime effect queue so the framework, not each app handler, controls when effects are applied.
 
+The effect types described in this document are the initial supported set for the first implementation. They are not intended to be the complete long-term list of runtime effects.
+
 ## Problem Statement
 
 ### Current behavior
@@ -73,8 +75,8 @@ The framework needs an explicit post-completion effect phase.
 - Replace imperative post-submit UI work with declarative effect results.
 - Apply effects in a deterministic order.
 - Support batching of multiple related state updates.
-- Keep existing schema contracts stable where possible.
-- Provide a migration path from current `SubmitFormHandler` implementations.
+- Migrate app code to the new runtime contract as part of the implementation.
+- Avoid carrying a long-lived dual submit-handler API unless it is temporarily required inside the implementation branch.
 
 ## Non-goals
 
@@ -152,6 +154,7 @@ Notes:
 
 - The first runtime slice does not need every effect type above, but it should define the common abstraction now.
 - `submit_form` only needs a small subset initially: field errors, state changes, message, pop route.
+- The types above are the initial concrete effect set for the first implementation, not the full future catalog.
 
 ## 2. Introduce a Runtime Effect Queue
 
@@ -305,35 +308,37 @@ Rationale:
 - messages should attach to the current messenger before the route is popped if needed
 - navigation should be the last visible transition
 
-## 6. Backward-Compatible Migration Plan
+## 6. Migration Strategy
 
-We should not break current apps abruptly.
+Because the app and runtime are still in active development, the recommended approach is an immediate migration during implementation, not a long backward-compatibility period.
 
-### Phase 1
+### Preferred approach
 
-Add the effect queue and batch support first.
+Implement the runtime changes and migrate current app handlers in the same workstream.
 
-- keep the old submit handler signature temporarily
-- update dispatcher internals to defer its own post-await mutations
-- document that app handlers should avoid direct state writes and navigation after await
+That means:
 
-### Phase 2
+- update the runtime effect queue and dispatcher first
+- replace the existing `SubmitFormHandler` contract with the declarative result contract
+- migrate current app submit handlers immediately after the runtime change lands in the same branch
+- remove the current `BuildContext`-driven submit path instead of preserving it indefinitely
 
-Add a new v2 contract alongside the old one.
+### Allowed short bridge
 
-Example:
+If implementation sequencing makes a same-commit cutover awkward, a very short-lived bridge is acceptable inside the implementation branch only.
 
-- `SubmitFormHandler` remains legacy
-- `SubmitFormHandlerV2` returns `SubmitFormResult`
+Allowed temporary pattern:
 
-Dispatcher preference:
+- add the new declarative contract
+- adapt the existing dispatcher and handlers
+- remove the legacy contract before the final merge
 
-- use v2 if provided
-- fall back to legacy handler otherwise
+Not recommended:
 
-### Phase 3
+- shipping both contracts as a durable public runtime API
+- leaving `BuildContext`-driven submit handlers in place across releases
 
-Migrate app handlers.
+### App migration target
 
 For customer-app pharmacy checkout, replace:
 
@@ -358,13 +363,11 @@ return SubmitFormResult(
 );
 ```
 
-### Phase 4
-
-Deprecate the legacy `BuildContext`-based handler API.
+The same direct migration pattern should be used for any other existing submit handlers discovered during implementation.
 
 ## 7. Scope of the First Implementation
 
-To keep the first package change small, the initial runtime implementation should cover:
+To keep the first package change small while still completing the migration, the initial runtime implementation should cover:
 
 - `submit_form` only
 - runtime effect queue
@@ -375,9 +378,67 @@ To keep the first package change small, the initial runtime implementation shoul
   - show message
   - pop route
 
-This is enough to eliminate the current class of bug without overdesigning a general workflow system.
+This is enough to eliminate the current class of bug without overdesigning a general workflow system, while still allowing an immediate cutover of current submit handlers.
 
-## 8. Validation Strategy
+Explicitly out of scope for the first slice, but expected in future runtime evolution if needed:
+
+- query invalidation or refetch effects
+- cache invalidation effects
+- focus or scroll effects
+- modal or bottom-sheet presentation effects
+- session reset effects
+- persistence commit effects
+- optimistic rollback effects
+
+These should be added later only when concrete use cases justify them.
+
+## 8. Effect Extensibility
+
+The runtime should be designed to support more effect types over time without forcing a redesign of the queue, scheduler, or dispatcher.
+
+### Extensibility principles
+
+1. The queue/scheduling/scoping model should be generic.
+2. The initial concrete effect set should stay intentionally small.
+3. New effect types should be introduced only in response to real product/runtime needs.
+4. Adding a new effect must not weaken ordering, stale-effect handling, or testability.
+
+### What should remain stable
+
+As new effects are added, these framework rules should remain stable:
+
+- effects are queued, not applied ad hoc by app code
+- effects are flushed in a phase-safe way
+- effects have explicit applicability and stale-drop rules
+- effects run in deterministic order
+- effects are covered by focused runtime tests
+
+### Likely future effect families
+
+Examples of future effect categories the runtime may need:
+
+- query invalidation or refetch
+- cache clear or cache refresh
+- dialog, modal, or bottom-sheet presentation
+- focus next field or scroll to field
+- auth/session reset
+- local persistence or draft commit
+- optimistic update rollback
+- selection/filter reset
+
+These examples should be treated as illustrative, not committed scope.
+
+### Admission rule for new effects
+
+A new effect type should only be added when all of the following are true:
+
+1. there is a concrete product/runtime use case
+2. it does not fit cleanly into an existing effect type
+3. its scope and stale-handling rules are defined
+4. its ordering relative to existing effects is defined
+5. focused tests are added at the runtime layer
+
+## 9. Validation Strategy
 
 Implementation of this RFC touches `packages/*`, so it requires explicit approval before coding. Once approved, validation should be mandatory at both runtime-package and app-integration levels.
 
@@ -410,7 +471,7 @@ If provider-app shares the same runtime shell behavior and any wiring changes af
 - `apps/provider-app/flutter test`
 - `apps/provider-app/flutter analyze`
 
-## 9. Testing Plan
+## 10. Testing Plan
 
 ### Unit tests in `packages/flutter_runtime`
 
@@ -424,6 +485,7 @@ Add focused tests for:
 6. nested state batches emit one final notification
 7. submit dispatcher enqueues `setSubmitting(false)` instead of applying it immediately after await
 8. submit dispatcher applies field errors through effects
+9. adding a new effect type requires explicit ordering and applicability tests
 
 ### Widget tests in shared runtime/client packages
 
@@ -432,7 +494,7 @@ Add widget tests for:
 1. submit success with `ShowMessageEffect + PopRouteEffect` does not throw `markNeedsBuild during build`
 2. submit success with multiple state clear effects updates dependent widgets only after flush
 3. submit failure with field errors leaves the route in place and clears submitting state safely
-4. legacy handler compatibility still works during migration
+4. migrated submit handlers work without any legacy `BuildContext` submit path
 
 ### App regression tests in `apps/customer-app`
 
@@ -466,7 +528,7 @@ Manual and automated tests should also cover:
 3. field errors render without route pop
 4. double-tap submit still respects in-flight protection
 
-## 10. Risks and Tradeoffs
+## 11. Risks and Tradeoffs
 
 ### Pros
 
@@ -474,33 +536,36 @@ Manual and automated tests should also cover:
 - reduces app-specific lifecycle knowledge
 - makes async action results easier to reason about
 - creates a reusable foundation for other async handlers
+- avoids long-term support cost for two submit APIs
 
 ### Cons
 
 - requires shared runtime API changes in `packages/*`
-- introduces a migration period with dual contracts
+- requires coordinated runtime and app updates in the same implementation window
 - navigation and messenger effects need careful ownership boundaries
 
 ### Main risk
 
 If the effect list grows without discipline, it can become a second action engine. Keep the initial effect surface intentionally small and only expand when concrete product flows require it.
 
-## 11. Recommended Implementation Order
+## 12. Recommended Implementation Order
 
 1. Add `SchemaStateStore.batch(...)` and tests.
 2. Add runtime effect types and effect queue with tests.
-3. Update `submit_form` dispatcher to use queued post-await runtime effects internally.
-4. Add v2 submit handler contract that returns effects.
-5. Migrate customer-app pharmacy checkout to v2.
-6. Keep legacy support until at least one app cycle validates the new path.
+3. Replace the current `submit_form` handler contract with the declarative result contract.
+4. Update `submit_form` dispatcher to consume effects and flush them safely.
+5. Migrate customer-app pharmacy checkout to the new contract.
+6. Migrate any other existing app submit handlers in the same branch.
+7. Remove any temporary legacy bridge before merge.
 
-## 12. Decision
+## 13. Decision
 
 Recommended direction:
 
 - treat this as a runtime/framework change, not an app-by-app pattern
 - implement first for `submit_form`
 - keep the effect surface small
+- migrate current handlers immediately because the app is still in development
 - require shared package validation and one app-level regression before rollout
 
 This gives the framework a single, enforceable answer to the class of bug represented by the checkout issue, instead of relying on each app handler to remember Flutter frame-safety rules.
