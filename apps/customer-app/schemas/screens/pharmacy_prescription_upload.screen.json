@@ -28,8 +28,7 @@
               {
                 "type": "If",
                 "props": {
-                  "valuePath": "$state.pharmacy.cart.prescriptionUploads",
-                  "op": "isNotEmpty"
+                  "expr": "len(state.pharmacy.cart.prescriptionUploads) > 0"
                 },
                 "slots": {
                   "then": [
@@ -78,16 +77,24 @@
                                         }
                                       },
                                       {
-                                        "type": "IconButton",
+                                        "type": "TapArea",
                                         "props": {
-                                          "name": "delete",
-                                          "size": 18,
-                                          "color": "muted",
+                                          "minSize": 0,
                                           "semanticLabel": "Delete"
                                         },
-                                        "actions": {
-                                          "tap": "remove_upload"
-                                        }
+                                        "slots": {
+                                          "child": [
+                                            {
+                                              "type": "Icon",
+                                              "props": {
+                                                "name": "delete",
+                                                "size": 18,
+                                                "color": "muted"
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "actions": { "tap": "remove_upload" }
                                       }
                                     ]
                                   }

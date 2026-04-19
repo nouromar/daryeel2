@@ -1,5 +1,8 @@
 # Schema Screen Development Skill
 
+Canonical doc (kept up to date):
+- [docs/skills/schema-screen.md](../docs/skills/schema-screen.md)
+
 You are helping build a **schema-driven UI screen** for the Daryeel customer app.
 Read this entire prompt before acting. Follow its steps in order.
 
@@ -28,6 +31,9 @@ Before writing any JSON, run these reads in parallel to understand what already 
 4. `apps/customer-app/contracts/actions/` — app-level action contracts
 
 If the request touches an existing screen, read that screen file first.
+
+Also read:
+- [Expression Engine skill](../docs/skills/expression-engine.md)
 
 ---
 
@@ -130,18 +136,12 @@ Both `InfoCard` and `ActionCard` share the same typography props (`titleVariant`
 #### Control flow
 | Widget | Props | Slots |
 |--------|-------|-------|
-| `If` | `valuePath` + `op` **or** `expr` (CEL) | `then`, `else` |
+| `If` | `expr` | `then`, `else` |
 | `ForEach` | `itemsPath` | `item` — use `item.field` and `index` inside |
-
-`op` values for `If`: `isTrue` `isFalse` `isNotEmpty` `isEmpty` `isNull` `isNotNull`
 
 `visibleWhen` — inline conditional on any node:
 ```json
 "visibleWhen": { "expr": "data.count > 0 and data.label != ''" }
-```
-or
-```json
-"visibleWhen": { "valuePath": "items", "op": "isNotEmpty" }
 ```
 
 #### Data fetching
@@ -163,7 +163,7 @@ Slots: `loading`, `error`, `empty`, `item` (item in scope as `item.*`, index as 
 | `CartSummary` | Order summary card; reads `linesPath` + `totalPath` from state |
 | `CatalogItemTile` | Product row with Add button; event: `add` |
 | `PharmacyCartItems` | Full cart list; app-level composite widget |
-| `PharmacyCheckout` | App-level checkout form composite |
+| `PharmacyCheckout` | **Contract exists, but widget is not registered** in the current Flutter renderer; treat as planned/unavailable |
 
 #### Navigation / chrome
 | Widget | Notes |
@@ -201,8 +201,9 @@ Widgets reference them by name: `"actions": { "tap": "my_action_id" }`.
 | type | Required fields | What it does |
 |------|----------------|--------------|
 | `navigate` | `route`, `value.screenId`, optional `value.title`, `value.params`, `value.chromePreset` | Push a schema screen |
+| `set_state` | `value.path`, `value.value` | Set a value in runtime state (typed expressions supported) |
 | `patch_state` | `value.ops` — array of `{op, path, value?}` | Mutate schema state (add/remove/replace) |
-| `submit_form` | `value.formId` (or `formId` directly) | Submit form data |
+| `submit_form` | `formId` | Validate + submit form data |
 
 Navigate route for schema screens: `"route": "customer.schema_screen"`
 

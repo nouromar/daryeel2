@@ -179,16 +179,24 @@
                             }
                           },
                           {
-                            "type": "IconButton",
+                            "type": "TapArea",
                             "props": {
-                              "name": "delete",
-                              "size": 18,
-                              "color": "muted",
+                              "minSize": 0,
                               "semanticLabel": "Delete prescription"
                             },
-                            "actions": {
-                              "tap": "remove_upload"
-                            }
+                            "slots": {
+                              "child": [
+                                {
+                                  "type": "Icon",
+                                  "props": {
+                                    "name": "delete",
+                                    "size": 18,
+                                    "color": "muted"
+                                  }
+                                }
+                              ]
+                            },
+                            "actions": { "tap": "remove_upload" }
                           }
                         ]
                       }

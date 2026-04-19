@@ -4,6 +4,8 @@ description: "Copilot workspace instructions for the Daryeel2 monorepo (schema-d
 
 Read [docs/ai-grounding.md](../docs/ai-grounding.md) first for the repo mental model and canonical doc links.
 
+For repo-specific “how-to” playbooks (skills), start with [docs/skills/README.md](../docs/skills/README.md).
+
 When building or reviewing a schema-driven UI screen, also read [docs/schema-screen-authoring.md](../docs/schema-screen-authoring.md)
 for the full widget catalogue, design principles, expression syntax, action types, and the decision
 tree for when to add a new widget vs composing with existing ones.

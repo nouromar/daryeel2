@@ -8,7 +8,7 @@ const fallbackCustomerHomeBundle = SchemaBundle(
     'id': 'customer_home',
     'documentType': 'screen',
     'product': 'customer_app',
-    'themeId': 'customer-default',
+    'themeId': 'custome-black-white-clear',
     'themeMode': 'light',
     'root': {
       'type': 'BottomTabs',

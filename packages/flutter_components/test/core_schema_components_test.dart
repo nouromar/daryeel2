@@ -51,5 +51,6 @@ void main() {
     expect(registry.resolve('ScreenTemplate'), isNotNull);
     expect(registry.resolve('RemotePagedList'), isNotNull);
     expect(registry.resolve('TapArea'), isNotNull);
+    expect(registry.resolve('StatusTimelinePanel'), isNotNull);
   });
 }

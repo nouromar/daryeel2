@@ -100,6 +100,21 @@ void main() {
       ),
       'A',
     );
+
+    expect(evaluateSchemaExpression('isNull(null)', context), true);
+    expect(evaluateSchemaExpression("isNull('')", context), false);
+    expect(evaluateSchemaExpression('isNotNull(null)', context), false);
+    expect(evaluateSchemaExpression("isNotNull('x')", context), true);
+
+    expect(evaluateSchemaExpression("isEmpty('')", context), true);
+    expect(evaluateSchemaExpression("isEmpty('   ')", context), false);
+    expect(evaluateSchemaExpression('isEmpty(null)', context), false);
+    expect(evaluateSchemaExpression("isNotEmpty('x')", context), true);
+
+    expect(evaluateSchemaExpression('isBlank(null)', context), true);
+    expect(evaluateSchemaExpression("isBlank('')", context), true);
+    expect(evaluateSchemaExpression("isBlank('   ')", context), true);
+    expect(evaluateSchemaExpression("isNotBlank('x')", context), true);
   });
 
   testWidgets('interpolateSchemaTemplate evaluates \${...} segments',

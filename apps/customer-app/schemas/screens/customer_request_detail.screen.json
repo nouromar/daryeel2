@@ -3,7 +3,7 @@
   "id": "customer_request_detail",
   "documentType": "screen",
   "product": "customer_app",
-  "themeId": "customer-default",
+  "themeId": "custome-black-white-clear",
   "themeMode": "light",
   "root": {
     "type": "ScreenTemplate",
@@ -59,7 +59,7 @@
               {
                 "type": "Column",
                 "props": {
-                  "spacing": 12,
+                  "spacing": 8,
                   "crossAxisAlignment": "stretch",
                   "mainAxisSize": "min"
                 },
@@ -67,12 +67,9 @@
                   "children": [
                     {
                       "type": "InfoCard",
-                      "visibleWhen": {
-                        "expr": "data.request.detailSubtitle != null and data.request.detailSubtitle != ''"
-                      },
                       "props": {
                         "title": "${data.request.title}",
-                        "subtitle": "${data.request.detailSubtitle}",
+                        "subtitle": "${isNotBlank(data.request.detailSubtitle) ? data.request.detailSubtitle : data.request.subtitle}",
                         "variant": "compact",
                         "density": "compact",
                         "titleVariant": "title",
@@ -85,206 +82,25 @@
                     {
                       "type": "InfoCard",
                       "visibleWhen": {
-                        "expr": "data.request.detailSubtitle == null or data.request.detailSubtitle == ''"
+                        "expr": "isNotBlank(data.request.deliveryLocation.text)"
                       },
                       "props": {
-                        "title": "${data.request.title}",
-                        "subtitle": "${data.request.subtitle}",
+                        "title": "Delivery Address",
+                        "subtitle": "${data.request.deliveryLocation.text}",
                         "variant": "compact",
                         "density": "compact",
-                        "titleVariant": "title",
-                        "titleWeight": "bold",
+                        "titleVariant": "subtitle",
+                        "titleWeight": "semibold",
+                        "titleColor": "secondary",
                         "subtitleVariant": "body",
                         "subtitleColor": "muted",
-                        "surface": "flat"
-                      }
-                    },
-                    {
-                      "type": "InfoCard",
-                      "visibleWhen": {
-                        "expr": "data.request.isAttentionRequired == true or data.request.isUpdateAvailable == true"
-                      },
-                      "props": {
-                        "title": "${data.request.attentionTitle}",
-                        "subtitle": "${data.request.attentionSubtitle}",
-                        "variant": "emphasized",
-                        "density": "compact",
-                        "titleVariant": "title",
-                        "titleWeight": "bold",
-                        "subtitleVariant": "body",
                         "surface": "subtle"
                       }
                     },
                     {
                       "type": "Column",
                       "visibleWhen": {
-                        "expr": "data.request.pendingActionCount != null and data.request.pendingActionCount > 0 and pendingActions != null and pendingActions.length > 0"
-                      },
-                      "props": {
-                        "spacing": 8,
-                        "crossAxisAlignment": "stretch",
-                        "mainAxisSize": "min"
-                      },
-                      "slots": {
-                        "children": [
-                          {
-                            "type": "Padding",
-                            "props": { "left": 20 },
-                            "slots": {
-                              "child": [
-                                {
-                                  "type": "Text",
-                                  "props": {
-                                    "text": "Pending actions",
-                                    "variant": "subtitle",
-                                    "weight": "semibold",
-                                    "color": "secondary"
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "ForEach",
-                            "props": {
-                              "itemsPath": "pendingActions"
-                            },
-                            "slots": {
-                              "item": [
-                                {
-                                  "type": "InfoCard",
-                                  "props": {
-                                    "title": "${item.title}",
-                                    "subtitle": "${item.subtitle}",
-                                    "density": "compact",
-                                    "titleVariant": "title",
-                                    "titleWeight": "semibold",
-                                    "subtitleVariant": "body",
-                                    "subtitleColor": "muted",
-                                    "surface": "flat"
-                                  }
-                                },
-                                {
-                                  "type": "Padding",
-                                  "visibleWhen": {
-                                    "expr": "item.type == 'confirm_price' or item.type == 'confirm_substitution'"
-                                  },
-                                  "props": { "left": 20 },
-                                  "slots": {
-                                    "child": [
-                                      {
-                                        "type": "Row",
-                                        "props": {
-                                          "spacing": 12,
-                                          "crossAxisAlignment": "center"
-                                        },
-                                        "slots": {
-                                          "children": [
-                                            {
-                                              "type": "TextButton",
-                                              "props": {
-                                                "label": "Approve"
-                                              },
-                                              "actions": {
-                                                "tap": "approve_pending_action"
-                                              }
-                                            },
-                                            {
-                                              "type": "TextButton",
-                                              "props": {
-                                                "label": "Reject"
-                                              },
-                                              "actions": {
-                                                "tap": "reject_pending_action"
-                                              }
-                                            }
-                                          ]
-                                        }
-                                      }
-                                    ]
-                                  }
-                                },
-                                {
-                                  "type": "Padding",
-                                  "visibleWhen": {
-                                    "expr": "item.type == 'upload_document'"
-                                  },
-                                  "props": { "left": 20 },
-                                  "slots": {
-                                    "child": [
-                                      {
-                                        "type": "TextButton",
-                                        "props": {
-                                          "label": "Upload now"
-                                        },
-                                        "actions": {
-                                          "tap": "open_upload_pending_action"
-                                        }
-                                      }
-                                    ]
-                                  }
-                                },
-                                {
-                                  "type": "Gap",
-                                  "visibleWhen": {
-                                    "expr": "pendingActions != null and index < pendingActions.length - 1"
-                                  },
-                                  "props": { "height": 8 }
-                                }
-                              ]
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "type": "Column",
-                      "visibleWhen": {
-                        "expr": "data.request.deliveryLocation.text != null and data.request.deliveryLocation.text != ''"
-                      },
-                      "props": {
-                        "spacing": 6,
-                        "crossAxisAlignment": "stretch",
-                        "mainAxisSize": "min"
-                      },
-                      "slots": {
-                        "children": [
-                          {
-                            "type": "Padding",
-                            "props": { "left": 20 },
-                            "slots": {
-                              "child": [
-                                {
-                                  "type": "Text",
-                                  "props": {
-                                    "text": "Delivery Address",
-                                    "variant": "subtitle",
-                                    "weight": "semibold",
-                                    "color": "secondary"
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "InfoCard",
-                            "props": {
-                              "title": "",
-                              "subtitle": "${data.request.deliveryLocation.text}",
-                              "variant": "compact",
-                              "density": "compact",
-                              "subtitleVariant": "body",
-                              "subtitleColor": "muted",
-                              "surface": "subtle"
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "type": "Column",
-                      "visibleWhen": {
-                        "expr": "data.request.notes != null and data.request.notes != ''"
+                        "expr": "isNotBlank(data.request.notes)"
                       },
                       "props": {
                         "spacing": 6,
@@ -302,7 +118,7 @@
                                   "type": "Text",
                                   "props": {
                                     "text": "Notes",
-                                    "variant": "subtitle",
+                                    "variant": "title",
                                     "weight": "semibold",
                                     "color": "secondary"
                                   }
@@ -328,8 +144,7 @@
                     {
                       "type": "If",
                       "props": {
-                        "valuePath": "serviceDetails.isPharmacy",
-                        "op": "isTrue"
+                        "expr": "serviceDetails.isPharmacy == true"
                       },
                       "slots": {
                         "then": [
@@ -340,138 +155,65 @@
                       }
                     },
                     {
-                      "type": "Column",
+                      "type": "InfoCard",
                       "visibleWhen": {
-                        "expr": "data.request.paymentSummaryText != null and data.request.paymentSummaryText != ''"
+                        "expr": "isNotBlank(data.request.paymentSummaryText)"
                       },
                       "props": {
-                        "spacing": 6,
-                        "crossAxisAlignment": "stretch",
-                        "mainAxisSize": "min"
+                        "title": "Payment",
+                        "subtitle": "${data.request.paymentSummaryText}",
+                        "variant": "compact",
+                        "density": "compact",
+                        "titleVariant": "subtitle",
+                        "titleWeight": "semibold",
+                        "titleColor": "secondary",
+                        "subtitleVariant": "body",
+                        "subtitleColor": "muted",
+                        "surface": "subtle"
+                      }
+                    },
+                    {
+                      "type": "Padding",
+                      "visibleWhen": {
+                        "expr": "len(timeline) > 0"
                       },
+                      "props": { "left": 20 },
                       "slots": {
-                        "children": [
+                        "child": [
                           {
-                            "type": "Padding",
-                            "props": { "left": 20 },
-                            "slots": {
-                              "child": [
-                                {
-                                  "type": "Text",
-                                  "props": {
-                                    "text": "Payment",
-                                    "variant": "subtitle",
-                                    "weight": "semibold",
-                                    "color": "secondary"
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "InfoCard",
+                            "type": "Text",
                             "props": {
-                              "title": "",
-                              "subtitle": "${data.request.paymentSummaryText}",
-                              "variant": "compact",
-                              "density": "compact",
-                              "subtitleVariant": "body",
-                              "subtitleColor": "muted",
-                              "surface": "subtle"
+                              "text": "Timeline",
+                              "variant": "title",
+                              "weight": "semibold",
+                              "color": "secondary"
                             }
                           }
                         ]
                       }
                     },
                     {
-                      "type": "Column",
+                      "type": "Gap",
                       "visibleWhen": {
-                        "valuePath": "timeline",
-                        "op": "isNotEmpty"
+                        "expr": "len(timeline) > 0"
+                      },
+                      "props": { "height": 4 }
+                    },
+                    {
+                      "type": "StatusTimelinePanel",
+                      "visibleWhen": {
+                        "expr": "len(timeline) > 0"
                       },
                       "props": {
-                        "spacing": 8,
-                        "crossAxisAlignment": "stretch",
-                        "mainAxisSize": "min"
-                      },
-                      "slots": {
-                        "children": [
-                          {
-                            "type": "Padding",
-                            "props": { "left": 20 },
-                            "slots": {
-                              "child": [
-                                {
-                                  "type": "Text",
-                                  "props": {
-                                    "text": "Timeline",
-                                    "variant": "subtitle",
-                                    "weight": "semibold",
-                                    "color": "secondary"
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "type": "ForEach",
-                            "props": {
-                              "itemsPath": "timeline"
-                            },
-                            "slots": {
-                              "item": [
-                                {
-                                  "type": "Padding",
-                                  "props": { "left": 20 },
-                                  "slots": {
-                                    "child": [
-                                      {
-                                        "type": "Row",
-                                        "props": {
-                                          "mainAxisAlignment": "spaceBetween",
-                                          "crossAxisAlignment": "center",
-                                          "spacing": 12
-                                        },
-                                        "slots": {
-                                          "children": [
-                                            {
-                                              "type": "Text",
-                                              "props": {
-                                                "text": "${item.subtitle}",
-                                                "variant": "caption",
-                                                "weight": "medium",
-                                                "color": "muted",
-                                                "maxLines": 1,
-                                                "overflow": "clip"
-                                              }
-                                            },
-                                            {
-                                              "type": "Text",
-                                              "props": {
-                                                "text": "${item.title}",
-                                                "variant": "body",
-                                                "weight": "semibold",
-                                                "maxLines": 1,
-                                                "overflow": "clip"
-                                              }
-                                            }
-                                          ]
-                                        }
-                                      }
-                                    ]
-                                  }
-                                },
-                                {
-                                  "type": "Gap",
-                                  "visibleWhen": {
-                                    "expr": "timeline != null and index < timeline.length - 1"
-                                  },
-                                  "props": { "height": 8 }
-                                }
-                              ]
-                            }
-                          }
-                        ]
+                        "title": "",
+                        "itemsPath": "timeline",
+                        "paddingLeft": 20,
+                        "itemGap": 8,
+                        "rowSpacing": 12,
+                        "titleKey": "title",
+                        "subtitleKey": "createdAt",
+                        "dateFormat": "dd/MM/yyyy hh:mm a",
+                        "itemKeyPath": "id"
                       }
                     }
                   ]
@@ -481,36 +223,6 @@
           }
         }
       ]
-    }
-  },
-  "actions": {
-    "approve_pending_action": {
-      "type": "customer_request_action",
-      "value": {
-        "mode": "submit",
-        "requestId": "${data.request.id}",
-        "actionId": "${item.id}",
-        "decision": "approve"
-      }
-    },
-    "reject_pending_action": {
-      "type": "customer_request_action",
-      "value": {
-        "mode": "submit",
-        "requestId": "${data.request.id}",
-        "actionId": "${item.id}",
-        "decision": "reject"
-      }
-    },
-    "open_upload_pending_action": {
-      "type": "customer_request_action",
-      "value": {
-        "mode": "navigate_upload",
-        "requestId": "${data.request.id}",
-        "actionId": "${item.id}",
-        "screenId": "pharmacy_prescription_upload",
-        "title": "Upload prescription"
-      }
     }
   }
 }

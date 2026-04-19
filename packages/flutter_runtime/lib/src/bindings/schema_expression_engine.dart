@@ -1066,6 +1066,18 @@ final class _CallExpr extends _Expr {
     Object? a(int i) => (i < args.length) ? args[i].eval(env) : null;
 
     switch (fn) {
+      case 'isNull':
+        return a(0) == null;
+      case 'isNotNull':
+        return a(0) != null;
+      case 'isEmpty':
+        return _isEmptyValue(a(0), trimStrings: false);
+      case 'isNotEmpty':
+        return !_isEmptyValue(a(0), trimStrings: false);
+      case 'isBlank':
+        return _isEmptyValue(a(0), trimStrings: true, treatNullAsEmpty: true);
+      case 'isNotBlank':
+        return !_isEmptyValue(a(0), trimStrings: true, treatNullAsEmpty: true);
       case 'len':
         final v = a(0);
         if (v is String) return v.length;
@@ -1101,6 +1113,24 @@ final class _CallExpr extends _Expr {
         return null;
     }
   }
+}
+
+bool _isEmptyValue(
+  Object? value, {
+  required bool trimStrings,
+  bool treatNullAsEmpty = false,
+}) {
+  if (value == null) return treatNullAsEmpty;
+
+  if (value is String) {
+    final s = trimStrings ? value.trim() : value;
+    return s.isEmpty;
+  }
+
+  if (value is List) return value.isEmpty;
+  if (value is Map) return value.isEmpty;
+
+  return false;
 }
 
 Object? _evalBinary(_BinaryOp op, Object? l, Object? r) {

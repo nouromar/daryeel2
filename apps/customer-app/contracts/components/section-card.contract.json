@@ -1,0 +1,37 @@
+{
+  "name": "SectionCard",
+  "scope": "app",
+  "category": "section",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "subtitle": "string",
+    "surface": "enum",
+    "density": "enum",
+    "titleVariant": "enum",
+    "titleWeight": "enum",
+    "titleColor": "enum",
+    "subtitleVariant": "enum",
+    "subtitleWeight": "enum",
+    "subtitleColor": "enum",
+    "contentGap": "number"
+  },
+  "defaults": {
+    "surface": "raised",
+    "density": "comfortable"
+  },
+  "styleContract": {
+    "surface": ["flat", "subtle", "raised"],
+    "density": ["compact", "comfortable"],
+    "titleVariant": ["body", "label", "caption", "subtitle", "title"],
+    "titleWeight": ["regular", "medium", "semibold", "bold"],
+    "titleColor": ["default", "muted", "primary", "secondary", "error"],
+    "subtitleVariant": ["body", "label", "caption", "subtitle", "title"],
+    "subtitleWeight": ["regular", "medium", "semibold", "bold"],
+    "subtitleColor": ["default", "muted", "primary", "secondary", "error"]
+  },
+  "slots": ["child"],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

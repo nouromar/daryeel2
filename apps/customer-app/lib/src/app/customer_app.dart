@@ -70,7 +70,7 @@ class _CustomerAppState extends State<CustomerApp> {
           enableThemePinning: false,
           resolveLocalTheme: resolveCustomerTheme,
           resolveThemeMode: resolveThemeMode,
-          defaultThemeId: 'customer-default',
+          defaultThemeId: 'custome-black-white-clear',
           defaultThemeMode: 'light',
           buildCompatibilityChecker: (overlay) =>
               CustomerSchemaCompatibilityChecker(overlay: overlay),

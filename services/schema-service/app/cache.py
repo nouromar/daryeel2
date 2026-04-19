@@ -22,6 +22,9 @@ class CacheBackend:
     def set(self, key: str, value: CacheValue, ttl_seconds: int | None) -> None:
         raise NotImplementedError
 
+    def clear(self) -> None:
+        raise NotImplementedError
+
 
 class InMemoryCacheBackend(CacheBackend):
     def __init__(self) -> None:
@@ -40,6 +43,9 @@ class InMemoryCacheBackend(CacheBackend):
     def set(self, key: str, value: CacheValue, ttl_seconds: int | None) -> None:
         expires_at = None if ttl_seconds is None else (time.time() + ttl_seconds)
         self._store[key] = (value, expires_at)
+
+    def clear(self) -> None:
+        self._store.clear()
 
 
 class RedisCacheBackend(CacheBackend):
@@ -97,6 +103,11 @@ class RedisCacheBackend(CacheBackend):
             self._client.set(full_key, body)
         else:
             self._client.setex(full_key, ttl_seconds, body)
+
+    def clear(self) -> None:
+        # Clear only this service's keys (prefix-scoped), not the entire Redis DB.
+        for key in self._client.scan_iter(match=f"{self._prefix}*"):
+            self._client.delete(key)
 
 
 def build_cache_backend() -> CacheBackend:

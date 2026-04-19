@@ -20,6 +20,7 @@ from app.registry import (
     get_screen_doc_id,
     get_screen,
     get_screen_by_doc_id,
+    reload_registry,
 )
 from app.schemas import (
     ActionContractsResponse,
@@ -171,6 +172,20 @@ def dev_recent_errors(limit: int = 50) -> dict:
         return {"errors": []}
     limit = min(limit, 200)
     return {"errors": list(_recent_errors)[-limit:]}
+
+
+@app.post("/dev/reload")
+def dev_reload() -> dict:
+    # Dev-only: reload JSON fixtures from disk (apps/*/schemas).
+    if settings.app_env not in {"development", "docker"}:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    counts = reload_registry()
+    try:
+        _cache.clear()
+    except Exception:  # pragma: no cover
+        _request_logger.exception("dev_reload: failed to clear cache")
+    return {"ok": True, **counts}
 
 
 @app.get("/health", response_model=HealthResponse)

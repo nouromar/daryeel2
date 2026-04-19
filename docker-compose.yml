@@ -63,6 +63,13 @@ services:
     volumes:
       # Dev convenience: let local schema edits take effect on container restart.
       - ./apps/customer-app/schemas:/workspace/daryeel/Daryeel2/apps/customer-app/schemas:ro
+      # Dev convenience: let local contract edits take effect on container restart.
+      - ./apps/customer-app/contracts:/workspace/daryeel/Daryeel2/apps/customer-app/contracts:ro
+      # Dev convenience: shared contracts/themes are copied into the image, so
+      # bind-mount them to avoid rebuilds when iterating on shared definitions.
+      - ./packages/component-contracts:/workspace/daryeel/Daryeel2/packages/component-contracts:ro
+      - ./packages/theme-contracts:/workspace/daryeel/Daryeel2/packages/theme-contracts:ro
+      - ./packages/schema-contracts:/workspace/daryeel/Daryeel2/packages/schema-contracts:ro
     environment:
       SCHEMA_SERVICE_APP_ENV: docker
       # Unified runtime service for schema, theme, and config delivery.

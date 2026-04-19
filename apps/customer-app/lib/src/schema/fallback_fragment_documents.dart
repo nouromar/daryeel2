@@ -315,63 +315,45 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
             },
           },
           {
-            'type': 'Column',
+            'type': 'SectionCard',
             'visibleWhen': {
-              'valuePath': 'serviceDetails.payload.prescription_upload_ids',
+              'valuePath': 'serviceDetails.payload.prescription_uploads',
               'op': 'isNotEmpty',
             },
             'props': {
-              'spacing': 6,
-              'crossAxisAlignment': 'stretch',
-              'mainAxisSize': 'min',
+              'title': 'Prescription',
+              'surface': 'subtle',
+              'density': 'compact',
+              'titleVariant': 'subtitle',
+              'titleWeight': 'semibold',
+              'titleColor': 'secondary',
+              'contentGap': 10,
             },
             'slots': {
-              'children': [
-                {
-                  'type': 'Padding',
-                  'props': {'left': 20},
-                  'slots': {
-                    'child': [
-                      {
-                        'type': 'Text',
-                        'props': {
-                          'text': 'Prescription',
-                          'variant': 'subtitle',
-                          'weight': 'semibold',
-                          'color': 'secondary',
-                        },
-                      },
-                    ],
-                  },
-                },
+              'child': [
                 {
                   'type': 'ForEach',
                   'props': {
-                    'itemsPath':
-                        'serviceDetails.payload.prescription_upload_ids',
+                    'itemsPath': 'serviceDetails.payload.prescription_uploads',
                   },
                   'slots': {
                     'item': [
                       {
-                        'type': 'InfoCard',
+                        'type': 'Text',
                         'props': {
-                          'title': 'Prescription',
-                          'subtitle': r'${item}',
-                          'density': 'compact',
-                          'titleVariant': 'title',
-                          'titleWeight': 'semibold',
-                          'subtitleVariant': 'body',
-                          'subtitleColor': 'muted',
-                          'surface': 'subtle',
+                          'text': r'${item.filename}',
+                          'variant': 'body',
+                          'weight': 'medium',
+                          'color': 'muted',
                         },
                       },
                       {
                         'type': 'Gap',
                         'visibleWhen': {
                           'expr':
-                              'serviceDetails.payload.prescription_upload_ids != null and index < serviceDetails.payload.prescription_upload_ids.length - 1',
+                              'serviceDetails.payload.prescription_uploads != null and index < serviceDetails.payload.prescription_uploads.length - 1',
                         },
-                        'props': {'height': 8},
+                        'props': {'height': 6},
                       },
                     ],
                   },

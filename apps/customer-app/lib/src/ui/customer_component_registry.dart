@@ -3,9 +3,11 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../actions/customer_action_dispatcher.dart';
+import 'section_card_schema_component.dart';
 import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_cart_items_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_prescription_upload_schema_component.dart';
+import '../services/pharmacy/ui/pharmacy_request_detail_cart_item_schema_component.dart';
 
 typedef CustomerSchemaComponentRegistrar =
     void Function({
@@ -16,10 +18,13 @@ typedef CustomerSchemaComponentRegistrar =
 const Map<String, CustomerSchemaComponentRegistrar>
 _customerSchemaComponentRegistrarsByType =
     <String, CustomerSchemaComponentRegistrar>{
+      'SectionCard': registerSectionCardSchemaComponent,
       'CatalogItemTile': registerCustomerCatalogItemTileSchemaComponent,
       'PharmacyCartItems': registerPharmacyCartItemsSchemaComponent,
       'PharmacyPrescriptionUpload':
           registerPharmacyPrescriptionUploadSchemaComponent,
+      'PharmacyRequestDetailCartItem':
+          registerPharmacyRequestDetailCartItemSchemaComponent,
     };
 
 void registerCustomerSchemaComponents({

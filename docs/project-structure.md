@@ -194,6 +194,8 @@ Theme and token model:
 - mode ids such as light/dark
 - inheritance rules
 
+Canonical theming reference (how it’s used by the client runtime): `docs/theming.md`.
+
 #### `component-contracts/`
 Schema-renderable component contracts:
 - component names
@@ -231,6 +233,8 @@ Predesigned reusable widgets used by the schema renderer.
 
 ### `flutter_themes/`
 Token resolution, theme inheritance, and Flutter theming integration.
+
+See also: `docs/theming.md`.
 
 ### `flutter_schema_renderer/`
 Schema-to-widget composition and rendering.

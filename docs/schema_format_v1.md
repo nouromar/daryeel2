@@ -138,6 +138,8 @@ v1 theming should use four mechanisms together:
 - theme inheritance
 - bounded styling overrides
 
+Canonical reference (how it’s implemented + where to change what): `docs/theming.md`.
+
 ### 5.1 Theme selection
 Schema selects a theme with `themeId` and may optionally select a mode such as `light` or `dark`.
 
@@ -228,6 +230,8 @@ Actions are declared centrally and referenced by components.
 Supported action types (implemented in the Flutter runtime as of Apr 2026):
 - `navigate`
 - `open_url`
+- `set_state`
+- `patch_state`
 - `submit_form`
 - `track_event`
 

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import require_access_token_payload
+from app.models import PrescriptionUpload
 from app.models import RequestEvent
 from app.models import ServiceRequest
 router = APIRouter(prefix="/v1", tags=["requests"])
@@ -230,7 +231,7 @@ def _serialize_request_detail(
             "attentionSubtitle": attention["attentionSubtitle"],
         },
         "pendingActions": pending_actions,
-        "serviceDetails": _service_details(request),
+        "serviceDetails": _service_details(db=db, request=request),
         "timeline": [_serialize_request_event(event) for event in events if event.to_status],
     }
 
@@ -482,14 +483,19 @@ def _has_unread_updates(latest_event: RequestEvent | None) -> bool:
     return latest_event.type != "created" and latest_event.actor_type != "customer"
 
 
-def _service_details(request: ServiceRequest) -> dict[str, Any]:
+def _service_details(*, db: Session, request: ServiceRequest) -> dict[str, Any]:
     payload = request.payload_json if isinstance(request.payload_json, dict) else {}
 
     if request.service_id == "pharmacy":
+        enriched_payload = _enrich_pharmacy_payload_with_prescription_uploads(
+            db,
+            payload=payload,
+            customer_user_id=request.customer_user_id,
+        )
         return {
             "serviceId": request.service_id,
             "isPharmacy": True,
-            "payload": payload,
+            "payload": enriched_payload,
         }
 
     return {
@@ -497,6 +503,56 @@ def _service_details(request: ServiceRequest) -> dict[str, Any]:
         "isPharmacy": False,
         "payload": payload,
     }
+
+
+def _enrich_pharmacy_payload_with_prescription_uploads(
+    db: Session,
+    *,
+    payload: dict[str, Any],
+    customer_user_id: int,
+) -> dict[str, Any]:
+    upload_ids = payload.get("prescription_upload_ids")
+    if not isinstance(upload_ids, list) or not upload_ids:
+        return payload
+
+    ids: list[str] = []
+    for raw in upload_ids:
+        if not isinstance(raw, str):
+            continue
+        v = raw.strip()
+        if not v:
+            continue
+        if len(v) > 128:
+            continue
+        ids.append(v)
+
+    if not ids:
+        return payload
+
+    rows = list(
+        db.scalars(
+            select(PrescriptionUpload).where(
+                PrescriptionUpload.id.in_(ids),
+                PrescriptionUpload.customer_user_id == customer_user_id,
+                PrescriptionUpload.service_id == "pharmacy",
+            )
+        )
+    )
+
+    filenames_by_id: dict[str, str] = {}
+    for row in rows:
+        filename = (row.filename or "").strip()
+        if filename:
+            filenames_by_id[row.id] = filename
+
+    uploads: list[dict[str, Any]] = []
+    for upload_id in ids:
+        filename = filenames_by_id.get(upload_id) or upload_id
+        uploads.append({"id": upload_id, "filename": filename})
+
+    out = dict(payload)
+    out["prescription_uploads"] = uploads
+    return out
 
 
 def _serialize_request_event(event: RequestEvent) -> dict[str, Any]:

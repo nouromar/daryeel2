@@ -27,16 +27,17 @@ Monorepo layout:
 Architecture and structure:
 - [docs/project-structure.md](project-structure.md)
 - [docs/01-design-philosophy.md](01-design-philosophy.md)
-- [docs/02-backend-design-reusable-entities.md](02-backend-design-reusable-entities.md)
-- [docs/03-ui-design-and-component-inventory.md](03-ui-design-and-component-inventory.md)
 
 Schema-driven UI runtime:
 - [docs/schema_driven_ui_design.md](schema_driven_ui_design.md)
 - [docs/schema_format_v1.md](schema_format_v1.md)
+- [docs/theming.md](theming.md)
 - [docs/schema_runtime_flutter_mapping.md](schema_runtime_flutter_mapping.md)
 - [docs/schema_client_runtime_architecture.md](schema_client_runtime_architecture.md)
 - [docs/schema_component_contracts.md](schema_component_contracts.md)
-- [docs/schema-screen-authoring.md](schema-screen-authoring.md) ← **start here when building or reviewing a screen**
+- [docs/skills/schema-screen.md](skills/schema-screen.md) ← **start here when building or reviewing a screen**
+- [docs/schema-screen-authoring.md](schema-screen-authoring.md)
+- [docs/skills/README.md](skills/README.md) ← repo-specific “how-to” playbooks
 
 Compatibility/fallback and rollout:
 - [docs/schema_compatibility_and_fallback_rfc.md](schema_compatibility_and_fallback_rfc.md)
@@ -48,11 +49,6 @@ Config and caching:
 Diagnostics:
 - [docs/diagnostics-and-telemetry.md](diagnostics-and-telemetry.md)
 
-Planning/checklists:
-- [docs/framework-completion-checklist.md](framework-completion-checklist.md)
-- [docs/framework-completion-plan.md](framework-completion-plan.md)
-- [docs/framework-next-pr-slices.md](framework-next-pr-slices.md)
-
 ## Flutter client architecture (current state)
 
 ### Shared client shell
@@ -62,7 +58,7 @@ Primary reuse point:
 
 Responsibilities (high level):
 - Owns the schema-driven client runtime (bootstrap + config snapshot + schema/theme loading).
-- Provides HTTP caching (ETag/304) and “pinning ladder” behavior (immutable docId pin).
+- Provides HTTP caching (ETag/304) and optional “pinning ladder” behavior (immutable docId pin; schema pinning is gated by `DaryeelRuntimeConfig.enableSchemaPinning`).
 - Owns the screen/theme load ladders, compatibility checks, diagnostics emission, and runtime inspector.
 - Hosts the shared runtime action set and delegates product-specific actions/components to app-owned extension layers.
 - Emits diagnostics events (PII-safe) and provides a debug Runtime Inspector screen in debug builds.
@@ -120,13 +116,20 @@ This means app-level widgets and actions are first-class and backend-validatable
 
 ## “Where do I change X?”
 
+- Add/modify schemas (screens/fragments): `apps/*/schemas/**`.
 - Add/modify schema-to-widget mapping: start with `packages/flutter_schema_renderer/` and the app registry builders under `apps/*/lib/src/ui/*_component_registry.dart`.
 - Change runtime loading behavior (bootstrap/config/schema/theme ladders, caching, pins): `packages/flutter_daryeel_client_app/`.
+- Add/modify themes (canonical guide: `docs/theming.md`):
+  - App resolvers: `apps/*/lib/src/ui/*_theme.dart`
+  - Shared theme resolver: `packages/flutter_themes/`
+  - Theme contracts/documents: `packages/theme-contracts/`
+- Add/modify core schema components (when a new reusable widget is truly needed): `packages/flutter_components/lib/src/schema_components/` + `packages/flutter_components/lib/src/widgets/` + contracts in `packages/component-contracts/contracts/`.
 - Add/modify app-specific widgets: `apps/*/lib/src/services/**` plus app registry wiring in `apps/*/lib/src/ui/*_component_registry.dart`.
 - Add/modify app-specific actions: `apps/*/lib/src/actions/**` plus action contracts in `apps/*/contracts/actions/`.
 - Add/modify app-specific contract validation: `apps/*/contracts/{components,actions}/` and `services/schema-service/app/contract_catalog.py`.
-- Update schema format: `packages/schema-contracts/` (examples/schemas) + `docs/schema_format_v1.md`.
+- Update schema format: `packages/schema-contracts/` (JSON schema contracts) + `docs/schema_format_v1.md`.
 - Update server-side schema service: `services/schema-service/`.
+- Update product APIs consumed by schemas/apps: `services/api/app/routers/` (grouped by service; stable prefix convention is `/v1/<service>/...`).
 
 ## Local development commands (common)
 
@@ -190,3 +193,10 @@ Decision hints:
 When large architectural changes land:
 - Update this doc’s “Quick orientation”, “Flutter client architecture”, and “Where do I change X?” sections.
 - Add links to the new canonical doc(s) rather than duplicating details here.
+
+## Optional background (larger / sometimes outdated)
+
+These are useful for deeper architecture work, but are often too large for day-to-day schema + app changes.
+
+- [docs/02-backend-design-reusable-entities.md](02-backend-design-reusable-entities.md) — conceptual backend spine and entities; helpful when editing `services/api`
+- [docs/03-ui-design-and-component-inventory.md](03-ui-design-and-component-inventory.md) — high-level UI philosophy; inventory sections may not match the current schema widget set

@@ -1,0 +1,31 @@
+{
+  "name": "StatusTimelinePanel",
+  "category": "tracking",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "itemsPath": "string",
+    "itemKeyPath": "string",
+    "titleKey": "string",
+    "subtitleKey": "string",
+    "dateFormat": "string",
+    "paddingLeft": "number",
+    "itemGap": "number",
+    "rowSpacing": "number"
+  },
+  "defaults": {
+    "title": "Timeline",
+    "itemsPath": "timeline",
+    "itemKeyPath": "id",
+    "titleKey": "title",
+    "subtitleKey": "subtitle",
+    "dateFormat": "dd/MM/yyyy hh:mm a",
+    "paddingLeft": 20,
+    "itemGap": 8,
+    "rowSpacing": 12
+  },
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "omit"
+}

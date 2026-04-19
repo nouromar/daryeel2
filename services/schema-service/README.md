@@ -68,3 +68,50 @@ SCHEMA_SERVICE_PUBLIC_BASE_URL=https://runtime.example.com docker compose up --b
 
 Note: Redis-backed caching requires the `redis` Python package (included in
 `services/schema-service/requirements.txt`).
+
+## Docker dev workflow: making edits take effect
+
+When you edit files that the frontend “owns” but the backend serves/validates (schemas/contracts/themes), the schema-service must re-read the updated files and/or clear caches.
+
+### What updates without rebuild
+
+In the default Docker compose setup, schema-service runs with bind-mounted JSON inputs so you can iterate without rebuilding the image:
+
+- App schemas: `apps/customer-app/schemas/**`
+- App contracts: `apps/customer-app/contracts/**`
+- Shared contracts/themes/schema contracts: `packages/{component-contracts,theme-contracts,schema-contracts}/**`
+
+### After editing JSON (schemas/contracts/themes)
+
+1) Trigger a dev reload (reloads schema registry and clears cache backend, including Redis when configured):
+
+```bash
+curl -sS -X POST http://localhost:8011/dev/reload | cat
+```
+
+2) Re-fetch the affected endpoint to confirm the change is served:
+
+```bash
+curl -sS http://localhost:8011/schemas/screens/<screen_id> | head
+curl -sS "http://localhost:8011/contracts/components?product=customer_app" | head
+curl -sS "http://localhost:8011/contracts/actions?product=customer_app" | head
+curl -sS http://localhost:8011/themes/catalog | head
+```
+
+Why: schemas are loaded into an in-memory registry, and contract/theme endpoints are cached (TTL) and may be Redis-backed; `/dev/reload` clears those caches.
+
+### After editing schema-service Python code
+
+The container does not run with `uvicorn --reload`, and service code is built into the image.
+Rebuild + restart the service:
+
+```bash
+cd Daryeel2
+docker compose up -d --build schema-service
+```
+
+If your change affects served payloads that are cached, also run:
+
+```bash
+curl -sS -X POST http://localhost:8011/dev/reload | cat
+```

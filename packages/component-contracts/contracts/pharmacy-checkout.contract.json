@@ -1,5 +1,6 @@
 {
   "name": "PharmacyCheckout",
+  "scope": "app",
   "category": "pharmacy",
   "version": "1.0",
   "propsSchema": {},

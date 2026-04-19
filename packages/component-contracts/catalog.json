@@ -32,6 +32,7 @@
     "contracts/text-input.contract.json",
     "contracts/address-section.contract.json",
     "contracts/payment-options-section.contract.json",
+    "contracts/status-timeline-panel.contract.json",
     "contracts/quote-summary-card.contract.json",
     "contracts/pharmacy-cart-items.contract.json",
     "contracts/pharmacy-prescription-upload.contract.json",

@@ -1,7 +1,12 @@
 # Schema Screen Authoring Guide
 
-Reference for building and reviewing schema-driven UI screens in the Daryeel customer app.
-Read this before writing or modifying any `.screen.json` or `.fragment.json` file.
+Stable guidance for building and reviewing schema-driven UI screens in the Daryeel customer app.
+
+This guide intentionally avoids a long “widget inventory” list because it becomes outdated quickly.
+For the current widget catalogue and repo-specific playbook, use:
+- `docs/skills/schema-screen.md`
+- `apps/customer-app/lib/src/ui/customer_component_registry.dart` (customer app additions)
+- `packages/flutter_components/lib/src/schema_components/core_schema_components.dart` (core widgets)
 
 ---
 
@@ -21,6 +26,8 @@ Every screen lives at `apps/customer-app/schemas/screens/<id>.screen.json`:
   "actions": { ... }
 }
 ```
+
+Theming details (theme ids, modes, inheritance, and where to change what): `docs/theming.md`.
 
 Fragments (`*.fragment.json`) are reusable subtrees. They use `"documentType": "fragment"` with a
 single `"node"` key instead of `"root"`. Reference them with:
@@ -59,115 +66,19 @@ Slots: `header` (rare), `body` (main scrollable content), `footer` (sticky — u
 
 ---
 
-## Widget catalogue
+## Widget catalogue (how to find what’s available)
 
-### Layout
+For “what widgets exist and which props they support”, use these sources (in this order):
 
-| Widget | Key props | Slot(s) |
-|--------|-----------|---------|
-| `Column` | `spacing`, `crossAxisAlignment` (`stretch`/`start`/`end`/`center`), `mainAxisSize` (`min`/`max`) | `children` |
-| `Row` | `spacing`, `mainAxisAlignment`, `crossAxisAlignment` | `children` |
-| `Stack` | — | `children` |
-| `Wrap` | `spacing`, `runSpacing`, `alignment` | `children` |
-| `Padding` | `top`, `bottom`, `left`, `right`, `horizontal`, `vertical`, `all` | `child` |
-| `Align` | `alignment` (`center`/`topLeft`/`centerRight`/…) | `child` |
-| `SizedBox` | `width`, `height` | `child` (optional) |
-| `Expanded` | — | `child` — use inside `Row`/`Column` only |
-| `Gap` | `height`, `width` | none — pure spacing shorthand |
-| `BottomTabs` | `tabs: [{id, label, icon}]` | one slot per tab `id` |
+1) Repo-specific skill (kept current): `docs/skills/schema-screen.md`
+2) Flutter registration code (authoritative):
+  - Core widgets: `packages/flutter_components/lib/src/schema_components/core_schema_components.dart`
+  - Customer app widgets: `apps/customer-app/lib/src/ui/customer_component_registry.dart`
+3) Contracts (what the schema-service validates):
+  - Core widget contracts: `packages/component-contracts/contracts/`
+  - Customer app widget contracts: `apps/customer-app/contracts/components/`
 
-### Typography — `Text`
-
-Props: `text` (supports `${expr}`), `variant`, `weight`, `color`, `align`, `maxLines`, `overflow`, `softWrap`, `size`
-
-| token | values |
-|-------|--------|
-| `variant` | `title` `subtitle` `body` `label` `caption` |
-| `weight` | `regular` `medium` `semibold` `bold` |
-| `color` | `default` `muted` `primary` `secondary` `error` |
-| `overflow` | `ellipsis` `clip` `fade` |
-
-### Cards
-
-Both `InfoCard` and `ActionCard` share the same typography override props and surface/density tokens.
-
-| Widget | When to use | Tappable? |
-|--------|-------------|-----------|
-| `InfoCard` | Read-only — status, summary, empty state, error state | No |
-| `ActionCard` | Navigates somewhere or triggers an action; supports `icon` | Yes — event: `tap` |
-| `BoundActionCard` | Like `ActionCard` but reads title/subtitle/icon/route from data paths. Use inside `ForEach` over API-driven lists | Yes — event: `tap` |
-
-**BoundActionCard props**: `titlePath`, `subtitlePath`, `iconPath`, `routePath`
-
-**Surface tokens** (shared by all cards):
-
-| value | appearance |
-|-------|-----------|
-| `raised` | Card with shadow — primary content |
-| `flat` | No elevation — inline, borderless |
-| `subtle` | Slight tint, no shadow — secondary info, empty/error states |
-
-**Density tokens**: `comfortable` (default, more padding) | `compact` (tighter)
-
-**Typography override props** (all cards): `titleVariant`, `titleWeight`, `titleColor`,
-`subtitleVariant`, `subtitleWeight`, `subtitleColor` — same token sets as `Text` above.
-
-### Inputs
-
-| Widget | `bind` target | Notes |
-|--------|-------------|-------|
-| `TextInput` | `"bind": "state.key"` | Props: `label`, `hint`, `testId` |
-| `AddressSection` | `"bind": "$state.delivery.address"` | Configured via `sources` object |
-| `PaymentOptionsSection` | separate `methodBind` + `timingBind` props | Reads methods/timings from data path |
-
-### Control flow
-
-| Widget | Props | Slots |
-|--------|-------|-------|
-| `If` | `valuePath` + `op`, or `expr` (CEL expression) | `then`, `else` |
-| `ForEach` | `itemsPath` | `item` — use `item.field` and `index` inside |
-
-`op` values for `If`: `isTrue` `isFalse` `isNotEmpty` `isEmpty` `isNull` `isNotNull`
-
-`visibleWhen` — inline conditional on any single node:
-
-```json
-"visibleWhen": { "expr": "data.count > 0 and data.label != ''" }
-"visibleWhen": { "valuePath": "items", "op": "isNotEmpty" }
-```
-
-### Data fetching
-
-| Widget | Use for |
-|--------|---------|
-| `RemoteQuery` | Single GET, fetched once, cached by `key`. Slots: `loading`, `error`, `child` |
-| `RemotePagedList` | Cursor-paginated list with auto-load-more. Slots: `loading`, `error`, `empty`, `item` |
-
-`RemoteQuery` props: `key`, `path`, `params` (values support `$route.param`, `$state.key`)
-
-`RemotePagedList` props: `key`, `path`, `params`, `itemsPath`, `nextCursorPath`, `cursorParam`, `itemKeyPath`
-
-Data from `RemoteQuery` is in scope as `data.*` inside the `child` slot.
-Current item in `ForEach` / `RemotePagedList` item slot is `item.*`, current index is `index`.
-
-### Commerce / specialty
-
-| Widget | Notes |
-|--------|-------|
-| `CartItem` | Single cart line row with quantity controls |
-| `CartSummary` | Order summary card; reads `linesPath` + `totalPath` from state |
-| `CatalogItemTile` | Product row with Add button; event: `add` |
-| `PharmacyCartItems` | Full cart list; app-level composite |
-| `PharmacyCheckout` | App-level checkout form composite |
-
-### Navigation / chrome
-
-| Widget | Notes |
-|--------|-------|
-| `PrimaryActionBar` | Sticky footer buttons. Props: `primaryLabel`, `secondaryLabel`, `expand`, `tone`, `size`. Events: `primary`, `secondary` |
-| `Icon` | Material icon by name. Props: `name`, `size`, `color` |
-| `IconButton` | Tappable icon. Props: `name`, `size`, `color`, `semanticLabel`. Event: `tap` |
-| `TextButton` | Inline text link. Prop: `label`. Event: `tap` |
+Rule of thumb: if it’s not registered in the component registries, it’s not renderable.
 
 ---
 
@@ -178,13 +89,13 @@ Current item in `ForEach` / `RemotePagedList` item slot is `item.*`, current ind
 | `"${data.field}"` | Value from `RemoteQuery`/`RemotePagedList` scope |
 | `"${item.field}"` | Current item inside `ForEach` or list `item` slot |
 | `"${index}"` | Current index inside `ForEach` |
-| `"$state.path.key"` | Mutable schema state |
-| `"$route.paramName"` | Route parameter |
-| `"$form.fieldKey"` | Form field value (`TextInput` bind target) |
+| `"$state.path.key"` | Bounded param binding (used in query params; not the expression variable name) |
+| `"$route.paramName"` | Bounded param binding (route params) |
+| `"$form.formId.fieldKey"` | Bounded param binding (form field value) |
 
 String interpolation in any string prop: `"Hello, ${data.user.name}!"`
 
-CEL expressions in `visibleWhen`/`If`: `data.x`, `state.x`, `item.x`, `index`, `len(list)`
+For expression syntax (operators, functions, strict boolean rules), use: `docs/skills/expression-engine.md`.
 
 ---
 
@@ -212,6 +123,7 @@ Widget reference: `"actions": { "tap": "go_detail" }`
 | type | Key fields | Purpose |
 |------|-----------|---------|
 | `navigate` | `route`, `value.screenId`, `value.title`, `value.params`, `value.chromePreset` | Push a schema screen |
+| `set_state` | `value.path`, `value.value` | Set a value in runtime state |
 | `patch_state` | `value.ops` — array of `{op, path, value?}` | Mutate schema state (add / remove / replace) |
 | `submit_form` | `formId` | Submit form data to the registered form handler |
 
@@ -219,16 +131,11 @@ Navigate route for all schema screens: `"route": "customer.schema_screen"`
 
 ### App-level actions (customer app)
 
-| type | Key value fields |
-|------|-----------------|
-| `pharmacy_cart_upsert` | `id`, `name`, `subtitle`, `rx_required`, `price`, `icon` |
-| `pharmacy_cart_increment` | `id` |
-| `pharmacy_cart_decrement` | `id` |
-| `pharmacy_cart_clear` | — |
-| `pharmacy_cart_refresh_summary` | `immediate` (bool), `debounceMs` (number) |
-| `customer_request_action` | `mode` (`submit`/`navigate_upload`), `requestId`, `actionId`, `decision`, `screenId`, `title` |
+Customer-app-specific action types are defined by:
+- Dispatcher: `apps/customer-app/lib/src/actions/customer_action_dispatcher.dart`
+- Contracts: `apps/customer-app/contracts/actions/`
 
-All value fields support `"${expr}"` interpolation.
+Prefer reading the contracts as the schema-author “source of truth” for fields and types.
 
 ---
 
@@ -268,7 +175,7 @@ Is this pattern reusable across multiple apps / products?
 Is this business logic specific to the customer app?
   YES → Add an APP-LEVEL widget:
     1. Widget Dart class in apps/customer-app/lib/src/services/<domain>/ui/
-    2. Schema component registered alongside registerCoreSchemaComponents in main.dart
+    2. Schema component registration in apps/customer-app/lib/src/ui/customer_component_registry.dart
     3. Contract JSON in apps/customer-app/contracts/components/
   NO ↓
 
@@ -294,4 +201,5 @@ pure app-layer alternative first.
 | Core Flutter widgets | `packages/flutter_components/lib/src/widgets/` |
 | Core schema components | `packages/flutter_components/lib/src/schema_components/` |
 | Core component registry | `packages/flutter_components/lib/src/schema_components/core_schema_components.dart` |
+| Customer app component registry | `apps/customer-app/lib/src/ui/customer_component_registry.dart` |
 | App action dispatcher | `apps/customer-app/lib/src/actions/customer_action_dispatcher.dart` |

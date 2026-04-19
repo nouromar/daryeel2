@@ -42,8 +42,7 @@
               {
                 "type": "If",
                 "props": {
-                  "valuePath": "has_requests",
-                  "op": "isFalse"
+                  "expr": "has_requests == false"
                 },
                 "slots": {
                   "then": [
@@ -61,8 +60,7 @@
               {
                 "type": "If",
                 "props": {
-                  "valuePath": "attention",
-                  "op": "isNotEmpty"
+                  "expr": "len(attention) > 0"
                 },
                 "slots": {
                   "then": [
@@ -123,8 +121,7 @@
               {
                 "type": "If",
                 "props": {
-                  "valuePath": "active",
-                  "op": "isNotEmpty"
+                  "expr": "len(active) > 0"
                 },
                 "slots": {
                   "then": [
@@ -185,8 +182,7 @@
               {
                 "type": "If",
                 "props": {
-                  "valuePath": "history",
-                  "op": "isNotEmpty"
+                  "expr": "len(history) > 0"
                 },
                 "slots": {
                   "then": [

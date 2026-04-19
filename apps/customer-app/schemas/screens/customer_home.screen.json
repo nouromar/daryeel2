@@ -86,11 +86,15 @@
                 "slots": {
                   "child": [
                     {
-                      "type": "IconButton",
-                      "props": {
-                        "name": "refresh",
-                        "size": 20,
-                        "semanticLabel": "Refresh"
+                      "type": "TapArea",
+                      "props": { "minSize": 0, "semanticLabel": "Refresh" },
+                      "slots": {
+                        "child": [
+                          {
+                            "type": "Icon",
+                            "props": { "name": "refresh", "size": 20 }
+                          }
+                        ]
                       },
                       "actions": { "tap": "refresh_activities" }
                     }

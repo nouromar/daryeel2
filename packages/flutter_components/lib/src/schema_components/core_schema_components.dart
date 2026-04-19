@@ -20,6 +20,7 @@ import 'remote_paged_list_schema_component.dart';
 import 'remote_query_schema_component.dart';
 import 'schema_component_context.dart';
 import 'screen_template_schema_component.dart';
+import 'status_timeline_panel_schema_component.dart';
 import 'tap_area_schema_component.dart';
 import 'text_button_schema_component.dart';
 import 'text_schema_component.dart';
@@ -44,6 +45,8 @@ void registerCoreSchemaComponents({
   registerPrimaryActionBarSchemaComponent(registry: registry, context: context);
   registerTextButtonSchemaComponent(registry: registry, context: context);
   registerTextSchemaComponent(registry: registry, context: context);
+  registerStatusTimelinePanelSchemaComponent(
+      registry: registry, context: context);
   registerIconSchemaComponent(registry: registry, context: context);
   registerIconButtonSchemaComponent(registry: registry, context: context);
   registerAddressSectionSchemaComponent(registry: registry, context: context);

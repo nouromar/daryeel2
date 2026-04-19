@@ -1,0 +1,26 @@
+{
+  "name": "PharmacyRequestDetailCartItem",
+  "scope": "app",
+  "category": "pharmacy",
+  "version": "1.0",
+  "propsSchema": {
+    "title": "string",
+    "quantity": "string",
+    "unitPriceText": "string",
+    "rxRequired": "string",
+    "surface": "enum",
+    "density": "enum"
+  },
+  "defaults": {
+    "surface": "flat",
+    "density": "compact"
+  },
+  "styleContract": {
+    "surface": ["raised", "flat", "subtle"],
+    "density": ["compact", "comfortable"]
+  },
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

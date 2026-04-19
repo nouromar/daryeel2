@@ -7,7 +7,10 @@ class CustomerSchemaCompatibilityChecker implements SchemaCompatibilityChecker {
 
   static const _supportedSchemaVersion = '1.0';
   static const _supportedProduct = 'customer_app';
-  static const _supportedThemes = {'customer-default'};
+  static const _supportedThemes = {
+    'customer-default',
+    'custome-black-white-clear',
+  };
   static const _supportedThemeModes = {'light', 'dark'};
 
   @override

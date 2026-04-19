@@ -196,7 +196,9 @@ class _CustomerOtpLoginScreenState extends State<CustomerOtpLoginScreen> {
                 Text(
                   _error!,
                   key: const Key('otp_login.error'),
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],

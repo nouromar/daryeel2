@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "contracts": [
     "pharmacy-cart-items.contract.json",
-    "pharmacy-prescription-upload.contract.json"
+    "section-card.contract.json",
+    "pharmacy-prescription-upload.contract.json",
+    "pharmacy-request-detail-cart-item.contract.json"
   ]
 }
