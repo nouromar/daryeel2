@@ -17,6 +17,7 @@
     "contracts/stack.contract.json",
     "contracts/wrap.contract.json",
     "contracts/padding.contract.json",
+    "contracts/tap-area.contract.json",
     "contracts/align.contract.json",
     "contracts/sized-box.contract.json",
     "contracts/expanded.contract.json",

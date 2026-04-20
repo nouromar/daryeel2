@@ -1,0 +1,8 @@
+{
+  "type": "customer_requests_refresh",
+  "scope": "app",
+  "category": "requests",
+  "version": "1.0",
+  "valueKind": "null",
+  "allowNullValue": true
+}

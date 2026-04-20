@@ -7,6 +7,7 @@
     "pharmacy-cart-decrement.action.json",
     "pharmacy-cart-clear.action.json",
     "pharmacy-cart-refresh-summary.action.json",
-    "customer-request-action.action.json"
+    "customer-request-action.action.json",
+    "customer-requests-refresh.action.json"
   ]
 }

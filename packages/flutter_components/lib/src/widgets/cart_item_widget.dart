@@ -9,8 +9,10 @@ class CartItemWidget extends StatelessWidget {
     this.unitPriceText,
     this.lineTotalText,
     this.badgeLabel,
+    this.rxRequired = false,
     this.surface = 'raised',
     this.density = 'comfortable',
+    this.readonly = false,
     this.onIncrement,
     this.onDecrement,
   });
@@ -21,8 +23,10 @@ class CartItemWidget extends StatelessWidget {
   final String? unitPriceText;
   final String? lineTotalText;
   final String? badgeLabel;
+  final bool rxRequired;
   final String surface;
   final String density;
+  final bool readonly;
   final VoidCallback? onIncrement;
   final VoidCallback? onDecrement;
 
@@ -34,7 +38,8 @@ class CartItemWidget extends StatelessWidget {
     final verticalPadding = compact ? 10.0 : 12.0;
     final spacing = compact ? 8.0 : 10.0;
     final safeQuantity = quantity < 0 ? 0 : quantity;
-    final badge = badgeLabel?.trim() ?? '';
+    final explicitBadge = badgeLabel?.trim() ?? '';
+    final badge = explicitBadge.isNotEmpty ? explicitBadge : (rxRequired ? 'Rx' : '');
     final normalizedSubtitle = subtitle.trim();
     final normalizedUnitPrice = unitPriceText?.trim() ?? '';
     final normalizedLineTotal = lineTotalText?.trim() ?? '';
@@ -133,12 +138,15 @@ class CartItemWidget extends StatelessWidget {
               ),
             ),
             SizedBox(width: spacing),
-            _CartQuantityStepper(
-              quantity: safeQuantity,
-              compact: compact,
-              onIncrement: onIncrement,
-              onDecrement: onDecrement,
-            ),
+            if (readonly)
+              _CartQuantityBadge(quantity: safeQuantity, compact: compact)
+            else
+              _CartQuantityStepper(
+                quantity: safeQuantity,
+                compact: compact,
+                onIncrement: onIncrement,
+                onDecrement: onDecrement,
+              ),
           ],
         ),
       ),
@@ -207,6 +215,37 @@ final class _CartQuantityStepper extends StatelessWidget {
               icon: Icon(Icons.add, size: iconSize),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _CartQuantityBadge extends StatelessWidget {
+  const _CartQuantityBadge({required this.quantity, required this.compact});
+
+  final int quantity;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 10.0 : 12.0,
+          vertical: compact ? 5.0 : 6.0,
+        ),
+        child: Text(
+          'Qty $quantity',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );

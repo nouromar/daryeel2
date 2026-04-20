@@ -36,6 +36,7 @@ Schema-driven UI runtime:
 - [docs/schema_runtime_flutter_mapping.md](schema_runtime_flutter_mapping.md)
 - [docs/schema_client_runtime_architecture.md](schema_client_runtime_architecture.md)
 - [docs/schema_component_contracts.md](schema_component_contracts.md)
+- [docs/schema-screen-authoring.md](schema-screen-authoring.md) ← **start here when building or reviewing a screen**
 
 Compatibility/fallback and rollout:
 - [docs/schema_compatibility_and_fallback_rfc.md](schema_compatibility_and_fallback_rfc.md)

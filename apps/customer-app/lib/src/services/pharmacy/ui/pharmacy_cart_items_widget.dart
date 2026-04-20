@@ -79,7 +79,7 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
             subtitle: current.subtitle,
             quantity: current.quantity + 1,
             rxRequired: current.rxRequired,
-            unitPrice: current.unitPrice,
+            price: current.price,
             currencySymbol: current.currencySymbol,
           );
 
@@ -102,7 +102,7 @@ final class PharmacyCartItemsWidget extends StatelessWidget {
               subtitle: current.subtitle,
               quantity: nextQty,
               rxRequired: current.rxRequired,
-              unitPrice: current.unitPrice,
+              price: current.price,
               currencySymbol: current.currencySymbol,
             );
           }
@@ -158,7 +158,9 @@ List<EcommerceCartLine> _readLines(SchemaStateStore store) {
     final id = (entry['id'] ?? '').toString().trim();
     if (id.isEmpty) continue;
 
-    final title = (entry['title'] ?? id).toString().trim();
+    // Accept both 'name' (action contract / upsert dispatcher) and 'title'
+    // (legacy serialisation from _serializeLines).
+    final title = (entry['name'] ?? entry['title'] ?? id).toString().trim();
     final subtitle = (entry['subtitle'] ?? entry['meta'] ?? '')
         .toString()
         .trim();
@@ -169,15 +171,16 @@ List<EcommerceCartLine> _readLines(SchemaStateStore store) {
         : int.tryParse('${qRaw ?? ''}') ?? 0;
     if (quantity <= 0) continue;
 
-    final rxRaw = entry['rxRequired'];
+    // Accept both 'rx_required' (action contract) and 'rxRequired' (legacy).
+    final rxRaw = entry['rx_required'] ?? entry['rxRequired'];
     final rxRequired =
         rxRaw == true ||
         (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
 
-    final unitPriceRaw = entry['unitPrice'];
-    final unitPrice = (unitPriceRaw is num)
-        ? unitPriceRaw.toDouble()
-        : double.tryParse('${unitPriceRaw ?? ''}') ?? _tryParseMoney(subtitle);
+    final priceRaw = entry['price'];
+    final parsedPrice = (priceRaw is num)
+        ? priceRaw.toDouble()
+        : double.tryParse('${priceRaw ?? ''}') ?? _tryParseMoney(subtitle);
 
     out.add(
       EcommerceCartLine(
@@ -186,7 +189,7 @@ List<EcommerceCartLine> _readLines(SchemaStateStore store) {
         subtitle: _stripMetaMarkers(subtitle),
         quantity: quantity,
         rxRequired: rxRequired,
-        unitPrice: unitPrice,
+        price: priceRaw ?? parsedPrice,
         currencySymbol: _inferCurrencySymbol(subtitle) ?? r'$',
       ),
     );
@@ -199,17 +202,19 @@ List<EcommerceCartLine> _readLines(SchemaStateStore store) {
 List<Map<String, Object?>> _serializeLines(List<EcommerceCartLine> lines) {
   return lines
       .map((line) {
-        final unitPriceEntry = line.unitPrice == null
+        final priceEntry = line.price == null
             ? null
-            : <String, Object?>{'unitPrice': line.unitPrice};
+            : <String, Object?>{'price': line.price};
 
+        // Use the same key names as _pharmacyCartUpsert / the action contract
+        // ('name', 'rx_required') so keys stay stable across both code paths.
         return <String, Object?>{
           'id': line.id,
-          'title': line.title,
+          'name': line.title,
           'subtitle': line.subtitle,
           'quantity': line.quantity,
-          'rxRequired': line.rxRequired,
-          ...?unitPriceEntry,
+          'rx_required': line.rxRequired,
+          ...?priceEntry,
         };
       })
       .toList(growable: false);
@@ -230,7 +235,7 @@ bool _computeHasRxItem(List<Map<String, Object?>> lines) {
     final q = (qRaw is num) ? qRaw.toInt() : int.tryParse('$qRaw') ?? 0;
     if (q <= 0) continue;
 
-    final rxRaw = line['rxRequired'];
+    final rxRaw = line['rx_required'] ?? line['rxRequired'];
     final rx =
         rxRaw == true ||
         (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
@@ -245,7 +250,7 @@ EcommerceCartTotals _computeTotals(
 }) {
   var subtotal = 0.0;
   for (final line in lines) {
-    final p = line.unitPrice;
+    final p = line.priceValue;
     if (p == null) continue;
     subtotal += p * line.quantity;
   }

@@ -126,9 +126,9 @@ final class _CartLineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final priceText = _formatMoney(line.unitPrice, line.currencySymbol);
+    final priceText = _formatMoney(line.priceValue, line.currencySymbol);
 
-    final totalText = _formatMoney(line.lineTotal, line.currencySymbol);
+    final totalText = _formatMoney(line.lineTotalValue, line.currencySymbol);
 
     return Card(
       elevation: switch (surface) {
@@ -198,7 +198,7 @@ final class _CartLineCard extends StatelessWidget {
                       children: [
                         if (priceText != null)
                           Text(
-                            'Unit: $priceText',
+                            'Price: $priceText',
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),

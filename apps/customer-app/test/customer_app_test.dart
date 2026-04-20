@@ -15,7 +15,7 @@ void main() {
     expect(find.text('Account'), findsOneWidget);
 
     expect(find.text('Welcome'), findsOneWidget);
-    expect(find.text('Resolved from fragment'), findsOneWidget);
+    expect(find.text('How can we help today?'), findsOneWidget);
 
     expect(find.text('Ambulance'), findsOneWidget);
     expect(find.text('Home Visit'), findsOneWidget);

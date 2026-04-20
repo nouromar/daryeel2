@@ -9,12 +9,15 @@
     "unitPriceText": "string",
     "lineTotalText": "string",
     "badgeLabel": "string",
+    "rxRequired": "string",
     "surface": "enum",
-    "density": "enum"
+    "density": "enum",
+    "readonly": "boolean"
   },
   "defaults": {
     "surface": "raised",
-    "density": "comfortable"
+    "density": "comfortable",
+    "readonly": false
   },
   "styleContract": {
     "surface": ["raised", "flat", "subtle"],

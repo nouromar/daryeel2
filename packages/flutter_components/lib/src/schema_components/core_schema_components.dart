@@ -20,6 +20,7 @@ import 'remote_paged_list_schema_component.dart';
 import 'remote_query_schema_component.dart';
 import 'schema_component_context.dart';
 import 'screen_template_schema_component.dart';
+import 'tap_area_schema_component.dart';
 import 'text_button_schema_component.dart';
 import 'text_schema_component.dart';
 import 'text_input_schema_component.dart';
@@ -70,4 +71,5 @@ void registerCoreSchemaComponents({
   registerAlignSchemaComponent(registry: registry, context: context);
   registerSizedBoxSchemaComponent(registry: registry, context: context);
   registerExpandedSchemaComponent(registry: registry, context: context);
+  registerTapAreaSchemaComponent(registry: registry, context: context);
 }

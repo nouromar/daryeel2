@@ -12,36 +12,60 @@
     "slots": {
       "children": [
         {
-          "type": "If",
-          "props": {
-            "valuePath": "serviceDetails.summary.items",
+          "type": "Column",
+          "visibleWhen": {
+            "valuePath": "serviceDetails.payload.cart_lines",
             "op": "isNotEmpty"
           },
+          "props": {
+            "spacing": 6,
+            "crossAxisAlignment": "stretch",
+            "mainAxisSize": "min"
+          },
           "slots": {
-            "then": [
+            "children": [
               {
-                "type": "Text",
-                "props": {
-                  "text": "Items",
-                  "variant": "title",
-                  "weight": "semibold"
+                "type": "Padding",
+                "props": { "left": 20 },
+                "slots": {
+                  "child": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "text": "Items",
+                        "variant": "subtitle",
+                        "weight": "semibold",
+                        "color": "secondary"
+                      }
+                    }
+                  ]
                 }
               },
               {
                 "type": "ForEach",
                 "props": {
-                  "itemsPath": "serviceDetails.summary.items"
+                  "itemsPath": "serviceDetails.payload.cart_lines"
                 },
                 "slots": {
                   "item": [
                     {
-                      "type": "Text",
+                      "type": "CartItem",
                       "props": {
-                        "text": "${item.title} ${item.subtitle}"
+                        "title": "${item.name}",
+                        "subtitle": "${item.subtitle}",
+                        "quantity": "${item.quantity}",
+                        "unitPriceText": "$${item.price}",
+                        "rxRequired": "${item.rx_required}",
+                        "readonly": true,
+                        "surface": "flat",
+                        "density": "compact"
                       }
                     },
                     {
                       "type": "Gap",
+                      "visibleWhen": {
+                        "expr": "serviceDetails.payload.cart_lines != null and index < serviceDetails.payload.cart_lines.length - 1"
+                      },
                       "props": { "height": 4 }
                     }
                   ]
@@ -51,49 +75,73 @@
           }
         },
         {
-          "type": "InfoCard",
+          "type": "CartSummary",
           "visibleWhen": {
-            "expr": "data.serviceDetails.summary.summaryText != null and data.serviceDetails.summary.summaryText != ''"
+            "valuePath": "serviceDetails.payload.summary_total",
+            "op": "isNotNull"
           },
           "props": {
             "title": "Summary",
-            "subtitle": "${data.serviceDetails.summary.summaryText}",
-            "surface": "flat"
+            "linesPath": "serviceDetails.payload.summary_lines",
+            "totalPath": "serviceDetails.payload.summary_total",
+            "surface": "subtle"
           }
         },
         {
-          "type": "If",
-          "props": {
-            "valuePath": "serviceDetails.prescriptionUploads",
+          "type": "Column",
+          "visibleWhen": {
+            "valuePath": "serviceDetails.payload.prescription_upload_ids",
             "op": "isNotEmpty"
           },
+          "props": {
+            "spacing": 6,
+            "crossAxisAlignment": "stretch",
+            "mainAxisSize": "min"
+          },
           "slots": {
-            "then": [
+            "children": [
               {
-                "type": "Text",
-                "props": {
-                  "text": "Prescription",
-                  "variant": "title",
-                  "weight": "semibold"
+                "type": "Padding",
+                "props": { "left": 20 },
+                "slots": {
+                  "child": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "text": "Prescription",
+                        "variant": "subtitle",
+                        "weight": "semibold",
+                        "color": "secondary"
+                      }
+                    }
+                  ]
                 }
               },
               {
                 "type": "ForEach",
                 "props": {
-                  "itemsPath": "serviceDetails.prescriptionUploads"
+                  "itemsPath": "serviceDetails.payload.prescription_upload_ids"
                 },
                 "slots": {
                   "item": [
                     {
-                      "type": "ActionCard",
+                      "type": "InfoCard",
                       "props": {
-                        "title": "${item.title}",
-                        "subtitle": "${item.subtitle}",
-                        "surface": "flat"
+                        "title": "Prescription",
+                        "subtitle": "${item}",
+                        "density": "compact",
+                        "titleVariant": "title",
+                        "titleWeight": "semibold",
+                        "subtitleVariant": "body",
+                        "subtitleColor": "muted",
+                        "surface": "subtle"
                       }
                     },
                     {
                       "type": "Gap",
+                      "visibleWhen": {
+                        "expr": "serviceDetails.payload.prescription_upload_ids != null and index < serviceDetails.payload.prescription_upload_ids.length - 1"
+                      },
                       "props": { "height": 8 }
                     }
                   ]

@@ -50,5 +50,6 @@ void main() {
     expect(registry.resolve('CartSummary'), isNotNull);
     expect(registry.resolve('ScreenTemplate'), isNotNull);
     expect(registry.resolve('RemotePagedList'), isNotNull);
+    expect(registry.resolve('TapArea'), isNotNull);
   });
 }

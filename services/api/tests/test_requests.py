@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -117,6 +118,26 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
     import app.db as dbmod
     from app.models import RequestEvent, ServiceRequest
 
+    request_payload = {
+        "cart_lines": [
+            {
+                "id": "prod_paracetamol_500mg",
+                "name": "Paracetamol 500 mg",
+                "subtitle": "$1.00",
+                "price": 1.0,
+                "icon": "pharmacy",
+                "route": "",
+                "rx_required": False,
+                "quantity": 2,
+            },
+        ],
+        "summary_lines": [
+            {"id": "subtotal", "label": "Subtotal", "amount": 2, "amountText": "$2.00"},
+        ],
+        "summary_total": {"label": "Total", "amountText": "$2.00"},
+        "prescription_upload_ids": [],
+    }
+
     with dbmod.SessionLocal() as db:
         request = ServiceRequest(
             service_id="pharmacy",
@@ -125,18 +146,7 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
             notes="Leave at door",
             delivery_location_json={"text": "Hodan"},
             payment_json={"method": "cash", "timing": "after_delivery"},
-            payload_json={
-                "cart_lines": [
-                        {
-                            "id": "prod_paracetamol_500mg",
-                            "name": "Paracetamol 500 mg",
-                            "price": 1.0,
-                            "quantity": 2,
-                        },
-                ],
-                "summary_total": {"label": "Total", "amountText": "$2.00"},
-                "prescription_upload_ids": [],
-            },
+            payload_json=request_payload,
         )
         db.add(request)
         db.commit()
@@ -174,15 +184,13 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
     assert payload["request"]["pendingActionCount"] == 0
     assert payload["pendingActions"] == []
     assert payload["serviceDetails"]["isPharmacy"] is True
-    assert payload["serviceDetails"]["summary"]["estimatedTotalText"] == "$2.00"
-    assert payload["serviceDetails"]["summary"]["summaryText"] == "Total: $2.00"
-    assert payload["serviceDetails"]["summary"]["items"] == [
-        {"title": "Paracetamol 500 mg", "subtitle": "\u2022 Qty 2 \u2022 $2.00"}
-    ]
-    assert payload["serviceDetails"]["prescriptionStateText"] is None
-    assert payload["serviceDetails"]["prescriptionUploads"] == []
-    assert payload["timeline"][0]["title"] == "Request placed"
-    assert "Your request was created." in payload["timeline"][0]["subtitle"]
+    assert payload["serviceDetails"] == {
+        "serviceId": "pharmacy",
+        "isPharmacy": True,
+        "payload": request_payload,
+    }
+    assert payload["timeline"][0]["title"] == "Requested"
+    assert re.match(r"^[A-Z][a-z]{2} \d{2}$", payload["timeline"][0]["subtitle"])
 
 
 def test_request_detail_marks_recent_updates_for_non_created_latest_event() -> None:
@@ -445,12 +453,5 @@ def test_complete_request_action_uploads_prescription() -> None:
     assert payload["request"]["status"] == "accepted"
     assert payload["pendingActions"] == []
     assert payload["request"]["hasUnreadUpdates"] is False
-    assert payload["serviceDetails"]["prescriptionStateText"] == "Prescription attached"
-    assert payload["serviceDetails"]["prescriptionUploads"] == [
-        {
-            "title": "Prescription 1",
-            "subtitle": "rx-123",
-            "uploadId": "rx-123",
-        }
-    ]
+    assert payload["serviceDetails"]["payload"]["prescription_upload_ids"] == ["rx-123"]
     assert payload["timeline"][-1]["type"] == "prescription_uploaded"

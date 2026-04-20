@@ -7,7 +7,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
       'type': 'InfoCard',
       'props': {
         'title': 'Welcome',
-        'subtitle': 'Resolved from fragment',
+        'subtitle': 'How can we help today?',
         'surface': 'subtle',
       },
     },
@@ -44,7 +44,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
           {
             'type': 'Column',
             'props': {
-              'spacing': 12,
+              'spacing': 0,
               'crossAxisAlignment': 'stretch',
               'mainAxisSize': 'min',
             },
@@ -80,6 +80,10 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         },
                       },
                       {
+                        'type': 'Gap',
+                        'props': {'height': 12},
+                      },
+                      {
                         'type': 'ForEach',
                         'props': {'itemsPath': 'attention'},
                         'slots': {
@@ -92,6 +96,11 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                                 'iconPath': 'icon',
                                 'routePath': 'route',
                                 'surface': 'raised',
+                                'density': 'compact',
+                                'titleVariant': 'title',
+                                'titleWeight': 'semibold',
+                                'subtitleVariant': 'body',
+                                'subtitleColor': 'muted',
                               },
                             },
                             {
@@ -100,6 +109,10 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                             },
                           ],
                         },
+                      },
+                      {
+                        'type': 'Gap',
+                        'props': {'height': 12},
                       },
                     ],
                   },
@@ -118,6 +131,10 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         },
                       },
                       {
+                        'type': 'Gap',
+                        'props': {'height': 12},
+                      },
+                      {
                         'type': 'ForEach',
                         'props': {'itemsPath': 'active'},
                         'slots': {
@@ -130,6 +147,11 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                                 'iconPath': 'icon',
                                 'routePath': 'route',
                                 'surface': 'raised',
+                                'density': 'compact',
+                                'titleVariant': 'title',
+                                'titleWeight': 'semibold',
+                                'subtitleVariant': 'body',
+                                'subtitleColor': 'muted',
                               },
                             },
                             {
@@ -138,6 +160,10 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                             },
                           ],
                         },
+                      },
+                      {
+                        'type': 'Gap',
+                        'props': {'height': 12},
                       },
                     ],
                   },
@@ -156,6 +182,10 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         },
                       },
                       {
+                        'type': 'Gap',
+                        'props': {'height': 12},
+                      },
+                      {
                         'type': 'ForEach',
                         'props': {'itemsPath': 'history'},
                         'slots': {
@@ -168,6 +198,11 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                                 'iconPath': 'icon',
                                 'routePath': 'route',
                                 'surface': 'subtle',
+                                'density': 'compact',
+                                'titleVariant': 'title',
+                                'titleWeight': 'semibold',
+                                'subtitleVariant': 'body',
+                                'subtitleColor': 'muted',
                               },
                             },
                             {
@@ -176,6 +211,10 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                             },
                           ],
                         },
+                      },
+                      {
+                        'type': 'Gap',
+                        'props': {'height': 12},
                       },
                     ],
                   },
@@ -201,32 +240,59 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
       'slots': {
         'children': [
           {
-            'type': 'If',
-            'props': {
-              'valuePath': 'serviceDetails.summary.items',
+            'type': 'Column',
+            'visibleWhen': {
+              'valuePath': 'serviceDetails.payload.cart_lines',
               'op': 'isNotEmpty',
             },
+            'props': {
+              'spacing': 6,
+              'crossAxisAlignment': 'stretch',
+              'mainAxisSize': 'min',
+            },
             'slots': {
-              'then': [
+              'children': [
                 {
-                  'type': 'Text',
-                  'props': {
-                    'text': 'Items',
-                    'variant': 'title',
-                    'weight': 'semibold',
+                  'type': 'Padding',
+                  'props': {'left': 20},
+                  'slots': {
+                    'child': [
+                      {
+                        'type': 'Text',
+                        'props': {
+                          'text': 'Items',
+                          'variant': 'subtitle',
+                          'weight': 'semibold',
+                          'color': 'secondary',
+                        },
+                      },
+                    ],
                   },
                 },
                 {
                   'type': 'ForEach',
-                  'props': {'itemsPath': 'serviceDetails.summary.items'},
+                  'props': {'itemsPath': 'serviceDetails.payload.cart_lines'},
                   'slots': {
                     'item': [
                       {
-                        'type': 'Text',
-                        'props': {'text': r'${item.title} ${item.subtitle}'},
+                        'type': 'CartItem',
+                        'props': {
+                          'title': r'${item.name}',
+                          'subtitle': r'${item.subtitle}',
+                          'quantity': r'${item.quantity}',
+                          'unitPriceText': r'$${item.price}',
+                          'rxRequired': r'${item.rx_required}',
+                          'readonly': true,
+                          'surface': 'flat',
+                          'density': 'compact',
+                        },
                       },
                       {
                         'type': 'Gap',
+                        'visibleWhen': {
+                          'expr':
+                              'serviceDetails.payload.cart_lines != null and index < serviceDetails.payload.cart_lines.length - 1',
+                        },
                         'props': {'height': 4},
                       },
                     ],
@@ -236,48 +302,75 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
             },
           },
           {
-            'type': 'InfoCard',
+            'type': 'CartSummary',
             'visibleWhen': {
-              'expr':
-                  "data.serviceDetails.summary.summaryText != null and data.serviceDetails.summary.summaryText != ''",
+              'valuePath': 'serviceDetails.payload.summary_total',
+              'op': 'isNotNull',
             },
             'props': {
               'title': 'Summary',
-              'subtitle': r'${data.serviceDetails.summary.summaryText}',
-              'surface': 'flat',
+              'linesPath': 'serviceDetails.payload.summary_lines',
+              'totalPath': 'serviceDetails.payload.summary_total',
+              'surface': 'subtle',
             },
           },
           {
-            'type': 'If',
-            'props': {
-              'valuePath': 'serviceDetails.prescriptionUploads',
+            'type': 'Column',
+            'visibleWhen': {
+              'valuePath': 'serviceDetails.payload.prescription_upload_ids',
               'op': 'isNotEmpty',
             },
+            'props': {
+              'spacing': 6,
+              'crossAxisAlignment': 'stretch',
+              'mainAxisSize': 'min',
+            },
             'slots': {
-              'then': [
+              'children': [
                 {
-                  'type': 'Text',
-                  'props': {
-                    'text': 'Prescription',
-                    'variant': 'title',
-                    'weight': 'semibold',
+                  'type': 'Padding',
+                  'props': {'left': 20},
+                  'slots': {
+                    'child': [
+                      {
+                        'type': 'Text',
+                        'props': {
+                          'text': 'Prescription',
+                          'variant': 'subtitle',
+                          'weight': 'semibold',
+                          'color': 'secondary',
+                        },
+                      },
+                    ],
                   },
                 },
                 {
                   'type': 'ForEach',
-                  'props': {'itemsPath': 'serviceDetails.prescriptionUploads'},
+                  'props': {
+                    'itemsPath':
+                        'serviceDetails.payload.prescription_upload_ids',
+                  },
                   'slots': {
                     'item': [
                       {
-                        'type': 'ActionCard',
+                        'type': 'InfoCard',
                         'props': {
-                          'title': r'${item.title}',
-                          'subtitle': r'${item.subtitle}',
-                          'surface': 'flat',
+                          'title': 'Prescription',
+                          'subtitle': r'${item}',
+                          'density': 'compact',
+                          'titleVariant': 'title',
+                          'titleWeight': 'semibold',
+                          'subtitleVariant': 'body',
+                          'subtitleColor': 'muted',
+                          'surface': 'subtle',
                         },
                       },
                       {
                         'type': 'Gap',
+                        'visibleWhen': {
+                          'expr':
+                              'serviceDetails.payload.prescription_upload_ids != null and index < serviceDetails.payload.prescription_upload_ids.length - 1',
+                        },
                         'props': {'height': 8},
                       },
                     ],

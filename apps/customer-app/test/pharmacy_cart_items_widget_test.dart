@@ -39,6 +39,41 @@ void main() {
     },
   );
 
+  testWidgets(
+    'shows Attach Prescription link when canonical rx_required exists',
+    (tester) async {
+      final store = SchemaStateStore(
+        initial: <String, Object?>{
+          'pharmacy': <String, Object?>{
+            'cart': <String, Object?>{
+              'lines': <Object?>[
+                <String, Object?>{
+                  'id': 'abc',
+                  'name': 'Rx Item',
+                  'quantity': 1,
+                  'rx_required': true,
+                },
+              ],
+              'totalQuantity': 1,
+            },
+          },
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SchemaStateScope(
+            store: store,
+            child: const Scaffold(body: PharmacyCartItemsWidget()),
+          ),
+        ),
+      );
+
+      expect(find.text('Attach Prescription'), findsOneWidget);
+      expect(find.text('Rx'), findsOneWidget);
+    },
+  );
+
   testWidgets('shows attached filenames when prescriptionUploads exist', (
     tester,
   ) async {

@@ -17,6 +17,12 @@ void registerCatalogItemTileSchemaComponent({
         (node.props['rxRequiredPath'] as String?)?.trim() ?? 'rx_required';
     final surface = (node.props['surface'] as String?)?.trim() ?? 'flat';
 
+    final addAction = resolveComponentAction(
+      screen: context.screen,
+      node: node,
+      actionKey: 'add',
+    );
+
     return Builder(
       builder: (buildContext) {
         final scope = SchemaDataScope.maybeOf(buildContext);
@@ -71,24 +77,16 @@ void registerCatalogItemTileSchemaComponent({
         }
 
         Future<void> onAdd() async {
-          // We don't have a cart state yet; track the event as a safe default.
-          try {
-            await context.actionDispatcher.dispatch(
-              buildContext,
-              ActionDefinition(
-                type: SchemaActionTypes.trackEvent,
-                eventName: 'catalog.add_to_cart',
-                eventProperties: <String, Object?>{
-                  'screenId': context.screen.id,
-                  'schemaId': context.screen.id,
-                  'itemId': readJsonPath(item, 'id')?.toString(),
-                  'rxRequired': rxRequired,
-                },
-              ),
-            );
-          } catch (_) {
-            // No-op: telemetry should never crash UI.
-          }
+          if (addAction == null) return;
+          await tryDispatchComponentAction(
+            context: buildContext,
+            screen: context.screen,
+            node: node,
+            actionKey: 'add',
+            dispatcher: context.actionDispatcher,
+            diagnostics: context.diagnostics,
+            diagnosticsContext: context.diagnosticsContext,
+          );
         }
 
         return CatalogItemTileWidget(
@@ -97,7 +95,7 @@ void registerCatalogItemTileSchemaComponent({
           surface: surface,
           rxRequired: rxRequired,
           onTap: route == null ? null : () => onTap(),
-          onAddPressed: () => onAdd(),
+          onAddPressed: addAction == null ? null : () => onAdd(),
         );
       },
     );

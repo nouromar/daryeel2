@@ -122,6 +122,7 @@ IconData? _resolveIconData({
   return switch (key) {
     // Common navigation/actions.
     'close' || 'x' || 'dismiss' => Icons.close,
+    'refresh' || 'reload' => Icons.refresh,
     'delete' || 'trash' => Icons.delete_outline,
     'remove' || 'minus' => Icons.remove_circle_outline,
     'add' || 'plus' => Icons.add_circle_outline,

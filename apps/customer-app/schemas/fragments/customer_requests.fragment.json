@@ -33,7 +33,7 @@
         {
           "type": "Column",
           "props": {
-            "spacing": 12,
+            "spacing": 0,
             "crossAxisAlignment": "stretch",
             "mainAxisSize": "min"
           },
@@ -75,6 +75,12 @@
                       }
                     },
                     {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
+                      }
+                    },
+                    {
                       "type": "ForEach",
                       "props": {
                         "itemsPath": "attention"
@@ -88,14 +94,27 @@
                               "subtitlePath": "subtitle",
                               "iconPath": "icon",
                               "routePath": "route",
-                              "surface": "raised"
+                              "surface": "raised",
+                              "density": "compact",
+                              "titleVariant": "title",
+                              "titleWeight": "semibold",
+                              "subtitleVariant": "body",
+                              "subtitleColor": "muted"
                             }
                           },
                           {
                             "type": "Gap",
-                            "props": { "height": 12 }
+                            "props": {
+                              "height": 12
+                            }
                           }
                         ]
+                      }
+                    },
+                    {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
                       }
                     }
                   ]
@@ -118,6 +137,12 @@
                       }
                     },
                     {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
+                      }
+                    },
+                    {
                       "type": "ForEach",
                       "props": {
                         "itemsPath": "active"
@@ -131,14 +156,27 @@
                               "subtitlePath": "subtitle",
                               "iconPath": "icon",
                               "routePath": "route",
-                              "surface": "raised"
+                              "surface": "raised",
+                              "density": "compact",
+                              "titleVariant": "title",
+                              "titleWeight": "semibold",
+                              "subtitleVariant": "body",
+                              "subtitleColor": "muted"
                             }
                           },
                           {
                             "type": "Gap",
-                            "props": { "height": 12 }
+                            "props": {
+                              "height": 12
+                            }
                           }
                         ]
+                      }
+                    },
+                    {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
                       }
                     }
                   ]
@@ -161,6 +199,12 @@
                       }
                     },
                     {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
+                      }
+                    },
+                    {
                       "type": "ForEach",
                       "props": {
                         "itemsPath": "history"
@@ -174,14 +218,27 @@
                               "subtitlePath": "subtitle",
                               "iconPath": "icon",
                               "routePath": "route",
-                              "surface": "subtle"
+                              "surface": "subtle",
+                              "density": "compact",
+                              "titleVariant": "title",
+                              "titleWeight": "semibold",
+                              "subtitleVariant": "body",
+                              "subtitleColor": "muted"
                             }
                           },
                           {
                             "type": "Gap",
-                            "props": { "height": 12 }
+                            "props": {
+                              "height": 12
+                            }
                           }
                         ]
+                      }
+                    },
+                    {
+                      "type": "Gap",
+                      "props": {
+                        "height": 12
                       }
                     }
                   ]

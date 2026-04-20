@@ -75,8 +75,31 @@ const fallbackCustomerHomeBundle = SchemaBundle(
         'activities': [
           {
             'type': 'ScreenTemplate',
+            'props': {
+              'headerGap': 0,
+              'bodyPadding': {'left': 8, 'top': 0, 'right': 8, 'bottom': 8},
+              'footerPadding': {'left': 8, 'top': 0, 'right': 8, 'bottom': 8},
+            },
             'slots': {
               'body': [
+                {
+                  'type': 'Align',
+                  'props': {'alignment': 'centerRight'},
+                  'slots': {
+                    'child': [
+                      {
+                        'type': 'IconButton',
+                        'props': {
+                          'codePoint': 58837,
+                          'family': 'material_icons',
+                          'size': 20,
+                          'semanticLabel': 'Refresh',
+                        },
+                        'actions': {'tap': 'refresh_activities'},
+                      },
+                    ],
+                  },
+                },
                 {'ref': 'fragment:customer_requests_v1'},
               ],
             },
@@ -126,6 +149,10 @@ const fallbackCustomerHomeBundle = SchemaBundle(
           'title': 'Pharmacy',
           'chromePreset': 'pharmacy_cart_badge',
         },
+      },
+      'refresh_activities': {
+        'type': 'customer_requests_refresh',
+        'value': null,
       },
     },
   },

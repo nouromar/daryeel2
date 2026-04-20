@@ -38,6 +38,7 @@ final class CustomerActionDispatcher extends SchemaActionDispatcher {
   static const String pharmacyCartRefreshSummary =
       'pharmacy_cart_refresh_summary';
   static const String customerRequestAction = 'customer_request_action';
+  static const String customerRequestsRefresh = 'customer_requests_refresh';
 
   @override
   Future<void> dispatch(BuildContext context, ActionDefinition action) =>
@@ -63,6 +64,8 @@ Map<String, SchemaActionDispatcher> _buildCustomerActionDispatchersByType({
         _PharmacyCartRefreshSummaryDispatcher(),
     CustomerActionDispatcher.customerRequestAction:
         _CustomerRequestActionDispatcher(executor: requestActionExecutor),
+    CustomerActionDispatcher.customerRequestsRefresh:
+        _CustomerRequestsRefreshDispatcher(),
   };
 }
 
@@ -109,6 +112,20 @@ final class _PharmacyCartUpsertDispatcher extends SchemaActionDispatcher {
   @override
   Future<void> dispatch(BuildContext context, ActionDefinition action) async {
     _pharmacyCartUpsert(context, action);
+  }
+}
+
+final class _CustomerRequestsRefreshDispatcher extends SchemaActionDispatcher {
+  const _CustomerRequestsRefreshDispatcher();
+
+  @override
+  Future<void> dispatch(BuildContext context, ActionDefinition action) async {
+    final session = RuntimeSessionScope.of(context);
+    await session.queryStore.executeGet(
+      key: 'customer.requests',
+      path: '/v1/requests',
+      forceRefresh: true,
+    );
   }
 }
 
@@ -306,13 +323,6 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
   final raw = action.value;
   if (raw is! Map) return;
 
-  String? readInterpolatedString(String key) {
-    final v = raw[key];
-    if (v is! String) return null;
-    final resolved = interpolateSchemaString(v, context).trim();
-    return resolved.isEmpty ? null : resolved;
-  }
-
   double? readInterpolatedDouble(String key) {
     final v = raw[key];
     if (v is num) return v.toDouble();
@@ -323,29 +333,72 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
     return null;
   }
 
-  final id = readInterpolatedString('id');
-  if (id == null) return;
+  final resolvedFields = <String, Object?>{};
+  for (final entry in raw.entries) {
+    final key = entry.key;
+    if (key is! String) continue;
 
-  final name = readInterpolatedString('name') ?? id;
-  final subtitle = readInterpolatedString('subtitle') ?? '';
-  final rxRequiredRaw = readInterpolatedString('rx_required');
-  final rxRequired =
-      rxRequiredRaw?.trim().toLowerCase() == 'true' || rxRequiredRaw == '1';
+    final value = entry.value;
+    if (value is String) {
+      final resolved = interpolateSchemaString(value, context).trim();
+      if (resolved.isEmpty) continue;
+      resolvedFields[key] = resolved;
+      continue;
+    }
+
+    resolvedFields[key] = value;
+  }
+
+  final id = (resolvedFields['id'] as String?)?.trim();
+  if (id == null || id.isEmpty) return;
+
+  bool parseTruthyBool(Object? raw) {
+    if (raw == null) return false;
+    if (raw is bool) return raw;
+    if (raw is num) return raw != 0;
+    if (raw is String) {
+      final s = raw.trim().toLowerCase();
+      return s == 'true' || s == '1';
+    }
+    return false;
+  }
+
+  final name = ((resolvedFields['name'] as String?) ?? id).trim();
+
   final price = readInterpolatedDouble('price');
-  final icon = readInterpolatedString('icon');
+
+  String normalizeSubtitle(String rawSubtitle) {
+    final s = rawSubtitle.trim();
+    if (s.isEmpty) return '';
+    if (price == null) return s;
+
+    // If the subtitle is just a money-like string (e.g. "$12.00"), drop it
+    // to avoid rendering the price twice (subtitle + "Price:" meta row).
+    final isMoneyOnly = RegExp(r'^[^\d\-]*\d+(?:\.\d{1,2})?\s*$').hasMatch(s);
+    return isMoneyOnly ? '' : s;
+  }
+
+  final subtitle = normalizeSubtitle(
+    (resolvedFields['subtitle'] as String?) ?? '',
+  );
+
+  final rxRequired = parseTruthyBool(
+    resolvedFields['rx_required'] ?? resolvedFields['rxRequired'],
+  );
 
   final nextLines = _ensureCartLines(store);
 
   final idx = nextLines.indexWhere((e) => (e['id'] ?? '').toString() == id);
   if (idx == -1) {
     final line = <String, Object?>{
+      ...resolvedFields,
       'id': id,
       'name': name,
       'subtitle': subtitle,
       'quantity': 1,
       'rx_required': rxRequired,
+      'rxRequired': rxRequired,
       ...?price == null ? null : <String, Object?>{'price': price},
-      ...?icon == null ? null : <String, Object?>{'icon': icon},
     };
     nextLines.add(line);
   } else {
@@ -356,13 +409,15 @@ void _pharmacyCartUpsert(BuildContext context, ActionDefinition action) {
 
     nextLines[idx] = <String, Object?>{
       ...current,
+      ...resolvedFields,
       'quantity': nextQ,
       // Prefer freshest catalog fields when provided.
+      'id': id,
       'name': name,
       'subtitle': subtitle,
       'rx_required': rxRequired,
+      'rxRequired': rxRequired,
       ...?price == null ? null : <String, Object?>{'price': price},
-      ...?icon == null ? null : <String, Object?>{'icon': icon},
     };
   }
 
@@ -492,10 +547,12 @@ void _recomputeHasRxItem(
     final q = (qRaw is num) ? qRaw.toInt() : int.tryParse('$qRaw') ?? 0;
     if (q <= 0) continue;
 
-    final rxRaw = line['rx_required'];
+    final rxRaw = line['rx_required'] ?? line['rxRequired'];
     final rx =
         rxRaw == true ||
-        (rxRaw is String && rxRaw.trim().toLowerCase() == 'true');
+        rxRaw == 1 ||
+        (rxRaw is String &&
+            (rxRaw.trim().toLowerCase() == 'true' || rxRaw.trim() == '1'));
     if (rx) {
       hasRx = true;
       break;
@@ -504,8 +561,8 @@ void _recomputeHasRxItem(
   store.setValue('pharmacy.cart.hasRxItem', hasRx);
 }
 
-double? _readLineUnitPrice(Map data) {
-  final raw = data['price'] ?? data['unitPrice'];
+double? _readLinePrice(Map data) {
+  final raw = data['price'];
   if (raw is num) return raw.toDouble();
   if (raw is String) return double.tryParse(raw.trim());
   final subtitle = (data['subtitle'] ?? '').toString();
@@ -549,9 +606,9 @@ void _applyPharmacyCartSummary(SchemaStateStore store) {
         : int.tryParse('$quantityRaw') ?? 0;
     if (quantity <= 0) continue;
 
-    final unitPrice = _readLineUnitPrice(line);
-    if (unitPrice == null) continue;
-    subtotal += unitPrice * quantity;
+    final price = _readLinePrice(line);
+    if (price == null) continue;
+    subtotal += price * quantity;
   }
 
   final tax = _readNumericState(store, 'pharmacy.cart.tax');

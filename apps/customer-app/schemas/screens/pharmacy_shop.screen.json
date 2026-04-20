@@ -123,7 +123,8 @@
         "subtitle": "${item.subtitle}",
         "rx_required": "${item.rx_required}",
         "price": "${item.price}",
-        "icon": "${item.icon}"
+        "icon": "${item.icon}",
+        "route": "${item.route}"
       }
     },
     "go_prescription_upload": {

@@ -7,6 +7,12 @@
   "themeMode": "light",
   "root": {
     "type": "ScreenTemplate",
+    "props": {
+      "headerGap": 8,
+      "bodyPadding": { "all": 16 },
+      "primaryScrollPadding": { "horizontal": 16 },
+      "footerPadding": { "left": 16, "top": 0, "right": 16, "bottom": 16 }
+    },
     "slots": {
       "body": [
         {

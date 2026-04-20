@@ -43,25 +43,60 @@ ComponentNode _cartItemNode() {
   );
 }
 
+ComponentNode _readonlyCartItemNode() {
+  return const ComponentNode(
+    type: 'CartItem',
+    props: <String, Object?>{
+      'title': r'${item.name}',
+      'quantity': r'${item.quantity}',
+      'readonly': true,
+      'surface': 'flat',
+      'density': 'compact',
+    },
+    slots: <String, List<SchemaNode>>{},
+    actions: <String, String>{},
+    bind: null,
+    visibleWhen: null,
+  );
+}
+
+ScreenSchema _screenWithActions() {
+  return ScreenSchema(
+    schemaVersion: '1.0',
+    id: 'cart',
+    documentType: 'screen',
+    product: 'test',
+    service: null,
+    themeId: 'test',
+    themeMode: null,
+    root: _cartItemNode(),
+    actions: const <String, ActionDefinition>{
+      'inc': ActionDefinition(type: 'custom', value: 'increment'),
+      'dec': ActionDefinition(type: 'custom', value: 'decrement'),
+    },
+  );
+}
+
+ScreenSchema _screenNoActions() {
+  return ScreenSchema(
+    schemaVersion: '1.0',
+    id: 'request-detail',
+    documentType: 'screen',
+    product: 'test',
+    service: null,
+    themeId: 'test',
+    themeMode: null,
+    root: _readonlyCartItemNode(),
+    actions: const <String, ActionDefinition>{},
+  );
+}
+
 void main() {
   testWidgets('CartItem schema component renders interpolated item data', (
     tester,
   ) async {
     final dispatcher = _RecordingDispatcher();
-    final screen = ScreenSchema(
-      schemaVersion: '1.0',
-      id: 'cart',
-      documentType: 'screen',
-      product: 'test',
-      service: null,
-      themeId: 'test',
-      themeMode: null,
-      root: _cartItemNode(),
-      actions: const <String, ActionDefinition>{
-        'inc': ActionDefinition(type: 'custom', value: 'increment'),
-        'dec': ActionDefinition(type: 'custom', value: 'decrement'),
-      },
-    );
+    final screen = _screenWithActions();
 
     final registry = SchemaWidgetRegistry();
     registerCartItemSchemaComponent(
@@ -100,20 +135,7 @@ void main() {
     tester,
   ) async {
     final dispatcher = _RecordingDispatcher();
-    final screen = ScreenSchema(
-      schemaVersion: '1.0',
-      id: 'cart',
-      documentType: 'screen',
-      product: 'test',
-      service: null,
-      themeId: 'test',
-      themeMode: null,
-      root: _cartItemNode(),
-      actions: const <String, ActionDefinition>{
-        'inc': ActionDefinition(type: 'custom', value: 'increment'),
-        'dec': ActionDefinition(type: 'custom', value: 'decrement'),
-      },
-    );
+    final screen = _screenWithActions();
 
     final registry = SchemaWidgetRegistry();
     registerCartItemSchemaComponent(
@@ -145,5 +167,77 @@ void main() {
     expect(dispatcher.dispatched.length, 2);
     expect(dispatcher.dispatched[0].value, 'increment');
     expect(dispatcher.dispatched[1].value, 'decrement');
+  });
+
+  testWidgets(
+      'CartItem schema component readonly shows badge and no stepper', (
+    tester,
+  ) async {
+    final dispatcher = _RecordingDispatcher();
+    final screen = _screenNoActions();
+
+    final registry = SchemaWidgetRegistry();
+    registerCartItemSchemaComponent(
+      registry: registry,
+      context: _testContext(dispatcher, screen),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SchemaDataScope(
+            item: const <String, Object?>{
+              'name': 'Amoxicillin 500mg',
+              'quantity': 2,
+            },
+            child: SchemaRenderer(
+              rootNode: _readonlyCartItemNode(),
+              registry: registry,
+            ).render(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+    expect(find.text('Qty 2'), findsOneWidget);
+    expect(find.byTooltip('Increase quantity'), findsNothing);
+    expect(find.byTooltip('Remove item'), findsNothing);
+    expect(find.byIcon(Icons.add), findsNothing);
+  });
+
+  testWidgets(
+      'CartItem schema component readonly does not dispatch actions on tap', (
+    tester,
+  ) async {
+    final dispatcher = _RecordingDispatcher();
+    final screen = _screenNoActions();
+
+    final registry = SchemaWidgetRegistry();
+    registerCartItemSchemaComponent(
+      registry: registry,
+      context: _testContext(dispatcher, screen),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SchemaDataScope(
+            item: const <String, Object?>{
+              'name': 'Ibuprofen 200mg',
+              'quantity': 3,
+            },
+            child: SchemaRenderer(
+              rootNode: _readonlyCartItemNode(),
+              registry: registry,
+            ).render(),
+          ),
+        ),
+      ),
+    );
+
+    // No interactive controls should be present
+    expect(find.byType(IconButton), findsNothing);
+    expect(dispatcher.dispatched, isEmpty);
   });
 }

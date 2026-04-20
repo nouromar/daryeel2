@@ -4,7 +4,11 @@
   "version": "1.0",
   "propsSchema": {
     "stateDefaults": "object",
-    "bodyScroll": "boolean"
+    "bodyScroll": "boolean",
+    "headerGap": "number",
+    "bodyPadding": "object",
+    "primaryScrollPadding": "object",
+    "footerPadding": "object"
   },
   "defaults": {
     "bodyScroll": true

@@ -6,11 +6,15 @@
   "valueKind": "object",
   "valueSchema": {
     "id": "string",
+    "name": "string",
     "title": "string",
     "subtitle": "string",
+    "rx_required": "string",
     "rxRequired": "boolean",
-    "unitPrice": "number",
-    "currencySymbol": "string"
+    "price": "string",
+    "icon": "string",
+    "currencySymbol": "string",
+    "route": "string"
   },
   "required": ["id"],
   "allowNullValue": false

@@ -15,8 +15,10 @@ void registerCartItemSchemaComponent({
     final unitPriceTemplate = (node.props['unitPriceText'] as String?)?.trim();
     final lineTotalTemplate = (node.props['lineTotalText'] as String?)?.trim();
     final badgeTemplate = (node.props['badgeLabel'] as String?)?.trim();
+    final rxRequiredTemplate = (node.props['rxRequired'] as String?)?.trim();
     final surface = (node.props['surface'] as String?)?.trim() ?? 'raised';
     final density = (node.props['density'] as String?)?.trim() ?? 'comfortable';
+    final readonly = (node.props['readonly'] as bool?) ?? false;
     final quantityRaw = node.props['quantity'];
 
     final incrementAction = resolveComponentAction(
@@ -45,6 +47,13 @@ void registerCartItemSchemaComponent({
       if (template == null || template.isEmpty) return null;
       final value = interpolateSchemaString(template, buildContext).trim();
       return value.isEmpty ? null : value;
+    }
+
+    bool resolveRxRequired(BuildContext buildContext) {
+      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty) return false;
+      final val =
+          interpolateSchemaString(rxRequiredTemplate, buildContext).trim().toLowerCase();
+      return val == 'true' || val == '1';
     }
 
     Widget buildItem(BuildContext buildContext) {
@@ -79,12 +88,16 @@ void registerCartItemSchemaComponent({
         unitPriceText: resolveOptionalTemplate(unitPriceTemplate, buildContext),
         lineTotalText: resolveOptionalTemplate(lineTotalTemplate, buildContext),
         badgeLabel: resolveOptionalTemplate(badgeTemplate, buildContext),
+        rxRequired: resolveRxRequired(buildContext),
         surface: surface,
         density: density,
-        onIncrement:
-            incrementAction == null ? null : () => dispatch('increment'),
-        onDecrement:
-            decrementAction == null ? null : () => dispatch('decrement'),
+        readonly: readonly,
+        onIncrement: readonly || incrementAction == null
+            ? null
+            : () => dispatch('increment'),
+        onDecrement: readonly || decrementAction == null
+            ? null
+            : () => dispatch('decrement'),
       );
     }
 
@@ -99,12 +112,13 @@ void registerCartItemSchemaComponent({
               if (unitPriceTemplate != null) unitPriceTemplate,
               if (lineTotalTemplate != null) lineTotalTemplate,
               if (badgeTemplate != null) badgeTemplate,
+              if (rxRequiredTemplate != null) rxRequiredTemplate,
             ].any(hasSchemaInterpolation);
 
         if (needsReactive) {
           return AnimatedBuilder(
             animation: stateStore,
-            builder: (_, __) => buildItem(buildContext),
+            builder: (ctx, __) => buildItem(ctx),
           );
         }
 

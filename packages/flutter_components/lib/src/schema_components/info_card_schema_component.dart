@@ -10,6 +10,7 @@ void registerInfoCardSchemaComponent({
   required SchemaComponentContext context,
 }) {
   registry.register('InfoCard', (node, componentRegistry) {
+    final props = node.props;
     final titleTemplate = node.props['title'] as String? ?? 'Untitled';
     final subtitleTemplate = node.props['subtitle'] as String? ?? '';
     final surface = node.props['surface'] as String? ?? 'raised';
@@ -23,6 +24,14 @@ void registerInfoCardSchemaComponent({
             title: title,
             subtitle: subtitle,
             surface: surface,
+            variant: (props['variant'] as String?) ?? 'default',
+            density: (props['density'] as String?) ?? 'comfortable',
+            titleVariant: props['titleVariant'] as String?,
+            titleWeight: props['titleWeight'] as String?,
+            titleColor: props['titleColor'] as String?,
+            subtitleVariant: props['subtitleVariant'] as String?,
+            subtitleWeight: props['subtitleWeight'] as String?,
+            subtitleColor: props['subtitleColor'] as String?,
           );
         }
 

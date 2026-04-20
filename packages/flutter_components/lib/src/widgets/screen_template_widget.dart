@@ -8,11 +8,11 @@ class ScreenTemplateWidget extends StatelessWidget {
     required this.header,
     required this.body,
     required this.footer,
-    this.headerGap = 8,
+    this.headerGap = 0,
     this.bodyScroll = true,
-    this.bodyPadding = const EdgeInsets.all(16),
+    this.bodyPadding = const EdgeInsets.symmetric(horizontal: 16),
     this.primaryScrollPadding = const EdgeInsets.symmetric(horizontal: 16),
-    this.footerPadding = const EdgeInsets.fromLTRB(16, 0, 16, 16),
+    this.footerPadding = const EdgeInsets.symmetric(horizontal: 16),
   });
 
   final List<Widget> header;

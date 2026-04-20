@@ -1,0 +1,22 @@
+{
+  "name": "TapArea",
+  "category": "layout",
+  "version": "1.0",
+  "propsSchema": {
+    "all": "number",
+    "horizontal": "number",
+    "vertical": "number",
+    "left": "number",
+    "top": "number",
+    "right": "number",
+    "bottom": "number",
+    "minSize": "number",
+    "semanticLabel": "string"
+  },
+  "defaults": {},
+  "styleContract": {},
+  "slots": ["child"],
+  "events": [],
+  "actions": ["tap"],
+  "fallbackBehavior": "omit"
+}

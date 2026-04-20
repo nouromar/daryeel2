@@ -35,6 +35,13 @@ void registerActionCardSchemaComponent({
             subtitle: subtitle,
             icon: icon,
             surface: surface,
+            density: (node.props['density'] as String?) ?? 'comfortable',
+            titleVariant: node.props['titleVariant'] as String?,
+            titleWeight: node.props['titleWeight'] as String?,
+            titleColor: node.props['titleColor'] as String?,
+            subtitleVariant: node.props['subtitleVariant'] as String?,
+            subtitleWeight: node.props['subtitleWeight'] as String?,
+            subtitleColor: node.props['subtitleColor'] as String?,
             onTap: tapAction == null
                 ? null
                 : () async {

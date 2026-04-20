@@ -8,7 +8,7 @@ final class EcommerceCartLine {
     required this.subtitle,
     required this.quantity,
     required this.rxRequired,
-    required this.unitPrice,
+    required this.price,
     required this.currencySymbol,
   });
 
@@ -18,19 +18,26 @@ final class EcommerceCartLine {
   final int quantity;
   final bool rxRequired;
 
-  /// Unit price in display currency, if known.
+  /// Unit price in display currency.
   ///
-  /// May be null for legacy carts (in which case the UI should degrade
-  /// gracefully).
-  final double? unitPrice;
+  /// Kept as a raw value so we can preserve the cart line record shape
+  /// when only quantity changes.
+  final Object? price;
 
   /// Currency symbol to show (e.g. `$`).
   ///
   /// Prefer passing this explicitly for theme/app consistency.
   final String currencySymbol;
 
-  double? get lineTotal {
-    final p = unitPrice;
+  double? get priceValue {
+    final raw = price;
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw.trim());
+    return null;
+  }
+
+  double? get lineTotalValue {
+    final p = priceValue;
     if (p == null) return null;
     return p * quantity;
   }

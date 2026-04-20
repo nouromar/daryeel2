@@ -21,7 +21,11 @@ void main() {
             <String, Object?>{
               'id': 'prod_paracetamol_500mg',
               'name': 'Paracetamol 500 mg',
+              'subtitle': r'$1.00',
               'price': 1.0,
+              'icon': 'pharmacy',
+              'route': '',
+              'rx_required': false,
               'quantity': 2,
             },
           ],
@@ -66,7 +70,11 @@ void main() {
         <String, Object?>{
           'id': 'prod_paracetamol_500mg',
           'name': 'Paracetamol 500 mg',
+          'subtitle': r'$1.00',
           'price': 1.0,
+          'icon': 'pharmacy',
+          'route': '',
+          'rx_required': false,
           'quantity': 2,
         },
       ]);

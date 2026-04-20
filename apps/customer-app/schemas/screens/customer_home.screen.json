@@ -18,6 +18,12 @@
       "home": [
         {
           "type": "ScreenTemplate",
+          "props": {
+            "headerGap": 8,
+            "bodyPadding": { "all": 16 },
+            "primaryScrollPadding": { "horizontal": 16 },
+            "footerPadding": { "left": 16, "top": 0, "right": 16, "bottom": 16 }
+          },
           "slots": {
             "body": [
               { "ref": "section:customer_welcome_v1" },
@@ -27,6 +33,8 @@
                 "props": {
                   "title": "Ambulance",
                   "subtitle": "Request an ambulance",
+                  "titleVariant": "title",
+                  "titleWeight": "semibold",
                   "icon": "ambulance",
                   "surface": "raised"
                 },
@@ -38,6 +46,8 @@
                 "props": {
                   "title": "Home Visit",
                   "subtitle": "Request a home visit",
+                  "titleVariant": "title",
+                  "titleWeight": "semibold",
                   "icon": "home",
                   "surface": "raised"
                 },
@@ -49,6 +59,8 @@
                 "props": {
                   "title": "Pharmacy",
                   "subtitle": "Request pharmacy delivery",
+                  "titleVariant": "title",
+                  "titleWeight": "semibold",
                   "icon": "pharmacy",
                   "surface": "raised"
                 },
@@ -61,8 +73,30 @@
       "activities": [
         {
           "type": "ScreenTemplate",
+          "props": {
+            "headerGap": 0,
+            "bodyPadding": { "left": 8, "top": 0, "right": 8, "bottom": 8 },
+            "footerPadding": { "left": 8, "top": 0, "right": 8, "bottom": 8 }
+          },
           "slots": {
             "body": [
+              {
+                "type": "Align",
+                "props": { "alignment": "centerRight" },
+                "slots": {
+                  "child": [
+                    {
+                      "type": "IconButton",
+                      "props": {
+                        "name": "refresh",
+                        "size": 20,
+                        "semanticLabel": "Refresh"
+                      },
+                      "actions": { "tap": "refresh_activities" }
+                    }
+                  ]
+                }
+              },
               { "ref": "fragment:customer_requests_v1" }
             ]
           }
@@ -71,6 +105,12 @@
       "account": [
         {
           "type": "ScreenTemplate",
+          "props": {
+            "headerGap": 8,
+            "bodyPadding": { "all": 16 },
+            "primaryScrollPadding": { "horizontal": 16 },
+            "footerPadding": { "left": 16, "top": 0, "right": 16, "bottom": 16 }
+          },
           "slots": {
             "body": [
               {
@@ -106,6 +146,7 @@
         "title": "Pharmacy",
         "chromePreset": "pharmacy_cart_badge"
       }
-    }
+    },
+    "refresh_activities": { "type": "customer_requests_refresh" }
   }
 }

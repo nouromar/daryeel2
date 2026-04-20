@@ -16,6 +16,14 @@ void registerBoundActionCardSchemaComponent({
     final iconPath = (node.props['iconPath'] as String?)?.trim() ?? 'icon';
     final routePath = (node.props['routePath'] as String?)?.trim() ?? 'route';
     final surface = node.props['surface'] as String? ?? 'raised';
+    final density = node.props['density'] as String?;
+
+    final titleVariant = node.props['titleVariant'] as String?;
+    final titleWeight = node.props['titleWeight'] as String?;
+    final titleColor = node.props['titleColor'] as String?;
+    final subtitleVariant = node.props['subtitleVariant'] as String?;
+    final subtitleWeight = node.props['subtitleWeight'] as String?;
+    final subtitleColor = node.props['subtitleColor'] as String?;
 
     return Builder(
       builder: (buildContext) {
@@ -51,6 +59,13 @@ void registerBoundActionCardSchemaComponent({
           subtitle: subtitle,
           icon: _resolveMaterialIcon(iconName),
           surface: surface,
+          density: density ?? 'comfortable',
+          titleVariant: titleVariant,
+          titleWeight: titleWeight,
+          titleColor: titleColor,
+          subtitleVariant: subtitleVariant,
+          subtitleWeight: subtitleWeight,
+          subtitleColor: subtitleColor,
           onTap: (route == null || route.trim().isEmpty)
               ? null
               : () async {

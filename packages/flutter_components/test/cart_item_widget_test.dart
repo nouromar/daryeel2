@@ -83,4 +83,78 @@ void main() {
     expect(find.textContaining('Line:'), findsNothing);
     expect(find.text('Rx'), findsOneWidget);
   });
+
+  testWidgets('CartItemWidget readonly shows quantity badge, no stepper', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CartItemWidget(
+            title: 'Amoxicillin 500mg',
+            quantity: 3,
+            readonly: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+    expect(find.text('Qty 3'), findsOneWidget);
+    expect(find.byTooltip('Increase quantity'), findsNothing);
+    expect(find.byTooltip('Decrease quantity'), findsNothing);
+    expect(find.byTooltip('Remove item'), findsNothing);
+    expect(find.byIcon(Icons.add), findsNothing);
+    expect(find.byIcon(Icons.remove), findsNothing);
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+  });
+
+  testWidgets(
+      'CartItemWidget readonly renders subtitle and meta when provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CartItemWidget(
+            title: 'Ibuprofen 200mg',
+            subtitle: 'Pack of 16',
+            quantity: 2,
+            unitPriceText: r'$3.00',
+            lineTotalText: r'$6.00',
+            badgeLabel: 'OTC',
+            readonly: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Ibuprofen 200mg'), findsOneWidget);
+    expect(find.text('Pack of 16'), findsOneWidget);
+    expect(find.text(r'Price: $3.00'), findsOneWidget);
+    expect(find.text(r'Line: $6.00'), findsOneWidget);
+    expect(find.text('OTC'), findsOneWidget);
+    expect(find.text('Qty 2'), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsNothing);
+  });
+
+  testWidgets('CartItemWidget readonly compact uses smaller badge padding', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CartItemWidget(
+            title: 'Item',
+            quantity: 1,
+            density: 'compact',
+            readonly: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Qty 1'), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsNothing);
+  });
 }

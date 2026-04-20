@@ -54,6 +54,11 @@ ThemeData resolveCustomerTheme(
         fontSize: 28,
         fontWeight: FontWeight.w700,
       ),
+      titleLarge: TextStyle(
+        color: textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+      ),
       bodyMedium: TextStyle(color: textSecondary, fontSize: 16, height: 1.4),
       titleMedium: TextStyle(
         color: textPrimary,

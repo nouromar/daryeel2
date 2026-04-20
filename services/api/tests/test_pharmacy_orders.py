@@ -83,6 +83,8 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
                         "price": 1.0,
                         "subtitle": "$1.00",
                         "rx_required": False,
+                        "icon": "pharmacy",
+                        "route": "",
                         "quantity": 2,
                     }
                 ],
@@ -122,6 +124,8 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         assert sr.payload_json["cart_lines"][0]["quantity"] == 2
         assert sr.payload_json["cart_lines"][0]["price"] == 1.0
         assert sr.payload_json["cart_lines"][0]["subtitle"] == "$1.00"
+        assert sr.payload_json["cart_lines"][0]["icon"] == "pharmacy"
+        assert sr.payload_json["cart_lines"][0]["route"] == ""
 
         ev = db.scalar(select(RequestEvent).where(RequestEvent.request_id == sr.id))
         assert ev is not None

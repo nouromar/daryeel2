@@ -40,11 +40,11 @@ void registerScreenTemplateSchemaComponent({
       applyVisibilityWhen: true,
     );
 
-    final headerGap = schemaAsDouble(node.props['headerGap']) ?? 8;
+    final headerGap = schemaAsDouble(node.props['headerGap']) ?? 0;
     final bodyScroll = _asBool(node.props['bodyScroll'], defaultValue: true);
     final bodyPadding = _parseEdgeInsets(
       node.props['bodyPadding'],
-      fallback: const EdgeInsets.all(16),
+      fallback: const EdgeInsets.symmetric(horizontal: 16),
     );
     final primaryScrollPadding = _parseEdgeInsets(
       node.props['primaryScrollPadding'],
@@ -52,7 +52,7 @@ void registerScreenTemplateSchemaComponent({
     );
     final footerPadding = _parseEdgeInsets(
       node.props['footerPadding'],
-      fallback: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      fallback: const EdgeInsets.symmetric(horizontal: 16),
     );
 
     return SchemaStateScopeHost(

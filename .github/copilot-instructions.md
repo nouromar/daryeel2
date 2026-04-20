@@ -4,6 +4,10 @@ description: "Copilot workspace instructions for the Daryeel2 monorepo (schema-d
 
 Read [docs/ai-grounding.md](../docs/ai-grounding.md) first for the repo mental model and canonical doc links.
 
+When building or reviewing a schema-driven UI screen, also read [docs/schema-screen-authoring.md](../docs/schema-screen-authoring.md)
+for the full widget catalogue, design principles, expression syntax, action types, and the decision
+tree for when to add a new widget vs composing with existing ones.
+
 Key rules:
 - Prefer using the shared Flutter client runtime/framework in `packages/*` over copying runtime logic into apps.
 - The runtime/framework under `packages/*` is nearing majority/stability: do NOT change anything under `packages/*` unless we explicitly discuss it first and you get explicit permission to proceed.

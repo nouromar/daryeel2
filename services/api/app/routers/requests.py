@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
 from datetime import datetime
 from typing import Any, Literal
 
@@ -18,7 +16,6 @@ from app.db import get_db
 from app.deps import require_access_token_payload
 from app.models import RequestEvent
 from app.models import ServiceRequest
-
 router = APIRouter(prefix="/v1", tags=["requests"])
 
 _TERMINAL_REQUEST_STATUSES = {"completed", "cancelled", "failed", "rejected"}
@@ -234,7 +231,7 @@ def _serialize_request_detail(
         },
         "pendingActions": pending_actions,
         "serviceDetails": _service_details(request),
-        "timeline": [_serialize_request_event(event) for event in events],
+        "timeline": [_serialize_request_event(event) for event in events if event.to_status],
     }
 
 
@@ -492,232 +489,33 @@ def _service_details(request: ServiceRequest) -> dict[str, Any]:
         return {
             "serviceId": request.service_id,
             "isPharmacy": True,
-            "summary": _pharmacy_summary(payload),
-            "prescriptionStateText": _pharmacy_prescription_state_text(payload),
-            "prescriptionUploads": _pharmacy_prescription_uploads(payload),
+            "payload": payload,
         }
 
     return {
         "serviceId": request.service_id,
         "isPharmacy": False,
-        "summary": {},
+        "payload": payload,
     }
-
-
-def _pharmacy_prescription_state_text(payload: dict[str, Any]) -> str | None:
-    upload_ids = payload.get("prescription_upload_ids")
-    has_uploads = isinstance(upload_ids, list) and bool(upload_ids)
-    return "Prescription attached" if has_uploads else None
-
-
-def _pharmacy_prescription_uploads(payload: dict[str, Any]) -> list[dict[str, str]]:
-    upload_ids = payload.get("prescription_upload_ids")
-    if not isinstance(upload_ids, list) or not upload_ids:
-        return []
-
-    uploads: list[dict[str, str]] = []
-    index = 0
-    for raw in upload_ids:
-        if not isinstance(raw, str) or not raw.strip():
-            continue
-        index += 1
-        upload_id = raw.strip()
-        uploads.append(
-            {
-                "title": f"Prescription {index}",
-                "subtitle": upload_id,
-                "uploadId": upload_id,
-            }
-        )
-    return uploads
-
-
-def _pharmacy_summary(payload: dict[str, Any]) -> dict[str, Any]:
-    cart_lines = payload.get("cart_lines")
-    item_lines: list[str] = []
-    items: list[dict[str, str]] = []
-    if isinstance(cart_lines, list):
-        for line in cart_lines:
-            if not isinstance(line, dict):
-                continue
-            item_lines.append(_order_item_line(line))
-            items.append(
-                {
-                    "title": _product_title(line),
-                    "subtitle": _cart_line_subtitle(line),
-                }
-            )
-
-    summary_lines = payload.get("summary_lines")
-    pricing_lines: list[str] = []
-    if isinstance(summary_lines, list):
-        for line in summary_lines:
-            if not isinstance(line, dict):
-                continue
-            formatted = _summary_line_text(line)
-            if formatted is not None:
-                pricing_lines.append(formatted)
-
-    summary_total = payload.get("summary_total")
-    estimated_total_text = None
-    if isinstance(summary_total, dict):
-        raw_amount_text = summary_total.get("amountText")
-        if isinstance(raw_amount_text, str) and raw_amount_text.strip():
-            estimated_total_text = raw_amount_text.strip()
-            total_label = _first_non_empty_string(summary_total.get("label")) or "Total"
-            pricing_lines.append(f"{total_label}: {estimated_total_text}")
-
-    summary_text = "\n".join(pricing_lines) if pricing_lines else None
-
-    return {
-        "items": items,
-        "estimatedTotalText": estimated_total_text,
-        "summaryText": summary_text,
-    }
-
-
-def _product_title(line: dict[str, Any]) -> str:
-    raw = _first_non_empty_string(
-        line.get("name"),
-        line.get("title"),
-        line.get("product_name"),
-        line.get("productName"),
-    )
-    if isinstance(raw, str) and raw.strip():
-        return raw.strip()
-
-    product_id = _first_non_empty_string(
-        line.get("id"),
-        line.get("product_id"),
-        line.get("productId"),
-    )
-    if isinstance(product_id, str) and product_id.strip():
-        trimmed = product_id.strip()
-        if trimmed.startswith("prod_"):
-            trimmed = trimmed[len("prod_"):]
-        return _humanize_identifier(trimmed)
-
-    return "Item"
-
-
-def _cart_line_subtitle(line: dict[str, Any]) -> str:
-    raw_quantity = line.get("quantity")
-    if isinstance(raw_quantity, int):
-        quantity = raw_quantity
-    elif isinstance(raw_quantity, float):
-        quantity = int(raw_quantity)
-    elif isinstance(raw_quantity, str):
-        try:
-            quantity = int(raw_quantity.strip())
-        except ValueError:
-            quantity = 0
-    else:
-        quantity = 0
-
-    # Prefer explicit line total text if present.
-    price_text = _first_non_empty_string(
-        line.get("lineTotalText"),
-        line.get("line_total_text"),
-        line.get("lineTotalAmountText"),
-        line.get("line_total_amount_text"),
-        line.get("totalText"),
-        line.get("total_text"),
-    )
-
-    # Otherwise, compute a best-effort total using fields already present
-    # on the cart line record (no catalog lookups/enrichment).
-    if not price_text:
-        unit_price_raw = _first_non_empty_string(
-            line.get("unitPriceText"),
-            line.get("unit_price_text"),
-        )
-
-        unit_price_num = None
-        for candidate in (
-            line.get("unitPrice"),
-            line.get("unit_price"),
-            line.get("price"),
-        ):
-            if isinstance(candidate, (int, float)):
-                unit_price_num = Decimal(str(candidate))
-                break
-            if isinstance(candidate, str):
-                try:
-                    unit_price_num = Decimal(candidate.strip())
-                    break
-                except Exception:
-                    unit_price_num = None
-
-        if unit_price_num is not None and quantity > 0:
-            total = (unit_price_num * Decimal(quantity)).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP,
-            )
-            price_text = f"${total}"
-        else:
-            price_text = unit_price_raw
-
-    parts: list[str] = []
-    if quantity > 0:
-        parts.append(f"Qty {quantity}")
-    if price_text:
-        parts.append(price_text)
-
-    if not parts:
-        return ""
-    return "\u2022 " + " \u2022 ".join(parts)
-
-
-def _order_item_line(line: dict[str, Any]) -> str:
-    title = _product_title(line)
-    subtitle = _cart_line_subtitle(line)
-    return _join_non_empty(title, subtitle)
-
-
-def _summary_line_text(line: dict[str, Any]) -> str | None:
-    label = _first_non_empty_string(line.get("label"))
-    amount_text = _first_non_empty_string(line.get("amountText"))
-    if label and amount_text:
-        return f"{label}: {amount_text}"
-    return label or amount_text
 
 
 def _serialize_request_event(event: RequestEvent) -> dict[str, Any]:
+    status_title = _status_label(event.to_status) if event.to_status else _event_title(event)
     return {
         "id": str(event.id),
         "type": event.type,
-        "title": _event_title(event),
-        "subtitle": _event_subtitle(event),
+        "title": status_title,
+        "subtitle": _format_created_at(event.created_at) or "",
         "createdAt": event.created_at.isoformat() if event.created_at else None,
     }
 
 
 def _event_title(event: RequestEvent) -> str:
-    if event.type == "created":
-        return "Request placed"
-    if event.type == "status_changed" and event.to_status:
-        return f"Status updated to {_status_label(event.to_status)}"
-    if event.type == "provider_assigned":
-        return "Provider assigned"
     return event.type.replace("_", " ").title()
 
 
 def _event_subtitle(event: RequestEvent) -> str:
-    created_label = _format_created_at(event.created_at) or ""
-
-    if event.type == "created":
-        return _join_non_empty("Your request was created.", created_label)
-    if event.type == "status_changed" and event.to_status:
-        return _join_non_empty(
-            f"Status changed to {_status_label(event.to_status)}.",
-            created_label,
-        )
-    if event.type == "provider_assigned":
-        return _join_non_empty(
-            "A provider has been assigned to your request.",
-            created_label,
-        )
-    return created_label
+    return _format_created_at(event.created_at) or ""
 
 
 def _latest_events_by_request_id(
@@ -896,23 +694,6 @@ def _update_request_status(
             metadata_json=metadata,
         )
     )
-
-
-def _humanize_identifier(raw: str) -> str:
-    normalized = raw.replace("_", " ").strip()
-    if not normalized:
-        return "Item"
-    words = normalized.split()
-    return " ".join(_humanize_word(word) for word in words)
-
-
-def _humanize_word(word: str) -> str:
-    lowered = word.lower()
-    if lowered.endswith("mg") and len(lowered) > 2 and lowered[:-2].isdigit():
-        return f"{lowered[:-2]} mg"
-    if lowered.endswith("ml") and len(lowered) > 2 and lowered[:-2].isdigit():
-        return f"{lowered[:-2]} ml"
-    return lowered.capitalize()
 
 
 def _join_non_empty(*parts: str) -> str:

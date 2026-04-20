@@ -67,3 +67,6 @@ __pycache__/
 .tox/
 .venv/
 venv/
+
+# Large binaries (do not commit)
+/docs/Claude.dmg
