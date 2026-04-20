@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_components/flutter_components.dart';
+import 'package:flutter_components/flutter_components.dart'
+    show SchemaComponentContext;
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
+
+import 'catalog_item_tile_widget.dart';
 
 void registerCustomerCatalogItemTileSchemaComponent({
   required SchemaWidgetRegistry registry,

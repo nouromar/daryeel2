@@ -1,5 +1,5 @@
+import 'package:customer_app/src/services/pharmacy/ui/cart_summary_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

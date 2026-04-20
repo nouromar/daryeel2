@@ -52,7 +52,6 @@ def list_customer_requests(
 
     latest_events = _latest_events_by_request_id(db, [request.id for request in rows])
 
-    attention: list[dict[str, Any]] = []
     active: list[dict[str, Any]] = []
     history: list[dict[str, Any]] = []
 
@@ -63,14 +62,11 @@ def list_customer_requests(
         )
         if request.status in _TERMINAL_REQUEST_STATUSES:
             history.append(item)
-        elif item["isAttentionRequired"]:
-            attention.append(item)
         else:
             active.append(item)
 
     return {
-        "has_requests": bool(attention or active or history),
-        "attention": attention,
+        "has_requests": bool(active or history),
         "active": active,
         "history": history,
     }

@@ -1,0 +1,24 @@
+{
+  "name": "ServiceCapsules",
+  "scope": "app",
+  "category": "home",
+  "version": "1.0",
+  "propsSchema": {
+    "titlePath": "string",
+    "iconPath": "string",
+    "imageUrlPath": "string",
+    "routePath": "string",
+    "maxItems": "number"
+  },
+  "defaults": {
+    "titlePath": "title",
+    "iconPath": "icon",
+    "imageUrlPath": "imageUrl",
+    "routePath": "route"
+  },
+  "styleContract": {},
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

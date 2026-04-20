@@ -2,8 +2,12 @@
   "package": "customer-app-component-contracts",
   "version": "0.1.0",
   "contracts": [
+    "catalog-item-tile.contract.json",
+    "cart-item.contract.json",
+    "cart-summary.contract.json",
     "pharmacy-cart-items.contract.json",
     "section-card.contract.json",
+    "service-capsules.contract.json",
     "pharmacy-prescription-upload.contract.json",
     "pharmacy-request-detail-cart-item.contract.json"
   ]

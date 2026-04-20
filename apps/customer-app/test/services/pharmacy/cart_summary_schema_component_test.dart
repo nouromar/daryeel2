@@ -1,5 +1,7 @@
+import 'package:customer_app/src/services/pharmacy/ui/cart_summary_schema_component.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_components/flutter_components.dart';
+import 'package:flutter_components/flutter_components.dart'
+    show SchemaComponentContext;
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,8 +28,9 @@ const ComponentNode _cartSummaryNode = ComponentNode(
 );
 
 void main() {
-  testWidgets('CartSummary schema component reads summary state',
-      (tester) async {
+  testWidgets('CartSummary schema component reads summary state', (
+    tester,
+  ) async {
     final screen = ScreenSchema(
       schemaVersion: '1.0',
       id: 'cart',
@@ -41,7 +44,7 @@ void main() {
     );
 
     final registry = SchemaWidgetRegistry();
-    registerCartSummarySchemaComponent(
+    registerCustomerCartSummarySchemaComponent(
       registry: registry,
       context: _testContext(screen),
     );

@@ -98,17 +98,17 @@ def test_requests_endpoint_buckets_active_and_history() -> None:
     assert res.status_code == 200
     payload = res.json()
     assert payload["has_requests"] is True
-    assert len(payload["attention"]) == 1
-    assert len(payload["active"]) == 0
+    assert "attention" not in payload
+    assert len(payload["active"]) == 1
     assert len(payload["history"]) == 1
-    assert payload["attention"][0]["title"] == "Pharmacy order"
-    assert payload["attention"][0]["attentionState"] == "action_required"
-    assert payload["attention"][0]["isAttentionRequired"] is True
-    assert payload["attention"][0]["pendingActionCount"] == 1
-    assert payload["attention"][0]["subtitle"].startswith("Action needed")
-    assert "2 items" in payload["attention"][0]["subtitle"]
-    assert payload["attention"][0]["route"]["route"] == "customer.schema_screen"
-    assert payload["attention"][0]["route"]["value"]["screenId"] == "customer_request_detail"
+    assert payload["active"][0]["title"] == "Pharmacy order"
+    assert payload["active"][0]["attentionState"] == "action_required"
+    assert payload["active"][0]["isAttentionRequired"] is True
+    assert payload["active"][0]["pendingActionCount"] == 1
+    assert payload["active"][0]["subtitle"].startswith("Action needed")
+    assert "2 items" in payload["active"][0]["subtitle"]
+    assert payload["active"][0]["route"]["route"] == "customer.schema_screen"
+    assert payload["active"][0]["route"]["value"]["screenId"] == "customer_request_detail"
     assert payload["history"][0]["status"] == "completed"
 
 

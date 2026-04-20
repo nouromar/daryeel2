@@ -1,5 +1,5 @@
+import 'package:customer_app/src/services/pharmacy/ui/cart_item_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_components/flutter_components.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -46,12 +46,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: CartItemWidget(
-            title: 'Item',
-            quantity: 1,
-          ),
-        ),
+        home: Scaffold(body: CartItemWidget(title: 'Item', quantity: 1)),
       ),
     );
 
@@ -60,29 +55,29 @@ void main() {
   });
 
   testWidgets(
-      'CartItemWidget hides duplicate subtitle and duplicate line price', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: CartItemWidget(
-            title: 'Item',
-            subtitle: r'$4.50',
-            quantity: 1,
-            unitPriceText: r'$4.50',
-            lineTotalText: r'$4.50',
-            badgeLabel: 'Rx',
+    'CartItemWidget hides duplicate subtitle and duplicate line price',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CartItemWidget(
+              title: 'Item',
+              subtitle: r'$4.50',
+              quantity: 1,
+              unitPriceText: r'$4.50',
+              lineTotalText: r'$4.50',
+              badgeLabel: 'Rx',
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text(r'$4.50'), findsNothing);
-    expect(find.text(r'Price: $4.50'), findsOneWidget);
-    expect(find.textContaining('Line:'), findsNothing);
-    expect(find.text('Rx'), findsOneWidget);
-  });
+      expect(find.text(r'$4.50'), findsNothing);
+      expect(find.text(r'Price: $4.50'), findsOneWidget);
+      expect(find.textContaining('Line:'), findsNothing);
+      expect(find.text('Rx'), findsOneWidget);
+    },
+  );
 
   testWidgets('CartItemWidget readonly shows quantity badge, no stepper', (
     tester,
@@ -110,33 +105,33 @@ void main() {
   });
 
   testWidgets(
-      'CartItemWidget readonly renders subtitle and meta when provided', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: CartItemWidget(
-            title: 'Ibuprofen 200mg',
-            subtitle: 'Pack of 16',
-            quantity: 2,
-            unitPriceText: r'$3.00',
-            lineTotalText: r'$6.00',
-            badgeLabel: 'OTC',
-            readonly: true,
+    'CartItemWidget readonly renders subtitle and meta when provided',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CartItemWidget(
+              title: 'Ibuprofen 200mg',
+              subtitle: 'Pack of 16',
+              quantity: 2,
+              unitPriceText: r'$3.00',
+              lineTotalText: r'$6.00',
+              badgeLabel: 'OTC',
+              readonly: true,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Ibuprofen 200mg'), findsOneWidget);
-    expect(find.text('Pack of 16'), findsOneWidget);
-    expect(find.text(r'Price: $3.00'), findsOneWidget);
-    expect(find.text(r'Line: $6.00'), findsOneWidget);
-    expect(find.text('OTC'), findsOneWidget);
-    expect(find.text('Qty 2'), findsOneWidget);
-    expect(find.byIcon(Icons.add), findsNothing);
-  });
+      expect(find.text('Ibuprofen 200mg'), findsOneWidget);
+      expect(find.text('Pack of 16'), findsOneWidget);
+      expect(find.text(r'Price: $3.00'), findsOneWidget);
+      expect(find.text(r'Line: $6.00'), findsOneWidget);
+      expect(find.text('OTC'), findsOneWidget);
+      expect(find.text('Qty 2'), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsNothing);
+    },
+  );
 
   testWidgets('CartItemWidget readonly compact uses smaller badge padding', (
     tester,

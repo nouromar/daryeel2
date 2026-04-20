@@ -29,8 +29,9 @@ void registerPharmacyRequestDetailCartItemSchemaComponent({
     }
 
     bool resolveRxRequired(BuildContext buildContext) {
-      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty)
+      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty) {
         return false;
+      }
       final val = interpolateSchemaString(
         rxRequiredTemplate,
         buildContext,
@@ -60,17 +61,17 @@ void registerPharmacyRequestDetailCartItemSchemaComponent({
         final store = SchemaStateScope.maybeOf(buildContext);
         final needsReactive =
             store != null &&
-            [
-              titleTemplate,
-              unitPriceTemplate,
-              if (quantityRaw is String) quantityRaw,
-              if (rxRequiredTemplate != null) rxRequiredTemplate,
-            ].any(hasSchemaInterpolation);
+            (hasSchemaInterpolation(titleTemplate) ||
+                hasSchemaInterpolation(unitPriceTemplate) ||
+                (quantityRaw is String &&
+                    hasSchemaInterpolation(quantityRaw)) ||
+                (rxRequiredTemplate != null &&
+                    hasSchemaInterpolation(rxRequiredTemplate)));
 
         if (needsReactive) {
           return AnimatedBuilder(
             animation: store,
-            builder: (ctx, __) => buildItem(ctx),
+            builder: (ctx, _) => buildItem(ctx),
           );
         }
 

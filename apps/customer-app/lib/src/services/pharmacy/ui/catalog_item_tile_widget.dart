@@ -35,7 +35,6 @@ class CatalogItemTileWidget extends StatelessWidget {
       final lower = subtitle.toLowerCase();
       final rxIndex = lower.indexOf('rx');
 
-      // If the subtitle already contains "rx", emphasize that substring.
       if (rxIndex >= 0) {
         final before = subtitle.substring(0, rxIndex);
         final rx = subtitle.substring(rxIndex, rxIndex + 2);
@@ -47,13 +46,9 @@ class CatalogItemTileWidget extends StatelessWidget {
         ];
       }
 
-      // Otherwise append an emphasized "• Rx".
       return <InlineSpan>[
         if (subtitle.isNotEmpty) TextSpan(text: subtitle, style: subtitleStyle),
-        TextSpan(
-          text: subtitle.isEmpty ? 'Rx' : ' • Rx',
-          style: rxStyle,
-        ),
+        TextSpan(text: subtitle.isEmpty ? 'Rx' : ' • Rx', style: rxStyle),
       ];
     }
 
@@ -84,13 +79,11 @@ class CatalogItemTileWidget extends StatelessWidget {
                     if (subtitle.isNotEmpty || rxRequired) ...[
                       const SizedBox(height: 4),
                       Text.rich(
-                        TextSpan(
-                          children: buildSubtitleSpans(),
-                        ),
+                        TextSpan(children: buildSubtitleSpans()),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ]
+                    ],
                   ],
                 ),
               ),

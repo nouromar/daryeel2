@@ -39,11 +39,14 @@ class CartItemWidget extends StatelessWidget {
     final spacing = compact ? 8.0 : 10.0;
     final safeQuantity = quantity < 0 ? 0 : quantity;
     final explicitBadge = badgeLabel?.trim() ?? '';
-    final badge = explicitBadge.isNotEmpty ? explicitBadge : (rxRequired ? 'Rx' : '');
+    final badge = explicitBadge.isNotEmpty
+        ? explicitBadge
+        : (rxRequired ? 'Rx' : '');
     final normalizedSubtitle = subtitle.trim();
     final normalizedUnitPrice = unitPriceText?.trim() ?? '';
     final normalizedLineTotal = lineTotalText?.trim() ?? '';
-    final showSubtitle = normalizedSubtitle.isNotEmpty &&
+    final showSubtitle =
+        normalizedSubtitle.isNotEmpty &&
         normalizedSubtitle != normalizedUnitPrice &&
         normalizedSubtitle != normalizedLineTotal;
     final hasUnitPrice = normalizedUnitPrice.isNotEmpty;
@@ -186,8 +189,10 @@ final class _CartQuantityStepper extends StatelessWidget {
             IconButton(
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
-              constraints:
-                  BoxConstraints(minWidth: minHeight, minHeight: minHeight),
+              constraints: BoxConstraints(
+                minWidth: minHeight,
+                minHeight: minHeight,
+              ),
               tooltip: quantity <= 1 ? 'Remove item' : 'Decrease quantity',
               onPressed: onDecrement,
               icon: Icon(
@@ -208,8 +213,10 @@ final class _CartQuantityStepper extends StatelessWidget {
             IconButton(
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
-              constraints:
-                  BoxConstraints(minWidth: minHeight, minHeight: minHeight),
+              constraints: BoxConstraints(
+                minWidth: minHeight,
+                minHeight: minHeight,
+              ),
               tooltip: 'Increase quantity',
               onPressed: onIncrement,
               icon: Icon(Icons.add, size: iconSize),

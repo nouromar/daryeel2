@@ -4,9 +4,6 @@ import 'action_card_schema_component.dart';
 import 'address_section_schema_component.dart';
 import 'bottom_tabs_schema_component.dart';
 import 'bound_action_card_schema_component.dart';
-import 'catalog_item_tile_schema_component.dart';
-import 'cart_item_schema_component.dart';
-import 'cart_summary_schema_component.dart';
 import 'for_each_schema_component.dart';
 import 'gap_schema_component.dart';
 import 'if_schema_component.dart';
@@ -61,9 +58,6 @@ void registerCoreSchemaComponents({
   registerForEachSchemaComponent(registry: registry, context: context);
   registerIfSchemaComponent(registry: registry, context: context);
   registerBoundActionCardSchemaComponent(registry: registry, context: context);
-  registerCatalogItemTileSchemaComponent(registry: registry, context: context);
-  registerCartItemSchemaComponent(registry: registry, context: context);
-  registerCartSummarySchemaComponent(registry: registry, context: context);
 
   // Layout components.
   registerRowSchemaComponent(registry: registry, context: context);

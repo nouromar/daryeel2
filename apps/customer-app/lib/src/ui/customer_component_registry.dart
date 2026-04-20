@@ -5,9 +5,12 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import '../actions/customer_action_dispatcher.dart';
 import 'section_card_schema_component.dart';
 import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
+import '../services/pharmacy/ui/cart_item_schema_component.dart';
+import '../services/pharmacy/ui/cart_summary_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_cart_items_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_prescription_upload_schema_component.dart';
 import '../services/pharmacy/ui/pharmacy_request_detail_cart_item_schema_component.dart';
+import '../services/service_catalog/ui/service_capsules_schema_component.dart';
 
 typedef CustomerSchemaComponentRegistrar =
     void Function({
@@ -20,6 +23,9 @@ _customerSchemaComponentRegistrarsByType =
     <String, CustomerSchemaComponentRegistrar>{
       'SectionCard': registerSectionCardSchemaComponent,
       'CatalogItemTile': registerCustomerCatalogItemTileSchemaComponent,
+      'CartItem': registerCustomerCartItemSchemaComponent,
+      'CartSummary': registerCustomerCartSummarySchemaComponent,
+      'ServiceCapsules': registerServiceCapsulesSchemaComponent,
       'PharmacyCartItems': registerPharmacyCartItemsSchemaComponent,
       'PharmacyPrescriptionUpload':
           registerPharmacyPrescriptionUploadSchemaComponent,

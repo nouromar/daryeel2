@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_components/flutter_components.dart'
+    show SchemaComponentContext;
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
-import '../widgets/cart_item_widget.dart';
-import 'schema_component_context.dart';
+import 'cart_item_widget.dart';
 
-void registerCartItemSchemaComponent({
+void registerCustomerCartItemSchemaComponent({
   required SchemaWidgetRegistry registry,
   required SchemaComponentContext context,
 }) {
@@ -43,23 +44,30 @@ void registerCartItemSchemaComponent({
     }
 
     String? resolveOptionalTemplate(
-        String? template, BuildContext buildContext) {
+      String? template,
+      BuildContext buildContext,
+    ) {
       if (template == null || template.isEmpty) return null;
       final value = interpolateSchemaString(template, buildContext).trim();
       return value.isEmpty ? null : value;
     }
 
     bool resolveRxRequired(BuildContext buildContext) {
-      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty) return false;
-      final val =
-          interpolateSchemaString(rxRequiredTemplate, buildContext).trim().toLowerCase();
+      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty)
+        return false;
+      final val = interpolateSchemaString(
+        rxRequiredTemplate,
+        buildContext,
+      ).trim().toLowerCase();
       return val == 'true' || val == '1';
     }
 
     Widget buildItem(BuildContext buildContext) {
       final title = interpolateSchemaString(titleTemplate, buildContext).trim();
-      final subtitle =
-          interpolateSchemaString(subtitleTemplate, buildContext).trim();
+      final subtitle = interpolateSchemaString(
+        subtitleTemplate,
+        buildContext,
+      ).trim();
 
       Future<void> dispatch(String actionKey) async {
         final result = await tryDispatchComponentAction(
@@ -76,9 +84,9 @@ void registerCartItemSchemaComponent({
         if (failure == null) return;
         if (!buildContext.mounted) return;
 
-        ScaffoldMessenger.of(buildContext).showSnackBar(
-          SnackBar(content: Text(failure.message)),
-        );
+        ScaffoldMessenger.of(
+          buildContext,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
       }
 
       return CartItemWidget(
@@ -101,31 +109,33 @@ void registerCartItemSchemaComponent({
       );
     }
 
-    final store = Builder(
+    return Builder(
       builder: (buildContext) {
         final stateStore = SchemaStateScope.maybeOf(buildContext);
-        final needsReactive = stateStore != null &&
-            [
-              titleTemplate,
-              subtitleTemplate,
-              if (quantityRaw is String) quantityRaw,
-              if (unitPriceTemplate != null) unitPriceTemplate,
-              if (lineTotalTemplate != null) lineTotalTemplate,
-              if (badgeTemplate != null) badgeTemplate,
-              if (rxRequiredTemplate != null) rxRequiredTemplate,
-            ].any(hasSchemaInterpolation);
+        final needsReactive =
+            stateStore != null &&
+            (hasSchemaInterpolation(titleTemplate) ||
+                hasSchemaInterpolation(subtitleTemplate) ||
+                (quantityRaw is String &&
+                    hasSchemaInterpolation(quantityRaw)) ||
+                (unitPriceTemplate != null &&
+                    hasSchemaInterpolation(unitPriceTemplate)) ||
+                (lineTotalTemplate != null &&
+                    hasSchemaInterpolation(lineTotalTemplate)) ||
+                (badgeTemplate != null &&
+                    hasSchemaInterpolation(badgeTemplate)) ||
+                (rxRequiredTemplate != null &&
+                    hasSchemaInterpolation(rxRequiredTemplate)));
 
         if (needsReactive) {
           return AnimatedBuilder(
             animation: stateStore,
-            builder: (ctx, __) => buildItem(ctx),
+            builder: (ctx, _) => buildItem(ctx),
           );
         }
 
         return buildItem(buildContext);
       },
     );
-
-    return store;
   });
 }

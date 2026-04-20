@@ -69,14 +69,14 @@ void registerStatusTimelinePanelSchemaComponent({
           return null;
         }
 
-        String _readString(Object? item, String key, {String fallback = ''}) {
+        String readString(Object? item, String key, {String fallback = ''}) {
           final v = readJsonPath(item, key);
           if (v == null) return fallback;
           if (v is String) return v;
           return v.toString();
         }
 
-        String _normalizeDateFormat(String format) {
+        String normalizeDateFormat(String format) {
           var normalized = format.trim();
           if (normalized.isEmpty) return normalized;
 
@@ -94,7 +94,7 @@ void registerStatusTimelinePanelSchemaComponent({
           return normalized;
         }
 
-        String _formatMaybeDateSubtitle(String subtitle) {
+        String formatMaybeDateSubtitle(String subtitle) {
           final trimmed = subtitle.trim();
           if (trimmed.isEmpty) return trimmed;
 
@@ -102,8 +102,9 @@ void registerStatusTimelinePanelSchemaComponent({
           if (parsed == null) return subtitle;
 
           final locale = Localizations.localeOf(buildContext).toString();
-          final preferred = _normalizeDateFormat(dateFormat ?? defaultDateFormat);
-          final fallback = _normalizeDateFormat(defaultDateFormat);
+          final preferred =
+              normalizeDateFormat(dateFormat ?? defaultDateFormat);
+          final fallback = normalizeDateFormat(defaultDateFormat);
 
           try {
             return DateFormat(preferred, locale).format(parsed.toLocal());
@@ -163,20 +164,20 @@ void registerStatusTimelinePanelSchemaComponent({
                 itemBuilder: (context, index) {
                   final item = itemsList[index];
 
-                  final itemTitle = _readString(
+                  final itemTitle = readString(
                     item,
                     (titleKey == null || titleKey.isEmpty) ? 'title' : titleKey,
                   ).trim();
 
-                  final itemSubtitle = _readString(
+                  final itemSubtitle = readString(
                     item,
                     (subtitleKey == null || subtitleKey.isEmpty)
                         ? 'subtitle'
                         : subtitleKey,
                   ).trim();
 
-                    final formattedSubtitle =
-                      _formatMaybeDateSubtitle(itemSubtitle);
+                  final formattedSubtitle =
+                      formatMaybeDateSubtitle(itemSubtitle);
 
                   final stable = stableKeyForItem(item, index);
                   final key = ValueKey<String>(

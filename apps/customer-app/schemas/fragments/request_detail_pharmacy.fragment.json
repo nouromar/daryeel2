@@ -14,7 +14,7 @@
         {
           "type": "SectionCard",
           "visibleWhen": {
-            "expr": "len(serviceDetails.payload.cart_lines) > 0"
+            "expr": "len(data.serviceDetails.payload.cart_lines) > 0"
           },
           "props": {
             "title": "Items",
@@ -48,7 +48,7 @@
                     {
                       "type": "Gap",
                       "visibleWhen": {
-                        "expr": "serviceDetails.payload.cart_lines != null and index < serviceDetails.payload.cart_lines.length - 1"
+                        "expr": "index < len(data.serviceDetails.payload.cart_lines) - 1"
                       },
                       "props": { "height": 2}
                     }
@@ -61,7 +61,7 @@
         {
           "type": "CartSummary",
           "visibleWhen": {
-            "expr": "serviceDetails.payload.summary_total != null"
+            "expr": "data.serviceDetails.payload.summary_total != null"
           },
           "props": {
             "title": "Summary",
@@ -73,7 +73,7 @@
         {
           "type": "SectionCard",
           "visibleWhen": {
-            "expr": "len(serviceDetails.payload.prescription_uploads) > 0"
+            "expr": "len(data.serviceDetails.payload.prescription_uploads) > 0"
           },
           "props": {
             "title": "Prescription",
@@ -105,7 +105,7 @@
                     {
                       "type": "Gap",
                       "visibleWhen": {
-                        "expr": "serviceDetails.payload.prescription_uploads != null and index < serviceDetails.payload.prescription_uploads.length - 1"
+                        "expr": "index < len(data.serviceDetails.payload.prescription_uploads) - 1"
                       },
                       "props": { "height": 6 }
                     }

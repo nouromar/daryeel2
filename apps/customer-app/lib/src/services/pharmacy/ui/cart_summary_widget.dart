@@ -41,8 +41,8 @@ class CartSummaryWidget extends StatelessWidget {
     final effectiveTitle = title.trim();
     final visibleLines = hideZeroLines
         ? lines
-            .where((row) => row.amount.abs() > 0.000001)
-            .toList(growable: false)
+              .where((row) => row.amount.abs() > 0.000001)
+              .toList(growable: false)
         : List<CartSummaryRowData>.of(lines, growable: false);
 
     if (visibleLines.isEmpty && total == null) {
@@ -89,10 +89,7 @@ class CartSummaryWidget extends StatelessWidget {
               if (visibleLines.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: compact ? 2 : 4),
-                  child: Divider(
-                    height: 1,
-                    color: theme.dividerColor,
-                  ),
+                  child: Divider(height: 1, color: theme.dividerColor),
                 ),
               _CartSummaryRow(row: total!, isTotal: true),
             ],
@@ -134,8 +131,9 @@ final class _CartSummaryRow extends StatelessWidget {
 
   TextStyle? _resolveTextStyle(BuildContext context, {required bool label}) {
     final theme = Theme.of(context);
-    final base =
-        isTotal ? theme.textTheme.titleSmall : theme.textTheme.bodyMedium;
+    final base = isTotal
+        ? theme.textTheme.titleSmall
+        : theme.textTheme.bodyMedium;
     final normalizedKind = row.kind.trim().toLowerCase();
     final normalizedEmphasis = row.emphasis.trim().toLowerCase();
 

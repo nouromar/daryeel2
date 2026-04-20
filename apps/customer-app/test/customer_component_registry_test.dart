@@ -49,25 +49,18 @@ void main() {
     );
 
     expect(registry.resolve('CatalogItemTile'), isNotNull);
+    expect(registry.resolve('CartItem'), isNotNull);
+    expect(registry.resolve('CartSummary'), isNotNull);
     expect(registry.resolve('PharmacyCartItems'), isNotNull);
     expect(registry.resolve('PharmacyPrescriptionUpload'), isNotNull);
   });
 
-  test('registerCustomerSchemaComponents overrides shared catalog tile', () {
+  test('core schema components do not include cart + catalog tiles', () {
     final registry = SchemaWidgetRegistry();
 
     registerCoreSchemaComponents(registry: registry, context: componentContext);
-    final coreBuilder = registry.resolve('CatalogItemTile');
-
-    registerCustomerSchemaComponents(
-      registry: registry,
-      context: componentContext,
-    );
-
-    final appBuilder = registry.resolve('CatalogItemTile');
-
-    expect(coreBuilder, isNotNull);
-    expect(appBuilder, isNotNull);
-    expect(appBuilder, isNot(same(coreBuilder)));
+    expect(registry.resolve('CatalogItemTile'), isNull);
+    expect(registry.resolve('CartItem'), isNull);
+    expect(registry.resolve('CartSummary'), isNull);
   });
 }

@@ -8,6 +8,7 @@ import '../schema/fallback_schema_bundle.dart';
 import '../auth/customer_auth_gate.dart';
 import '../auth/customer_auth_store.dart';
 import '../routing/customer_schema_screen_route.dart';
+import '../routing/customer_schema_sheet_route.dart';
 import '../actions/customer_submit_form_handler.dart';
 import '../ui/customer_component_registry.dart';
 import '../ui/customer_theme.dart';
@@ -81,6 +82,7 @@ class _CustomerAppState extends State<CustomerApp> {
         appBarTitle: 'Daryeel2 Customer',
         additionalRoutes: <String, WidgetBuilder>{
           CustomerSchemaScreenRoute.name: CustomerSchemaScreenRoute.builder(),
+          CustomerSchemaSheetRoute.name: CustomerSchemaSheetRoute.builder(),
         },
         buildRegistry:
             ({

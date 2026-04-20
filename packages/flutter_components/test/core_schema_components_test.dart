@@ -46,8 +46,8 @@ void main() {
 
     expect(registry.resolve('Padding'), isNotNull);
     expect(registry.resolve('Column'), isNotNull);
-    expect(registry.resolve('CartItem'), isNotNull);
-    expect(registry.resolve('CartSummary'), isNotNull);
+    expect(registry.resolve('CartItem'), isNull);
+    expect(registry.resolve('CartSummary'), isNull);
     expect(registry.resolve('ScreenTemplate'), isNotNull);
     expect(registry.resolve('RemotePagedList'), isNotNull);
     expect(registry.resolve('TapArea'), isNotNull);

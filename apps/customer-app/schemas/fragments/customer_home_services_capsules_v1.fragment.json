@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "id": "fragment:customer_home_services_capsules_v1",
+  "documentType": "fragment",
+  "node": {
+    "type": "RemoteQuery",
+    "props": {
+      "key": "customer_home.services",
+      "path": "/v1/service-definitions",
+      "dataPath": "items"
+    },
+    "slots": {
+      "loading": [
+        { "type": "InfoCard", "props": { "title": "Services", "subtitle": "Loading...", "surface": "subtle" } }
+      ],
+      "error": [
+        { "type": "InfoCard", "props": { "title": "Services", "subtitle": "Unable to load services", "surface": "subtle" } }
+      ],
+      "child": [
+        { "type": "ServiceCapsules", "props": {} }
+      ]
+    }
+  }
+}

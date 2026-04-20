@@ -1,11 +1,12 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_components/flutter_components.dart'
+    show SchemaComponentContext;
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
-import '../widgets/cart_summary_widget.dart';
-import 'schema_component_context.dart';
+import 'cart_summary_widget.dart';
 
-void registerCartSummarySchemaComponent({
+void registerCustomerCartSummarySchemaComponent({
   required SchemaWidgetRegistry registry,
   required SchemaComponentContext context,
 }) {
@@ -56,8 +57,9 @@ void registerCartSummarySchemaComponent({
     CartSummaryRowData? coerceRow(Object? raw, {bool isTotal = false}) {
       if (raw is! Map) return null;
 
-      final label =
-          (raw['label'] ?? (isTotal ? 'Total' : '')).toString().trim();
+      final label = (raw['label'] ?? (isTotal ? 'Total' : ''))
+          .toString()
+          .trim();
       if (label.isEmpty) return null;
 
       final amount = coerceAmount(raw['amount']);
@@ -71,8 +73,8 @@ void registerCartSummarySchemaComponent({
         amount: amount,
         amountText: amountText,
         kind: (raw['kind'] ?? (isTotal ? 'total' : 'default')).toString(),
-        emphasis:
-            (raw['emphasis'] ?? (isTotal ? 'strong' : 'normal')).toString(),
+        emphasis: (raw['emphasis'] ?? (isTotal ? 'strong' : 'normal'))
+            .toString(),
       );
     }
 
@@ -102,7 +104,8 @@ void registerCartSummarySchemaComponent({
     return Builder(
       builder: (buildContext) {
         final store = SchemaStateScope.maybeOf(buildContext);
-        final needsReactive = store != null &&
+        final needsReactive =
+            store != null &&
             (hasSchemaInterpolation(titleTemplate) ||
                 isStatePath(linesPath) ||
                 isStatePath(totalPath));
@@ -110,7 +113,7 @@ void registerCartSummarySchemaComponent({
         if (needsReactive) {
           return AnimatedBuilder(
             animation: store,
-            builder: (_, __) => buildSummary(buildContext),
+            builder: (ctx, _) => buildSummary(ctx),
           );
         }
 

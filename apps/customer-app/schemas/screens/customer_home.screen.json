@@ -28,44 +28,7 @@
             "body": [
               { "ref": "section:customer_welcome_v1" },
               { "type": "Gap", "props": { "height": 12 } },
-              {
-                "type": "ActionCard",
-                "props": {
-                  "title": "Ambulance",
-                  "subtitle": "Request an ambulance",
-                  "titleVariant": "title",
-                  "titleWeight": "semibold",
-                  "icon": "ambulance",
-                  "surface": "raised"
-                },
-                "actions": { "tap": "go_ambulance" }
-              },
-              { "type": "Gap", "props": { "height": 12 } },
-              {
-                "type": "ActionCard",
-                "props": {
-                  "title": "Home Visit",
-                  "subtitle": "Request a home visit",
-                  "titleVariant": "title",
-                  "titleWeight": "semibold",
-                  "icon": "home",
-                  "surface": "raised"
-                },
-                "actions": { "tap": "go_home_visit" }
-              },
-              { "type": "Gap", "props": { "height": 12 } },
-              {
-                "type": "ActionCard",
-                "props": {
-                  "title": "Pharmacy",
-                  "subtitle": "Request pharmacy delivery",
-                  "titleVariant": "title",
-                  "titleWeight": "semibold",
-                  "icon": "pharmacy",
-                  "surface": "raised"
-                },
-                "actions": { "tap": "go_pharmacy" }
-              }
+              { "ref": "fragment:customer_home_services_capsules_v1" }
             ]
           }
         }
@@ -132,25 +95,6 @@
     }
   },
   "actions": {
-    "go_ambulance": {
-      "type": "navigate",
-      "route": "customer.schema_screen",
-      "value": { "screenId": "customer_request_ambulance", "title": "Ambulance" }
-    },
-    "go_home_visit": {
-      "type": "navigate",
-      "route": "customer.schema_screen",
-      "value": { "screenId": "customer_request_home_visit", "title": "Home Visit" }
-    },
-    "go_pharmacy": {
-      "type": "navigate",
-      "route": "customer.schema_screen",
-      "value": {
-        "screenId": "pharmacy_shop",
-        "title": "Pharmacy",
-        "chromePreset": "pharmacy_cart_badge"
-      }
-    },
     "refresh_activities": { "type": "customer_requests_refresh" }
   }
 }

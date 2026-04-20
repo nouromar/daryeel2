@@ -144,7 +144,7 @@
                     {
                       "type": "If",
                       "props": {
-                        "expr": "serviceDetails.isPharmacy == true"
+                        "expr": "data.serviceDetails.isPharmacy == true"
                       },
                       "slots": {
                         "then": [
@@ -175,7 +175,7 @@
                     {
                       "type": "Padding",
                       "visibleWhen": {
-                        "expr": "len(timeline) > 0"
+                        "expr": "len(data.timeline) > 0"
                       },
                       "props": { "left": 20 },
                       "slots": {
@@ -195,14 +195,14 @@
                     {
                       "type": "Gap",
                       "visibleWhen": {
-                        "expr": "len(timeline) > 0"
+                        "expr": "len(data.timeline) > 0"
                       },
                       "props": { "height": 4 }
                     },
                     {
                       "type": "StatusTimelinePanel",
                       "visibleWhen": {
-                        "expr": "len(timeline) > 0"
+                        "expr": "len(data.timeline) > 0"
                       },
                       "props": {
                         "title": "",

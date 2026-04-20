@@ -34,12 +34,9 @@ void registerSectionCardSchemaComponent({
 
     return Builder(
       builder: (buildContext) {
-        Widget buildCard() {
-          final title = interpolateSchemaString(titleTemplate, buildContext);
-          final subtitle = interpolateSchemaString(
-            subtitleTemplate,
-            buildContext,
-          );
+        Widget buildCard(BuildContext ctx) {
+          final title = interpolateSchemaString(titleTemplate, ctx);
+          final subtitle = interpolateSchemaString(subtitleTemplate, ctx);
 
           return SectionCardWidget(
             title: title,
@@ -66,11 +63,11 @@ void registerSectionCardSchemaComponent({
         if (needsReactive) {
           return AnimatedBuilder(
             animation: store,
-            builder: (_, __) => buildCard(),
+            builder: (ctx, _) => buildCard(ctx),
           );
         }
 
-        return buildCard();
+        return buildCard(buildContext);
       },
     );
   });

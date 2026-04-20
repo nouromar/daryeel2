@@ -254,7 +254,7 @@
     },
     "go_prescription_upload": {
       "type": "navigate",
-      "route": "customer.schema_screen",
+      "route": "customer.schema_sheet",
       "value": {
         "screenId": "pharmacy_prescription_upload",
         "title": "Attach Prescription",

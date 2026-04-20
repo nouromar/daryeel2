@@ -1,5 +1,7 @@
+import 'package:customer_app/src/services/pharmacy/ui/cart_item_schema_component.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_components/flutter_components.dart';
+import 'package:flutter_components/flutter_components.dart'
+    show SchemaComponentContext;
 import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +16,9 @@ final class _RecordingDispatcher extends SchemaActionDispatcher {
 }
 
 SchemaComponentContext _testContext(
-    _RecordingDispatcher dispatcher, ScreenSchema screen) {
+  _RecordingDispatcher dispatcher,
+  ScreenSchema screen,
+) {
   return SchemaComponentContext(
     screen: screen,
     actionDispatcher: dispatcher,
@@ -34,10 +38,7 @@ ComponentNode _cartItemNode() {
       'badgeLabel': r'${item.badgeLabel}',
     },
     slots: <String, List<SchemaNode>>{},
-    actions: <String, String>{
-      'increment': 'inc',
-      'decrement': 'dec',
-    },
+    actions: <String, String>{'increment': 'inc', 'decrement': 'dec'},
     bind: null,
     visibleWhen: null,
   );
@@ -99,7 +100,7 @@ void main() {
     final screen = _screenWithActions();
 
     final registry = SchemaWidgetRegistry();
-    registerCartItemSchemaComponent(
+    registerCustomerCartItemSchemaComponent(
       registry: registry,
       context: _testContext(dispatcher, screen),
     );
@@ -138,7 +139,7 @@ void main() {
     final screen = _screenWithActions();
 
     final registry = SchemaWidgetRegistry();
-    registerCartItemSchemaComponent(
+    registerCustomerCartItemSchemaComponent(
       registry: registry,
       context: _testContext(dispatcher, screen),
     );
@@ -147,10 +148,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: SchemaDataScope(
-            item: const <String, Object?>{
-              'title': 'Vitamin C',
-              'quantity': 1,
-            },
+            item: const <String, Object?>{'title': 'Vitamin C', 'quantity': 1},
             child: SchemaRenderer(
               rootNode: _cartItemNode(),
               registry: registry,
@@ -169,15 +167,14 @@ void main() {
     expect(dispatcher.dispatched[1].value, 'decrement');
   });
 
-  testWidgets(
-      'CartItem schema component readonly shows badge and no stepper', (
+  testWidgets('CartItem schema component readonly shows badge and no stepper', (
     tester,
   ) async {
     final dispatcher = _RecordingDispatcher();
     final screen = _screenNoActions();
 
     final registry = SchemaWidgetRegistry();
-    registerCartItemSchemaComponent(
+    registerCustomerCartItemSchemaComponent(
       registry: registry,
       context: _testContext(dispatcher, screen),
     );
@@ -207,37 +204,36 @@ void main() {
   });
 
   testWidgets(
-      'CartItem schema component readonly does not dispatch actions on tap', (
-    tester,
-  ) async {
-    final dispatcher = _RecordingDispatcher();
-    final screen = _screenNoActions();
+    'CartItem schema component readonly does not dispatch actions on tap',
+    (tester) async {
+      final dispatcher = _RecordingDispatcher();
+      final screen = _screenNoActions();
 
-    final registry = SchemaWidgetRegistry();
-    registerCartItemSchemaComponent(
-      registry: registry,
-      context: _testContext(dispatcher, screen),
-    );
+      final registry = SchemaWidgetRegistry();
+      registerCustomerCartItemSchemaComponent(
+        registry: registry,
+        context: _testContext(dispatcher, screen),
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SchemaDataScope(
-            item: const <String, Object?>{
-              'name': 'Ibuprofen 200mg',
-              'quantity': 3,
-            },
-            child: SchemaRenderer(
-              rootNode: _readonlyCartItemNode(),
-              registry: registry,
-            ).render(),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SchemaDataScope(
+              item: const <String, Object?>{
+                'name': 'Ibuprofen 200mg',
+                'quantity': 3,
+              },
+              child: SchemaRenderer(
+                rootNode: _readonlyCartItemNode(),
+                registry: registry,
+              ).render(),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    // No interactive controls should be present
-    expect(find.byType(IconButton), findsNothing);
-    expect(dispatcher.dispatched, isEmpty);
-  });
+      expect(find.byType(IconButton), findsNothing);
+      expect(dispatcher.dispatched, isEmpty);
+    },
+  );
 }

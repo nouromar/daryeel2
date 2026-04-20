@@ -42,7 +42,8 @@
               {
                 "type": "If",
                 "props": {
-                  "expr": "has_requests == false"
+                  "valuePath": "has_requests",
+                  "op": "isFalse"
                 },
                 "slots": {
                   "then": [
@@ -60,68 +61,8 @@
               {
                 "type": "If",
                 "props": {
-                  "expr": "len(attention) > 0"
-                },
-                "slots": {
-                  "then": [
-                    {
-                      "type": "Text",
-                      "props": {
-                        "text": "Needs attention",
-                        "variant": "title",
-                        "weight": "semibold"
-                      }
-                    },
-                    {
-                      "type": "Gap",
-                      "props": {
-                        "height": 12
-                      }
-                    },
-                    {
-                      "type": "ForEach",
-                      "props": {
-                        "itemsPath": "attention"
-                      },
-                      "slots": {
-                        "item": [
-                          {
-                            "type": "BoundActionCard",
-                            "props": {
-                              "titlePath": "title",
-                              "subtitlePath": "subtitle",
-                              "iconPath": "icon",
-                              "routePath": "route",
-                              "surface": "raised",
-                              "density": "compact",
-                              "titleVariant": "title",
-                              "titleWeight": "semibold",
-                              "subtitleVariant": "body",
-                              "subtitleColor": "muted"
-                            }
-                          },
-                          {
-                            "type": "Gap",
-                            "props": {
-                              "height": 12
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "type": "Gap",
-                      "props": {
-                        "height": 12
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "type": "If",
-                "props": {
-                  "expr": "len(active) > 0"
+                  "valuePath": "active",
+                  "op": "isNotEmpty"
                 },
                 "slots": {
                   "then": [
@@ -182,7 +123,8 @@
               {
                 "type": "If",
                 "props": {
-                  "expr": "len(history) > 0"
+                  "valuePath": "history",
+                  "op": "isNotEmpty"
                 },
                 "slots": {
                   "then": [

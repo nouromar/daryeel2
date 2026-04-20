@@ -68,57 +68,6 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                 },
                 {
                   'type': 'If',
-                  'props': {'valuePath': 'attention', 'op': 'isNotEmpty'},
-                  'slots': {
-                    'then': [
-                      {
-                        'type': 'Text',
-                        'props': {
-                          'text': 'Needs attention',
-                          'variant': 'title',
-                          'weight': 'semibold',
-                        },
-                      },
-                      {
-                        'type': 'Gap',
-                        'props': {'height': 12},
-                      },
-                      {
-                        'type': 'ForEach',
-                        'props': {'itemsPath': 'attention'},
-                        'slots': {
-                          'item': [
-                            {
-                              'type': 'BoundActionCard',
-                              'props': {
-                                'titlePath': 'title',
-                                'subtitlePath': 'subtitle',
-                                'iconPath': 'icon',
-                                'routePath': 'route',
-                                'surface': 'raised',
-                                'density': 'compact',
-                                'titleVariant': 'title',
-                                'titleWeight': 'semibold',
-                                'subtitleVariant': 'body',
-                                'subtitleColor': 'muted',
-                              },
-                            },
-                            {
-                              'type': 'Gap',
-                              'props': {'height': 12},
-                            },
-                          ],
-                        },
-                      },
-                      {
-                        'type': 'Gap',
-                        'props': {'height': 12},
-                      },
-                    ],
-                  },
-                },
-                {
-                  'type': 'If',
                   'props': {'valuePath': 'active', 'op': 'isNotEmpty'},
                   'slots': {
                     'then': [
@@ -291,7 +240,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         'type': 'Gap',
                         'visibleWhen': {
                           'expr':
-                              'serviceDetails.payload.cart_lines != null and index < serviceDetails.payload.cart_lines.length - 1',
+                              'index < len(data.serviceDetails.payload.cart_lines) - 1',
                         },
                         'props': {'height': 4},
                       },
@@ -351,7 +300,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         'type': 'Gap',
                         'visibleWhen': {
                           'expr':
-                              'serviceDetails.payload.prescription_uploads != null and index < serviceDetails.payload.prescription_uploads.length - 1',
+                              'index < len(data.serviceDetails.payload.prescription_uploads) - 1',
                         },
                         'props': {'height': 6},
                       },
