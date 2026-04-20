@@ -53,8 +53,9 @@ void registerCustomerCartItemSchemaComponent({
     }
 
     bool resolveRxRequired(BuildContext buildContext) {
-      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty)
+      if (rxRequiredTemplate == null || rxRequiredTemplate.isEmpty) {
         return false;
+      }
       final val = interpolateSchemaString(
         rxRequiredTemplate,
         buildContext,
