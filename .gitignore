@@ -70,3 +70,4 @@ venv/
 
 # Large binaries (do not commit)
 /docs/Claude.dmg
+*.dmg
