@@ -2,6 +2,7 @@
   "package": "customer-app-component-contracts",
   "version": "0.1.0",
   "contracts": [
+    "customer-home-notifications.contract.json",
     "catalog-item-tile.contract.json",
     "cart-item.contract.json",
     "cart-summary.contract.json",

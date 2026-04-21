@@ -25,7 +25,7 @@ const fallbackCustomerHomeBundle = SchemaBundle(
             'type': 'ScreenTemplate',
             'slots': {
               'body': [
-                {'ref': 'section:customer_welcome_v1'},
+                {'ref': 'fragment:customer_home_notifications_v1'},
                 {
                   'type': 'Gap',
                   'props': {'height': 12},

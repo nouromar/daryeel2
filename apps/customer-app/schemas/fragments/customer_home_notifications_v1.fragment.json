@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "id": "section:customer_welcome_v1",
+  "id": "fragment:customer_home_notifications_v1",
   "documentType": "fragment",
   "node": {
     "type": "RemoteQuery",

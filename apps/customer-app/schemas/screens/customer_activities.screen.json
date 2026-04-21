@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "id": "customer_activities",
+  "documentType": "screen",
+  "product": "customer_app",
+  "themeId": "customer-default",
+  "themeMode": "light",
+  "root": {
+    "type": "ScreenTemplate",
+    "props": {
+      "headerGap": 8,
+      "bodyPadding": { "all": 16 },
+      "primaryScrollPadding": { "horizontal": 16 },
+      "footerPadding": { "left": 16, "top": 0, "right": 16, "bottom": 16 }
+    },
+    "slots": {
+      "body": [
+        { "ref": "fragment:customer_requests_v1" }
+      ]
+    }
+  }
+}

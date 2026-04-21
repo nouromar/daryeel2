@@ -4,11 +4,72 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
     'id': 'section:customer_welcome_v1',
     'documentType': 'fragment',
     'node': {
-      'type': 'InfoCard',
+      'type': 'RemoteQuery',
       'props': {
-        'title': 'Welcome',
-        'subtitle': 'How can we help today?',
-        'surface': 'subtle',
+        'key': 'customer.notifications.homeSummary',
+        'path': '/v1/notifications/home-summary',
+      },
+      'slots': {
+        'loading': [
+          {
+            'type': 'InfoCard',
+            'props': {
+              'title': 'Updates',
+              'subtitle': 'Loading...',
+              'surface': 'subtle',
+            },
+          },
+        ],
+        'error': [
+          {
+            'type': 'InfoCard',
+            'props': {
+              'title': 'Updates',
+              'subtitle': 'Could not load updates.',
+              'surface': 'subtle',
+            },
+          },
+        ],
+        'child': [
+          {'type': 'CustomerHomeNotifications'},
+        ],
+      },
+    },
+  },
+  'fragment:customer_home_notifications_v1': {
+    'schemaVersion': '1.0',
+    'id': 'fragment:customer_home_notifications_v1',
+    'documentType': 'fragment',
+    'node': {
+      'type': 'RemoteQuery',
+      'props': {
+        'key': 'customer.notifications.homeSummary',
+        'path': '/v1/notifications/home-summary',
+      },
+      'slots': {
+        'loading': [
+          {
+            'type': 'InfoCard',
+            'props': {
+              'title': 'Updates',
+              'subtitle': 'Loading...',
+              'surface': 'subtle',
+            },
+          },
+        ],
+        'error': [
+          {
+            'type': 'InfoCard',
+            'props': {
+              'title': 'Updates',
+              'subtitle': 'Could not load updates.',
+              'surface': 'subtle',
+            },
+          },
+        ],
+        'child': [
+          {'type': 'CustomerHomeNotifications'},
+        ],
       },
     },
   },

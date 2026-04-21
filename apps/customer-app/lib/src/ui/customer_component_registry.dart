@@ -3,6 +3,7 @@ import 'package:flutter_runtime/flutter_runtime.dart';
 import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../actions/customer_action_dispatcher.dart';
+import 'customer_home_notifications_schema_component.dart';
 import 'section_card_schema_component.dart';
 import '../services/pharmacy/ui/catalog_item_tile_schema_component.dart';
 import '../services/pharmacy/ui/cart_item_schema_component.dart';
@@ -22,6 +23,8 @@ const Map<String, CustomerSchemaComponentRegistrar>
 _customerSchemaComponentRegistrarsByType =
     <String, CustomerSchemaComponentRegistrar>{
       'SectionCard': registerSectionCardSchemaComponent,
+      'CustomerHomeNotifications':
+          registerCustomerHomeNotificationsSchemaComponent,
       'CatalogItemTile': registerCustomerCatalogItemTileSchemaComponent,
       'CartItem': registerCustomerCartItemSchemaComponent,
       'CartSummary': registerCustomerCartSummarySchemaComponent,

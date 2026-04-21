@@ -26,7 +26,7 @@
           },
           "slots": {
             "body": [
-              { "ref": "section:customer_welcome_v1" },
+              { "ref": "fragment:customer_home_notifications_v1" },
               { "type": "Gap", "props": { "height": 12 } },
               { "ref": "fragment:customer_home_services_capsules_v1" }
             ]

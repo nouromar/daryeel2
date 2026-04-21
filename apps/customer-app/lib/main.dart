@@ -49,6 +49,15 @@ Future<void> main() async {
     }
 
     await prefs.remove('daryeel_client.lkg_config_snapshot_json.customer_app');
+
+    // Local dev convenience: schema-service uses ETags and the runtime caches
+    // HTTP JSON responses in SharedPreferences. When iterating on schemas,
+    // clearing this cache avoids “stuck on old fragment” confusion.
+    for (final key in prefs.getKeys()) {
+      if (key.startsWith('http_cache.')) {
+        await prefs.remove(key);
+      }
+    }
   }
 
   runApp(

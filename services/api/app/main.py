@@ -23,12 +23,14 @@ from app.db import get_db
 from app.models import User
 from app.routers.pharmacy import router as pharmacy_router
 from app.routers.requests import router as requests_router
+from app.routers.notifications import router as notifications_router
 from app.settings import load_settings
 
 app = FastAPI(title="Daryeel2 API", version="0.1.0")
 
 app.include_router(pharmacy_router)
 app.include_router(requests_router)
+app.include_router(notifications_router)
 
 _settings = load_settings()
 

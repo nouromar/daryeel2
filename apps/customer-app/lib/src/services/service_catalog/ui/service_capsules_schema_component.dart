@@ -44,9 +44,6 @@ void registerServiceCapsulesSchemaComponent({
             ? items.length
             : maxItems;
 
-        final theme = Theme.of(buildContext);
-        final colors = theme.colorScheme;
-
         Widget capsuleForItem(Object? item) {
           final title =
               (readJsonPath(item, titlePath) as String?)?.trim() ?? '';
@@ -106,44 +103,28 @@ void registerServiceCapsulesSchemaComponent({
               ),
             );
           } else if (iconName != null && iconName.isNotEmpty) {
-            leading = Icon(
-              _resolveIcon(iconName),
-              size: 20,
-              color: colors.onPrimaryContainer,
-            );
+            leading = Icon(_resolveIcon(iconName), size: 20);
           }
 
           final effectiveTitle = title.isEmpty ? 'Service' : title;
 
-          return Material(
-            color: colors.primaryContainer,
-            shape: const StadiumBorder(),
-            child: InkWell(
-              onTap: (route == null || route.trim().isEmpty) ? null : onTap,
-              customBorder: const StadiumBorder(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (leading != null) ...[
-                      leading,
-                      const SizedBox(height: 6),
-                    ],
-                    Text(
-                      effectiveTitle,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: colors.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          return OutlinedButton(
+            onPressed: (route == null || route.trim().isEmpty)
+                ? null
+                : () async {
+                    await onTap();
+                  },
+            style: OutlinedButton.styleFrom(
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (leading != null) ...[leading, const SizedBox(height: 6)],
+                Text(effectiveTitle, textAlign: TextAlign.center),
+              ],
             ),
           );
         }

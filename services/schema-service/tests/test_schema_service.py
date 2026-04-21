@@ -186,4 +186,4 @@ def test_fragment_endpoint_ok() -> None:
     payload = response.json()
     assert payload["documentType"] == "fragment"
     assert payload["id"] == "section:customer_welcome_v1"
-    assert payload["node"]["type"] == "InfoCard"
+    assert payload["node"]["type"] == "RemoteQuery"

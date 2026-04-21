@@ -1,0 +1,13 @@
+{
+  "name": "CustomerHomeNotifications",
+  "scope": "app",
+  "category": "home",
+  "version": "1.0",
+  "propsSchema": {},
+  "defaults": {},
+  "styleContract": {},
+  "slots": [],
+  "events": [],
+  "actions": [],
+  "fallbackBehavior": "reject_subtree"
+}

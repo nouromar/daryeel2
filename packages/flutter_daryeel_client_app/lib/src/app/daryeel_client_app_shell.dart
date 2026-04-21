@@ -11,7 +11,6 @@ import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
 import 'schema_node_wrapper.dart';
 import 'schema_service_screen.dart';
-import 'schema_status_banner.dart';
 
 class DaryeelClientAppShell extends StatefulWidget {
   const DaryeelClientAppShell({
@@ -318,7 +317,6 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
           ),
           body: Column(
             children: [
-              SchemaStatusBanner(screen: loadedScreen),
               Expanded(
                 child: KeyedSubtree(
                   key: ValueKey<String>(
