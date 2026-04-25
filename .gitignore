@@ -9,6 +9,9 @@ Thumbs.db
 .idea/
 *.iml
 
+# Claude Code (personal overrides — project-shared config lives in .claude/settings.json)
+.claude/settings.local.json
+
 # Env/secrets (commit .env.example instead)
 .env
 .env.*
