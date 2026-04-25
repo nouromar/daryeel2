@@ -3,37 +3,11 @@
   "id": "section:customer_welcome_v1",
   "documentType": "fragment",
   "node": {
-    "type": "RemoteQuery",
+    "type": "InfoCard",
     "props": {
-      "key": "customer.notifications.homeSummary",
-      "path": "/v1/notifications/home-summary"
-    },
-    "slots": {
-      "loading": [
-        {
-          "type": "InfoCard",
-          "props": {
-            "title": "Updates",
-            "subtitle": "Loading...",
-            "surface": "subtle"
-          }
-        }
-      ],
-      "error": [
-        {
-          "type": "InfoCard",
-          "props": {
-            "title": "Updates",
-            "subtitle": "Could not load updates.",
-            "surface": "subtle"
-          }
-        }
-      ],
-      "child": [
-        {
-          "type": "CustomerHomeNotifications"
-        }
-      ]
+      "title": "Welcome",
+      "subtitle": "",
+      "surface": "subtle"
     }
   }
 }

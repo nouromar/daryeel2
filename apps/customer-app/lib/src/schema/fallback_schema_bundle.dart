@@ -8,7 +8,7 @@ const fallbackCustomerHomeBundle = SchemaBundle(
     'id': 'customer_home',
     'documentType': 'screen',
     'product': 'customer_app',
-    'themeId': 'custome-black-white-clear',
+    'themeId': 'customer-default',
     'themeMode': 'light',
     'root': {
       'type': 'BottomTabs',
@@ -23,51 +23,20 @@ const fallbackCustomerHomeBundle = SchemaBundle(
         'home': [
           {
             'type': 'ScreenTemplate',
+            'props': {
+              'headerGap': 8,
+              'bodyPadding': {'all': 16},
+              'primaryScrollPadding': {'horizontal': 16},
+              'footerPadding': {
+                'left': 16,
+                'top': 0,
+                'right': 16,
+                'bottom': 16,
+              },
+            },
             'slots': {
               'body': [
-                {'ref': 'fragment:customer_home_notifications_v1'},
-                {
-                  'type': 'Gap',
-                  'props': {'height': 12},
-                },
-                {
-                  'type': 'ActionCard',
-                  'props': {
-                    'title': 'Ambulance',
-                    'subtitle': 'Request an ambulance',
-                    'icon': 'ambulance',
-                    'surface': 'raised',
-                  },
-                  'actions': {'tap': 'go_ambulance'},
-                },
-                {
-                  'type': 'Gap',
-                  'props': {'height': 12},
-                },
-                {
-                  'type': 'ActionCard',
-                  'props': {
-                    'title': 'Home Visit',
-                    'subtitle': 'Request a home visit',
-                    'icon': 'home',
-                    'surface': 'raised',
-                  },
-                  'actions': {'tap': 'go_home_visit'},
-                },
-                {
-                  'type': 'Gap',
-                  'props': {'height': 12},
-                },
-                {
-                  'type': 'ActionCard',
-                  'props': {
-                    'title': 'Pharmacy',
-                    'subtitle': 'Request pharmacy delivery',
-                    'icon': 'pharmacy',
-                    'surface': 'raised',
-                  },
-                  'actions': {'tap': 'go_pharmacy'},
-                },
+                {'ref': 'fragment:customer_home_services_capsules_v1'},
               ],
             },
           },
@@ -88,12 +57,15 @@ const fallbackCustomerHomeBundle = SchemaBundle(
                   'slots': {
                     'child': [
                       {
-                        'type': 'IconButton',
-                        'props': {
-                          'codePoint': 58837,
-                          'family': 'material_icons',
-                          'size': 20,
-                          'semanticLabel': 'Refresh',
+                        'type': 'TapArea',
+                        'props': {'minSize': 0, 'semanticLabel': 'Refresh'},
+                        'slots': {
+                          'child': [
+                            {
+                              'type': 'Icon',
+                              'props': {'name': 'refresh', 'size': 20},
+                            },
+                          ],
                         },
                         'actions': {'tap': 'refresh_activities'},
                       },
@@ -108,6 +80,17 @@ const fallbackCustomerHomeBundle = SchemaBundle(
         'account': [
           {
             'type': 'ScreenTemplate',
+            'props': {
+              'headerGap': 8,
+              'bodyPadding': {'all': 16},
+              'primaryScrollPadding': {'horizontal': 16},
+              'footerPadding': {
+                'left': 16,
+                'top': 0,
+                'right': 16,
+                'bottom': 16,
+              },
+            },
             'slots': {
               'body': [
                 {
@@ -125,31 +108,6 @@ const fallbackCustomerHomeBundle = SchemaBundle(
       },
     },
     'actions': {
-      'go_ambulance': {
-        'type': 'navigate',
-        'route': 'customer.schema_screen',
-        'value': {
-          'screenId': 'customer_request_ambulance',
-          'title': 'Ambulance',
-        },
-      },
-      'go_home_visit': {
-        'type': 'navigate',
-        'route': 'customer.schema_screen',
-        'value': {
-          'screenId': 'customer_request_home_visit',
-          'title': 'Home Visit',
-        },
-      },
-      'go_pharmacy': {
-        'type': 'navigate',
-        'route': 'customer.schema_screen',
-        'value': {
-          'screenId': 'pharmacy_shop',
-          'title': 'Pharmacy',
-          'chromePreset': 'pharmacy_cart_badge',
-        },
-      },
       'refresh_activities': {
         'type': 'customer_requests_refresh',
         'value': null,

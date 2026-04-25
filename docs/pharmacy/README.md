@@ -158,12 +158,16 @@ We standardize the bound location value to the backend’s structured location s
 
 ```json
 {
-  "text": "Hodan, Mogadishu — near XYZ",
+  "address_text": "Hodan, Mogadishu — near XYZ",
+  "country_code": "SO",
+  "region_code": "banadir",
+  "city_name": "Mogadishu",
+  "zone_code": "hodan",
   "lat": 2.046934,
   "lng": 45.318162,
   "accuracy_m": 15,
   "place_id": "optional",
-  "region_id": "optional"
+  "location_metadata": {}
 }
 ```
 
@@ -309,4 +313,3 @@ Use this as the living, tickable plan for V1. Keep items small enough to ship an
   - Done when: selecting any source produces the standardized location object in form state.
 - [ ] Map pin picker supports: drag pin, confirm, reverse-geocode.
   - Done when: reverse-geocode endpoint populates `text` and lat/lng accurately.
-

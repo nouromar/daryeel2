@@ -56,6 +56,11 @@ Recommended model (minimum viable, extensible):
   - name
   - type (e.g., platform, partner, employer, clinic)
   - is_active
+  - address_text (nullable; optional business/legal address)
+  - country_code (nullable)
+  - region_code (nullable)
+  - city_name (nullable)
+  - lat, lng (nullable; optional geo point)
 - OrganizationMembership
   - id (uuid)
   - org_id
@@ -117,8 +122,8 @@ Fields (minimum):
 - sub_status (optional, service-specific string)
 - priority (optional)
 - scheduled_at (optional)
-- pickup_location (nullable; structured Location object; see below)
-- dropoff_location (nullable; structured Location object; see below)
+- pickup fields (nullable; see structured location fields below)
+- dropoff fields (nullable; see structured location fields below)
 - notes (nullable)
 - payload_json (nullable) — service-specific data, validated by service module
 - quote_id (nullable)
@@ -126,24 +131,25 @@ Fields (minimum):
 - created_at, updated_at
 
 Location structure (what “structured” means here):
-- A predictable JSON object with well-known fields (not a single free-text string).
-- The main goal is to support mapping, distance calculations, geofencing/region routing, and consistent display across clients.
+- Use structured canonical columns for queryable fields.
+- Do not rely on one opaque JSON blob as the main storage shape.
+- Keep optional JSON only for extra/raw provider payload when needed.
 
-Suggested shape (API + DB JSONB):
-```json
-{
-  "text": "Hodan, Mogadishu — near XYZ",
-  "lat": 2.046934,
-  "lng": 45.318162,
-  "accuracy_m": 15,
-  "place_id": "optional-provider-place-id",
-  "region_id": "optional-internal-region-id"
-}
-```
+Suggested canonical request location fields:
+- `*_address_text`
+- `*_country_code`
+- `*_region_code`
+- `*_city_name`
+- `*_zone_code`
+- `*_lat`
+- `*_lng`
+- `*_place_id`
+- optional `*_location_metadata_json`
 
 Notes:
-- Store as `jsonb` (fast iteration) or split into columns (e.g., `pickup_lat`, `pickup_lng`, `pickup_text`) if you need indexing/performance; either way, keep the logical schema consistent.
-- Validate this object in the API layer (Pydantic) and treat `lat/lng` as the canonical location when present.
+- `pickup_*` and `dropoff_*` may use different subsets depending on the service.
+- Validate the structured fields in the API layer and treat `lat/lng` as the canonical geo point when present.
+- Coverage/routing entities should usually store codes/areas rather than full free-text addresses.
 
 Why payload_json even with code-based UI:
 - It isolates service-specific fields without adding columns for every new service.

@@ -141,12 +141,16 @@ The submit pipeline should construct this request shape:
 {
   "service_id": "pharmacy",
   "delivery_location": {
-    "text": "Hodan, Mogadishu",
+    "address_text": "Hodan, Mogadishu",
+    "country_code": "SO",
+    "region_code": "banadir",
+    "city_name": "Mogadishu",
+    "zone_code": "hodan",
     "lat": 2.046934,
     "lng": 45.318162,
     "accuracy_m": 15,
     "place_id": "optional",
-    "region_id": "optional"
+    "location_metadata": {}
   },
   "notes": "Leave at reception",
   "payment": {

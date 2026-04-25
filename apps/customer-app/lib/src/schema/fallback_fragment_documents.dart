@@ -4,54 +4,27 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
     'id': 'section:customer_welcome_v1',
     'documentType': 'fragment',
     'node': {
-      'type': 'RemoteQuery',
-      'props': {
-        'key': 'customer.notifications.homeSummary',
-        'path': '/v1/notifications/home-summary',
-      },
-      'slots': {
-        'loading': [
-          {
-            'type': 'InfoCard',
-            'props': {
-              'title': 'Updates',
-              'subtitle': 'Loading...',
-              'surface': 'subtle',
-            },
-          },
-        ],
-        'error': [
-          {
-            'type': 'InfoCard',
-            'props': {
-              'title': 'Updates',
-              'subtitle': 'Could not load updates.',
-              'surface': 'subtle',
-            },
-          },
-        ],
-        'child': [
-          {'type': 'CustomerHomeNotifications'},
-        ],
-      },
+      'type': 'InfoCard',
+      'props': {'title': 'Welcome', 'subtitle': '', 'surface': 'subtle'},
     },
   },
-  'fragment:customer_home_notifications_v1': {
+  'fragment:customer_home_services_capsules_v1': {
     'schemaVersion': '1.0',
-    'id': 'fragment:customer_home_notifications_v1',
+    'id': 'fragment:customer_home_services_capsules_v1',
     'documentType': 'fragment',
     'node': {
       'type': 'RemoteQuery',
       'props': {
-        'key': 'customer.notifications.homeSummary',
-        'path': '/v1/notifications/home-summary',
+        'key': 'customer_home.services',
+        'path': '/v1/service-definitions',
+        'dataPath': 'items',
       },
       'slots': {
         'loading': [
           {
             'type': 'InfoCard',
             'props': {
-              'title': 'Updates',
+              'title': 'Services',
               'subtitle': 'Loading...',
               'surface': 'subtle',
             },
@@ -61,14 +34,14 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
           {
             'type': 'InfoCard',
             'props': {
-              'title': 'Updates',
-              'subtitle': 'Could not load updates.',
+              'title': 'Services',
+              'subtitle': 'Unable to load services',
               'surface': 'subtle',
             },
           },
         ],
         'child': [
-          {'type': 'CustomerHomeNotifications'},
+          {'type': 'ServiceCapsules', 'props': <String, Object?>{}},
         ],
       },
     },

@@ -4,32 +4,30 @@ import 'package:flutter_schema_renderer/flutter_schema_renderer.dart';
 
 import '../schema/bootstrap_loader.dart';
 
-typedef DaryeelLocalThemeResolver =
-    ThemeData Function(Map<String, Object?> document, {String? overrideMode});
+typedef DaryeelLocalThemeResolver = ThemeData
+    Function(Map<String, Object?> document, {String? overrideMode});
 
-typedef DaryeelThemeModeResolver =
-    ThemeMode Function(Map<String, Object?> document);
+typedef DaryeelThemeModeResolver = ThemeMode Function(
+    Map<String, Object?> document);
 
-typedef DaryeelRegistryBuilder =
-    SchemaWidgetRegistry Function({
-      required ScreenSchema screen,
-      required SchemaActionDispatcher actionDispatcher,
-      required SchemaVisibilityContext visibility,
-      RuntimeDiagnostics? diagnostics,
-      Map<String, Object?> diagnosticsContext,
-    });
+typedef DaryeelRegistryBuilder = SchemaWidgetRegistry Function({
+  required ScreenSchema screen,
+  required SchemaActionDispatcher actionDispatcher,
+  required SchemaVisibilityContext visibility,
+  RuntimeDiagnostics? diagnostics,
+  Map<String, Object?> diagnosticsContext,
+});
 
-typedef DaryeelCompatibilityCheckerBuilder =
-    SchemaCompatibilityChecker Function(
-      SchemaCompatibilityPolicyOverlay? overlay,
-    );
+typedef DaryeelCompatibilityCheckerBuilder = SchemaCompatibilityChecker
+    Function(
+  SchemaCompatibilityPolicyOverlay? overlay,
+);
 
-typedef DaryeelActionPolicyBuilder =
-    SchemaActionPolicy Function({
-      required String schemaBaseUrl,
-      required String apiBaseUrl,
-      required ConfigSnapshot? configSnapshot,
-    });
+typedef DaryeelActionPolicyBuilder = SchemaActionPolicy Function({
+  required String schemaBaseUrl,
+  required String apiBaseUrl,
+  required ConfigSnapshot? configSnapshot,
+});
 
 SchemaActionPolicy defaultDaryeelActionPolicyBuilder({
   required String schemaBaseUrl,
@@ -159,6 +157,8 @@ class DaryeelClientAppConfig {
     this.diagnosticsBufferMaxEvents = 200,
     this.schemaServiceRouteName = 'schema.service',
     this.debugInspectorRouteName = 'debug.inspector',
+    this.shellTopBuilder,
+    this.shellOverlayBuilder,
     this.additionalRoutes = const <String, WidgetBuilder>{},
   });
 
@@ -172,6 +172,18 @@ class DaryeelClientAppConfig {
   /// Stable route names used by the schema runtime.
   final String schemaServiceRouteName;
   final String debugInspectorRouteName;
+
+  /// Optional builder rendered above the schema screen within the shell body.
+  ///
+  /// This participates in layout (pushes schema content down) and is useful
+  /// for global banners/containers that should feel part of the screen flow.
+  final WidgetBuilder? shellTopBuilder;
+
+  /// Optional overlay builder rendered above the schema screen.
+  ///
+  /// This is useful for app-owned global UI (e.g. notifications banners)
+  /// without changing schema documents.
+  final WidgetBuilder? shellOverlayBuilder;
 
   /// Optional app-defined routes (e.g., domain screens not yet schema-driven).
   final Map<String, WidgetBuilder> additionalRoutes;

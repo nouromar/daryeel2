@@ -10,11 +10,6 @@ import 'runtime_inspector_screen.dart';
 import 'runtime_session_scope.dart';
 import 'schema_node_wrapper.dart';
 
-const int _debugScreenLoadDelayMs = int.fromEnvironment(
-  'DARYEEL_DEBUG_SCREEN_LOAD_DELAY_MS',
-  defaultValue: 0,
-);
-
 typedef SchemaRoutedScreenAppBarActionsBuilder = List<Widget> Function(
     BuildContext context, LoadedScreen loaded);
 
@@ -86,12 +81,6 @@ class _SchemaRoutedScreenState extends State<SchemaRoutedScreen> {
   }
 
   Future<DaryeelRuntimeViewModel> _load(DaryeelRuntimeSession session) async {
-    if (kDebugMode && _debugScreenLoadDelayMs > 0) {
-      await Future<void>.delayed(
-        Duration(milliseconds: _debugScreenLoadDelayMs),
-      );
-    }
-
     return session.loadScreen(
       screenId: widget.screenId,
       service: widget.service,

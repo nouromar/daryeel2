@@ -317,17 +317,25 @@ class _DaryeelClientAppShellState extends State<DaryeelClientAppShell> {
           ),
           body: Column(
             children: [
+              if (widget.config.shellTopBuilder != null)
+                widget.config.shellTopBuilder!(context),
               Expanded(
-                child: KeyedSubtree(
-                  key: ValueKey<String>(
-                    'schema:${loadedScreen.bundle.schemaId}:${loadedScreen.bundle.docId ?? loadedScreen.bundle.schemaVersion}',
-                  ),
-                  child: SchemaStateScopeHost(
-                    child: SchemaFormScope(
-                      store: _formStore,
-                      child: renderer.render(),
+                child: Stack(
+                  children: [
+                    KeyedSubtree(
+                      key: ValueKey<String>(
+                        'schema:${loadedScreen.bundle.schemaId}:${loadedScreen.bundle.docId ?? loadedScreen.bundle.schemaVersion}',
+                      ),
+                      child: SchemaStateScopeHost(
+                        child: SchemaFormScope(
+                          store: _formStore,
+                          child: renderer.render(),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (widget.config.shellOverlayBuilder != null)
+                      widget.config.shellOverlayBuilder!(context),
+                  ],
                 ),
               ),
             ],
