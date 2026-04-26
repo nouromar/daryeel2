@@ -82,7 +82,7 @@ def test_requests_endpoint_buckets_active_and_history() -> None:
         db.add(
             RequestEvent(
                 request_id=active_request.id,
-                type="created",
+                type="request_created",
                 from_status=None,
                 to_status="created",
                 actor_type="customer",
@@ -154,7 +154,7 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="created",
+                type="request_created",
                 from_status=None,
                 to_status="created",
                 actor_type="customer",
@@ -174,6 +174,7 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
     assert res.status_code == 200
     payload = res.json()
     assert payload["request"]["title"] == "Pharmacy order"
+    assert payload["request"]["subStatus"] is None
     assert payload["request"]["statusLabel"] == "Requested"
     assert payload["request"]["detailSubtitle"].startswith("Requested • ")
     assert payload["request"]["detailSubtitle"].endswith(", 2026")
@@ -217,7 +218,7 @@ def test_request_detail_marks_recent_updates_for_non_created_latest_event() -> N
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="created",
+                type="request_created",
                 from_status=None,
                 to_status="created",
                 actor_type="customer",
@@ -228,7 +229,7 @@ def test_request_detail_marks_recent_updates_for_non_created_latest_event() -> N
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="status_changed",
+                type="request_status_changed",
                 from_status="created",
                 to_status="assigned",
                 actor_type="system",
@@ -263,7 +264,8 @@ def test_request_detail_returns_pending_action_for_prescription_upload() -> None
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
-            status="waiting_for_prescription",
+            status="created",
+            sub_status="awaiting_prescription",
             payload_json={
                 "cart_lines": [
                     {"product_id": "prod_paracetamol_500mg", "quantity": 1},
@@ -277,9 +279,9 @@ def test_request_detail_returns_pending_action_for_prescription_upload() -> None
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="prescription_requested",
+                type="request_status_changed",
                 from_status="created",
-                to_status="waiting_for_prescription",
+                to_status="created",
                 actor_type="system",
                 actor_id=None,
                 metadata_json={"message": "Please upload a valid prescription."},
@@ -314,7 +316,8 @@ def test_request_detail_returns_pending_action_for_price_confirmation() -> None:
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
-            status="waiting_price_change_confirmation",
+            status="created",
+            sub_status="awaiting_customer_confirmation",
             payload_json={
                 "cart_lines": [
                     {"product_id": "prod_paracetamol_500mg", "quantity": 1},
@@ -329,12 +332,15 @@ def test_request_detail_returns_pending_action_for_price_confirmation() -> None:
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="price_change_proposed",
-                from_status="assigned",
-                to_status="waiting_price_change_confirmation",
+                type="customer_confirmation_requested",
+                from_status="created",
+                to_status="created",
                 actor_type="system",
                 actor_id=None,
-                metadata_json={"message": "Price changed because one item is out of stock."},
+                metadata_json={
+                    "confirmationType": "price_change",
+                    "message": "Price changed because one item is out of stock.",
+                },
             )
         )
         db.commit()
@@ -365,7 +371,8 @@ def test_complete_request_action_approves_price_change() -> None:
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
-            status="waiting_price_change_confirmation",
+            status="created",
+            sub_status="awaiting_customer_confirmation",
             payload_json={
                 "cart_lines": [
                     {"product_id": "prod_paracetamol_500mg", "quantity": 1},
@@ -380,12 +387,15 @@ def test_complete_request_action_approves_price_change() -> None:
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="price_change_proposed",
-                from_status="assigned",
-                to_status="waiting_price_change_confirmation",
+                type="customer_confirmation_requested",
+                from_status="created",
+                to_status="created",
                 actor_type="system",
                 actor_id=None,
-                metadata_json={"message": "Please confirm the updated price."},
+                metadata_json={
+                    "confirmationType": "price_change",
+                    "message": "Please confirm the updated price.",
+                },
             )
         )
         db.commit()
@@ -404,20 +414,24 @@ def test_complete_request_action_approves_price_change() -> None:
     assert payload["request"]["attentionState"] == "none"
     assert payload["request"]["hasUnreadUpdates"] is False
     assert payload["pendingActions"] == []
-    assert payload["timeline"][-1]["type"] == "price_change_confirmed"
+    assert payload["timeline"][-1]["type"] == "customer_confirmation_resolved"
 
 
 def test_complete_request_action_uploads_prescription() -> None:
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.ids import new_uuid7
+    from sqlalchemy import select
+
+    from app.models import Attachment, RequestAttachment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
-            status="waiting_for_prescription",
+            status="created",
+            sub_status="awaiting_prescription",
             payload_json={
                 "cart_lines": [
                     {"product_id": "prod_paracetamol_500mg", "quantity": 1},
@@ -431,27 +445,50 @@ def test_complete_request_action_uploads_prescription() -> None:
         db.add(
             RequestEvent(
                 request_id=request.id,
-                type="prescription_requested",
+                type="request_status_changed",
                 from_status="created",
-                to_status="waiting_for_prescription",
+                to_status="created",
                 actor_type="system",
                 actor_id=None,
                 metadata_json={"message": "Please upload a valid prescription."},
             )
         )
+        attachment = Attachment(
+            id=new_uuid7(),
+            storage_key="/tmp/rx-123.jpg",
+            filename="rx-123.jpg",
+            content_type="image/jpeg",
+            size_bytes=16,
+        )
+        db.add(attachment)
         db.commit()
+        attachment_id = str(attachment.id)
 
     client = TestClient(app)
     res = client.post(
         "/v1/requests/1/actions/upload_prescription",
-        json={"decision": "upload", "payload": {"uploadIds": ["rx-123"]}},
+        json={"decision": "upload", "payload": {"uploadIds": [attachment_id]}},
         headers=_auth_header_for_user_id(1),
     )
 
     assert res.status_code == 200
     payload = res.json()
-    assert payload["request"]["status"] == "accepted"
+    assert payload["request"]["status"] == "created"
+    assert payload["request"]["subStatus"] == "awaiting_branch_review"
     assert payload["pendingActions"] == []
     assert payload["request"]["hasUnreadUpdates"] is False
-    assert payload["serviceDetails"]["payload"]["prescription_upload_ids"] == ["rx-123"]
-    assert payload["timeline"][-1]["type"] == "prescription_uploaded"
+    assert payload["serviceDetails"]["payload"]["prescription_upload_ids"] == [attachment_id]
+    assert payload["serviceDetails"]["payload"]["prescription_uploads"] == [
+        {
+            "id": attachment_id,
+            "filename": "rx-123.jpg",
+        }
+    ]
+    assert payload["timeline"][-1]["type"] == "attachment_added"
+
+    with dbmod.SessionLocal() as db:
+        request_attachment = db.scalar(
+            select(RequestAttachment).where(RequestAttachment.request_id == 1)
+        )
+        assert request_attachment is not None
+        assert str(request_attachment.attachment_id) == attachment_id

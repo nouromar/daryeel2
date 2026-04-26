@@ -20,7 +20,7 @@ Screens live as JSON: `apps/*/schemas/screens/*.screen.json` and fragments in `a
 
 ## Hard rules (summary — full versions in the imports above)
 
-- **Do not edit `packages/*`** without explicit user approval in the current conversation. If a framework change seems needed, STOP and propose 2–3 options including an app-only fallback.
+- **Do not edit `packages/*`** without explicit user approval in the current conversation. If a framework change seems needed, STOP and explain the reason for change. then ask for explicit permission.
 - Keep `apps/*` thin: branding, identifiers, fallback bundles, theme resolver, registries, compatibility rules. Product-specific code goes under `apps/<app>/lib/src/services/<service>/...`.
 - Backend routes are grouped per product service with prefix `/v1/<service>/...`.
 - Don't commit generated artifacts (`build/`, `.dart_tool/`, `ios/Pods/`, `*/Flutter/ephemeral/`, `android/local.properties`, `*.iml`).
@@ -54,4 +54,11 @@ Run via `/run-checks` to do this automatically against changed paths.
 
 ## Local services
 
-Schema service runs on port 8011 via `docker compose up --build` from the repo root. With Redis caching: `SCHEMA_SERVICE_REDIS_URL=redis://redis:6379/0 docker compose --profile redis up --build`.
+From the repo root, `docker compose up --build` starts:
+
+- Postgres on port 5432
+- Redis on port 6379
+- API service on port 8010
+- Schema service on port 8011
+
+The API service uses the Postgres and Redis containers. The schema service serves schemas, config, and themes, and uses the Redis container for caching.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import uuid
 from typing import Any, Literal
 
 from fastapi import APIRouter
@@ -14,16 +15,22 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import require_access_token_payload
-from app.models import PrescriptionUpload
+from app.events import record_request_event
+from app.events.types import ATTACHMENT_ADDED
+from app.events.types import CUSTOMER_CONFIRMATION_RESOLVED
+from app.events.types import REQUEST_CREATED
+from app.models import Attachment
 from app.models import RequestEvent
+from app.models import RequestAttachment
 from app.models import ServiceRequest
 router = APIRouter(prefix="/v1", tags=["requests"])
 
 _TERMINAL_REQUEST_STATUSES = {"completed", "cancelled", "failed", "rejected"}
-_CUSTOMER_ACTION_REQUIRED_STATUSES = {
+_CUSTOMER_ACTION_REQUIRED_STATES = {
     "awaiting_info",
     "awaiting_customer_confirmation",
     "awaiting_customer_info",
+    "awaiting_prescription",
     "waiting_for_prescription",
     "waiting_price_change_confirmation",
     "waiting_substitution_confirmation",
@@ -79,12 +86,12 @@ def _serialize_request_summary(
 ) -> dict[str, Any]:
     pending_actions = _derive_pending_actions(request=request, latest_event=latest_event)
     attention = _attention_metadata(
-        status=request.status,
+        request=request,
         latest_event=latest_event,
         pending_action_count=len(pending_actions),
     )
     service_label = _service_label(request.service_id)
-    status_label = _status_label(request.status)
+    status_label = _display_state_label(request)
     created_label = _format_created_at(request.created_at)
     details_label = _request_details_label(request)
 
@@ -101,6 +108,7 @@ def _serialize_request_summary(
         "id": str(request.id),
         "service_id": request.service_id,
         "status": request.status,
+        "sub_status": request.sub_status,
         "attentionState": attention["attentionState"],
         "isAttentionRequired": attention["isAttentionRequired"],
         "isUpdateAvailable": attention["isUpdateAvailable"],
@@ -198,7 +206,7 @@ def _serialize_request_detail(
     latest_event = events[-1] if events else None
     pending_actions = _derive_pending_actions(request=request, latest_event=latest_event)
     attention = _attention_metadata(
-        status=request.status,
+        request=request,
         latest_event=latest_event,
         pending_action_count=len(pending_actions),
     )
@@ -210,7 +218,8 @@ def _serialize_request_detail(
             "serviceId": request.service_id,
             "title": _service_label(request.service_id),
             "status": request.status,
-            "statusLabel": _status_label(request.status),
+            "subStatus": request.sub_status,
+            "statusLabel": _display_state_label(request),
             "subtitle": summary["subtitle"],
             "detailSubtitle": _request_detail_subtitle(request),
             "createdAt": request.created_at.isoformat() if request.created_at else None,
@@ -228,7 +237,7 @@ def _serialize_request_detail(
         },
         "pendingActions": pending_actions,
         "serviceDetails": _service_details(db=db, request=request),
-        "timeline": [_serialize_request_event(event) for event in events if event.to_status],
+        "timeline": [_serialize_request_event(event) for event in events],
     }
 
 
@@ -276,6 +285,35 @@ def _status_label(status: str) -> str:
     }.get(status, status.replace("_", " ").title())
 
 
+def _sub_status_label(sub_status: str) -> str:
+    return {
+        "awaiting_prescription": "Awaiting prescription",
+        "awaiting_branch_review": "Awaiting branch review",
+        "awaiting_customer_confirmation": "Awaiting confirmation",
+        "customer_rejected_changes": "Customer rejected changes",
+        "preparing": "Preparing",
+        "out_for_delivery": "Out for delivery",
+        "delivered": "Delivered",
+        "rejected_unavailable": "Unavailable",
+        "rejected_invalid_prescription": "Invalid prescription",
+        "delivery_failed": "Delivery failed",
+        "unable_to_fulfill": "Unable to fulfill",
+    }.get(sub_status, sub_status.replace("_", " ").title())
+
+
+def _request_workflow_state(request: ServiceRequest) -> str:
+    if isinstance(request.sub_status, str) and request.sub_status.strip():
+        return request.sub_status.strip()
+    return request.status
+
+
+def _display_state_label(request: ServiceRequest) -> str:
+    workflow_state = _request_workflow_state(request)
+    if workflow_state != request.status:
+        return _sub_status_label(workflow_state)
+    return _status_label(request.status)
+
+
 def _serialize_delivery_location(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
@@ -308,12 +346,15 @@ def _payment_summary_text(value: Any) -> str | None:
 
 def _attention_metadata(
     *,
-    status: str,
+    request: ServiceRequest,
     latest_event: RequestEvent | None,
     pending_action_count: int,
 ) -> dict[str, Any]:
     has_unread_updates = _has_unread_updates(latest_event)
-    is_attention_required = pending_action_count > 0 or status in _CUSTOMER_ACTION_REQUIRED_STATUSES
+    is_attention_required = (
+        pending_action_count > 0
+        or _request_workflow_state(request) in _CUSTOMER_ACTION_REQUIRED_STATES
+    )
     is_update_available = has_unread_updates and not is_attention_required
 
     if is_attention_required:
@@ -360,23 +401,24 @@ def _derive_pending_actions(
         if latest_event is not None and isinstance(latest_event.metadata_json, dict)
         else {}
     )
+    workflow_state = _request_workflow_state(request)
 
     if request.service_id == "pharmacy":
         return _derive_pharmacy_pending_actions(
-            status=request.status,
+            workflow_state=workflow_state,
             payload=payload,
             latest_metadata=latest_metadata,
         )
 
     return _derive_generic_pending_actions(
-        status=request.status,
+        workflow_state=workflow_state,
         latest_metadata=latest_metadata,
     )
 
 
 def _derive_generic_pending_actions(
     *,
-    status: str,
+    workflow_state: str,
     latest_metadata: dict[str, Any],
 ) -> list[dict[str, Any]]:
     message = _first_non_empty_string(
@@ -384,7 +426,7 @@ def _derive_generic_pending_actions(
         latest_metadata.get("note"),
     )
 
-    if status in {"awaiting_info", "awaiting_customer_info"}:
+    if workflow_state in {"awaiting_info", "awaiting_customer_info"}:
         return [
             {
                 "id": "provide_information",
@@ -395,7 +437,7 @@ def _derive_generic_pending_actions(
             }
         ]
 
-    if status == "awaiting_customer_confirmation":
+    if workflow_state == "awaiting_customer_confirmation":
         return [
             {
                 "id": "confirm_change",
@@ -411,7 +453,7 @@ def _derive_generic_pending_actions(
 
 def _derive_pharmacy_pending_actions(
     *,
-    status: str,
+    workflow_state: str,
     payload: dict[str, Any],
     latest_metadata: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -422,7 +464,12 @@ def _derive_pharmacy_pending_actions(
     if isinstance(summary_total, dict):
         amount_text = _first_non_empty_string(summary_total.get("amountText"))
 
-    if status == "waiting_for_prescription" and not has_uploads:
+    confirmation_type = _first_non_empty_string(
+        latest_metadata.get("confirmationType"),
+        latest_metadata.get("confirmation_type"),
+    )
+
+    if workflow_state in {"awaiting_prescription", "waiting_for_prescription"} and not has_uploads:
         return [
             {
                 "id": "upload_prescription",
@@ -436,7 +483,9 @@ def _derive_pharmacy_pending_actions(
             }
         ]
 
-    if status == "waiting_price_change_confirmation":
+    if workflow_state == "waiting_price_change_confirmation" or (
+        workflow_state == "awaiting_customer_confirmation" and confirmation_type == "price_change"
+    ):
         price_message = _first_non_empty_string(
             latest_metadata.get("message"),
             latest_metadata.get("priceChangeMessage"),
@@ -452,7 +501,9 @@ def _derive_pharmacy_pending_actions(
             }
         ]
 
-    if status == "waiting_substitution_confirmation":
+    if workflow_state == "waiting_substitution_confirmation" or (
+        workflow_state == "awaiting_customer_confirmation" and confirmation_type == "substitution"
+    ):
         substitution_message = _first_non_empty_string(
             latest_metadata.get("message"),
             latest_metadata.get("substitutionSummary"),
@@ -468,7 +519,7 @@ def _derive_pharmacy_pending_actions(
         ]
 
     return _derive_generic_pending_actions(
-        status=status,
+        workflow_state=workflow_state,
         latest_metadata=latest_metadata,
     )
 
@@ -476,7 +527,7 @@ def _derive_pharmacy_pending_actions(
 def _has_unread_updates(latest_event: RequestEvent | None) -> bool:
     if latest_event is None:
         return False
-    return latest_event.type != "created" and latest_event.actor_type != "customer"
+    return latest_event.type != REQUEST_CREATED and latest_event.actor_type != "customer"
 
 
 def _service_details(*, db: Session, request: ServiceRequest) -> dict[str, Any]:
@@ -485,8 +536,8 @@ def _service_details(*, db: Session, request: ServiceRequest) -> dict[str, Any]:
     if request.service_id == "pharmacy":
         enriched_payload = _enrich_pharmacy_payload_with_prescription_uploads(
             db,
+            request=request,
             payload=payload,
-            customer_user_id=request.customer_user_id,
         )
         return {
             "serviceId": request.service_id,
@@ -504,51 +555,135 @@ def _service_details(*, db: Session, request: ServiceRequest) -> dict[str, Any]:
 def _enrich_pharmacy_payload_with_prescription_uploads(
     db: Session,
     *,
+    request: ServiceRequest,
     payload: dict[str, Any],
-    customer_user_id: int,
 ) -> dict[str, Any]:
-    upload_ids = payload.get("prescription_upload_ids")
-    if not isinstance(upload_ids, list) or not upload_ids:
+    rows = db.execute(
+        select(RequestAttachment, Attachment)
+        .join(Attachment, Attachment.id == RequestAttachment.attachment_id)
+        .where(
+            RequestAttachment.request_id == request.id,
+            RequestAttachment.attachment_type == "prescription",
+            RequestAttachment.status == "active",
+        )
+        .order_by(RequestAttachment.created_at.asc(), RequestAttachment.id.asc())
+    ).all()
+
+    if not rows:
         return payload
 
-    ids: list[str] = []
-    for raw in upload_ids:
+    uploads: list[dict[str, Any]] = []
+    upload_ids: list[str] = []
+    for request_attachment, attachment in rows:
+        attachment_id = str(attachment.id)
+        upload_ids.append(attachment_id)
+        uploads.append(
+            {
+                "id": attachment_id,
+                "filename": (attachment.filename or attachment_id).strip() or attachment_id,
+            }
+        )
+
+    out = dict(payload)
+    out["prescription_upload_ids"] = upload_ids
+    out["prescription_uploads"] = uploads
+    return out
+
+
+def _normalize_attachment_ids(values: Any) -> list[uuid.UUID]:
+    if not isinstance(values, list):
+        return []
+
+    normalized: list[uuid.UUID] = []
+    seen: set[uuid.UUID] = set()
+    for raw in values:
         if not isinstance(raw, str):
             continue
-        v = raw.strip()
-        if not v:
+        candidate = raw.strip()
+        if not candidate:
             continue
-        if len(v) > 128:
+        try:
+            parsed = uuid.UUID(candidate)
+        except ValueError:
             continue
-        ids.append(v)
+        if parsed in seen:
+            continue
+        seen.add(parsed)
+        normalized.append(parsed)
+    return normalized
 
-    if not ids:
-        return payload
+
+def _load_existing_attachments(
+    *,
+    db: Session,
+    attachment_ids: list[uuid.UUID],
+) -> list[Attachment]:
+    if not attachment_ids:
+        return []
 
     rows = list(
         db.scalars(
-            select(PrescriptionUpload).where(
-                PrescriptionUpload.id.in_(ids),
-                PrescriptionUpload.customer_user_id == customer_user_id,
-                PrescriptionUpload.service_id == "pharmacy",
+            select(Attachment).where(Attachment.id.in_(attachment_ids))
+        )
+    )
+    rows_by_id = {row.id: row for row in rows}
+    missing = [attachment_id for attachment_id in attachment_ids if attachment_id not in rows_by_id]
+    if missing:
+        raise HTTPException(status_code=400, detail="Unknown attachment id")
+    return [rows_by_id[attachment_id] for attachment_id in attachment_ids]
+
+
+def _link_prescription_attachments(
+    *,
+    db: Session,
+    request: ServiceRequest,
+    attachments: list[Attachment],
+    actor_type: str,
+    actor_id: int | None,
+) -> list[str]:
+    if not attachments:
+        return []
+
+    attachment_ids = [attachment.id for attachment in attachments]
+    existing_rows = list(
+        db.scalars(
+            select(RequestAttachment).where(
+                RequestAttachment.request_id == request.id,
+                RequestAttachment.attachment_id.in_(attachment_ids),
+                RequestAttachment.attachment_type == "prescription",
+                RequestAttachment.status == "active",
             )
         )
     )
+    existing_attachment_ids = {row.attachment_id for row in existing_rows}
 
-    filenames_by_id: dict[str, str] = {}
-    for row in rows:
-        filename = (row.filename or "").strip()
-        if filename:
-            filenames_by_id[row.id] = filename
+    linked_ids: list[str] = []
+    for attachment in attachments:
+        linked_ids.append(str(attachment.id))
+        if attachment.id in existing_attachment_ids:
+            continue
 
-    uploads: list[dict[str, Any]] = []
-    for upload_id in ids:
-        filename = filenames_by_id.get(upload_id) or upload_id
-        uploads.append({"id": upload_id, "filename": filename})
-
-    out = dict(payload)
-    out["prescription_uploads"] = uploads
-    return out
+        db.add(
+            RequestAttachment(
+                request_id=request.id,
+                attachment_id=attachment.id,
+                attachment_type="prescription",
+                status="active",
+                uploaded_by_actor_type=actor_type,
+                uploaded_by_actor_id=actor_id,
+            )
+        )
+        record_request_event(
+            db,
+            request=request,
+            event_type=ATTACHMENT_ADDED,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            related_entity_type="attachment",
+            related_entity_id=str(attachment.id),
+            metadata={"attachmentType": "prescription"},
+        )
+    return linked_ids
 
 
 def _serialize_request_event(event: RequestEvent) -> dict[str, Any]:
@@ -635,10 +770,8 @@ def _apply_pharmacy_request_action(
     if action_id == "confirm_price":
         if decision not in {"approve", "reject"}:
             raise HTTPException(status_code=400, detail="Invalid decision")
-        event_type = (
-            "price_change_confirmed" if decision == "approve" else "price_change_rejected"
-        )
         next_status = "accepted" if decision == "approve" else "rejected"
+        next_sub_status = None if decision == "approve" else "customer_rejected_changes"
         message = (
             "Customer approved the price update."
             if decision == "approve"
@@ -649,20 +782,22 @@ def _apply_pharmacy_request_action(
             request=request,
             user_id=user_id,
             next_status=next_status,
-            event_type=event_type,
-            metadata={"decision": decision, "message": message},
+            next_sub_status=next_sub_status,
+            event_type=CUSTOMER_CONFIRMATION_RESOLVED,
+            metadata={
+                "confirmationType": "price_change",
+                "decision": decision,
+                "channel": "in_app",
+                "message": message,
+            },
         )
         return
 
     if action_id == "confirm_substitution":
         if decision not in {"approve", "reject"}:
             raise HTTPException(status_code=400, detail="Invalid decision")
-        event_type = (
-            "substitution_confirmed"
-            if decision == "approve"
-            else "substitution_rejected"
-        )
         next_status = "accepted" if decision == "approve" else "rejected"
+        next_sub_status = None if decision == "approve" else "customer_rejected_changes"
         message = (
             "Customer approved the substitution."
             if decision == "approve"
@@ -673,8 +808,14 @@ def _apply_pharmacy_request_action(
             request=request,
             user_id=user_id,
             next_status=next_status,
-            event_type=event_type,
-            metadata={"decision": decision, "message": message},
+            next_sub_status=next_sub_status,
+            event_type=CUSTOMER_CONFIRMATION_RESOLVED,
+            metadata={
+                "confirmationType": "substitution",
+                "decision": decision,
+                "channel": "in_app",
+                "message": message,
+            },
         )
         return
 
@@ -688,6 +829,21 @@ def _apply_pharmacy_request_action(
         normalized_ids = [item.strip() for item in upload_ids if isinstance(item, str) and item.strip()]
         if not normalized_ids:
             raise HTTPException(status_code=400, detail="uploadIds are required")
+
+        attachment_ids = _normalize_attachment_ids(normalized_ids)
+        if normalized_ids and not attachment_ids:
+            raise HTTPException(status_code=400, detail="Unknown attachment id")
+        attachments = _load_existing_attachments(
+            db=db,
+            attachment_ids=attachment_ids,
+        )
+        linked_upload_ids = _link_prescription_attachments(
+            db=db,
+            request=request,
+            attachments=attachments,
+            actor_type="customer",
+            actor_id=user_id,
+        )
 
         request_payload = (
             dict(request.payload_json)
@@ -704,20 +860,14 @@ def _apply_pharmacy_request_action(
             if isinstance(existing_upload_ids, list)
             else []
         )
-        for upload_id in normalized_ids:
+        for upload_id in linked_upload_ids:
             if upload_id not in merged_upload_ids:
                 merged_upload_ids.append(upload_id)
         request_payload["prescription_upload_ids"] = merged_upload_ids
         request.payload_json = request_payload
 
-        _update_request_status(
-            db=db,
-            request=request,
-            user_id=user_id,
-            next_status="accepted",
-            event_type="prescription_uploaded",
-            metadata={"uploadIds": normalized_ids, "message": "Customer uploaded prescription."},
-        )
+        request.sub_status = "awaiting_branch_review"
+        db.add(request)
         return
 
     raise HTTPException(status_code=400, detail="Unsupported request action")
@@ -729,22 +879,19 @@ def _update_request_status(
     request: ServiceRequest,
     user_id: int,
     next_status: str,
+    next_sub_status: str | None,
     event_type: str,
     metadata: dict[str, Any],
 ) -> None:
-    previous_status = request.status
-    request.status = next_status
-    db.add(request)
-    db.add(
-        RequestEvent(
-            request_id=request.id,
-            type=event_type,
-            from_status=previous_status,
-            to_status=next_status,
-            actor_type="customer",
-            actor_id=user_id,
-            metadata_json=metadata,
-        )
+    record_request_event(
+        db,
+        request=request,
+        event_type=event_type,
+        actor_type="customer",
+        actor_id=user_id,
+        to_status=next_status,
+        sub_status=next_sub_status,
+        metadata=metadata,
     )
 
 
@@ -774,7 +921,7 @@ def _format_detail_created_at(value: datetime | None) -> str | None:
 
 def _request_detail_subtitle(request: ServiceRequest) -> str:
     return _join_non_empty(
-        _status_label(request.status),
+        _display_state_label(request),
         _format_detail_created_at(request.created_at) or "",
     )
 

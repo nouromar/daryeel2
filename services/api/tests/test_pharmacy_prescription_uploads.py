@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import uuid
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -69,14 +70,12 @@ def test_upload_prescription_creates_record() -> None:
 
     from sqlalchemy import select
 
-    from app.models import PrescriptionUpload
+    from app.models import Attachment
 
     with dbmod.SessionLocal() as db:
         rec = db.scalar(
-            select(PrescriptionUpload).where(PrescriptionUpload.id == upload_id)
+            select(Attachment).where(Attachment.id == uuid.UUID(upload_id))
         )
         assert rec is not None
-        assert rec.service_id == "pharmacy"
-        assert rec.customer_user_id == 1
         assert rec.filename == "rx.jpg"
         assert rec.content_type == "image/jpeg"

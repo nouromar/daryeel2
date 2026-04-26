@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import uuid
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -103,6 +104,7 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
     order = payload["order"]
     assert order["service_id"] == "pharmacy"
     assert order["status"] == "created"
+    assert order["sub_status"] == "awaiting_branch_review"
     assert order["customer_user_id"] == "1"
 
     # Confirm DB rows exist.
@@ -116,6 +118,7 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         sr = db.scalar(select(ServiceRequest).where(ServiceRequest.id == int(order["id"])))
         assert sr is not None
         assert sr.service_id == "pharmacy"
+        assert sr.sub_status == "awaiting_branch_review"
         assert sr.notes == "Leave at door"
         assert sr.payment_json == {"method": "cash", "timing": "after_delivery"}
         assert sr.delivery_location_json["text"] == "Hodan"
@@ -129,9 +132,95 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
 
         ev = db.scalar(select(RequestEvent).where(RequestEvent.request_id == sr.id))
         assert ev is not None
-        assert ev.type == "created"
+        assert ev.type == "request_created"
         assert ev.actor_type == "customer"
         assert ev.actor_id == 1
+        assert isinstance(ev.id, uuid.UUID)
+        assert ev.id.version == 7
+
+
+def test_create_pharmacy_order_sets_awaiting_prescription_for_rx_only_cart() -> None:
+    _init_sqlite_db()
+    client = TestClient(app)
+
+    res = client.post(
+        "/v1/pharmacy/orders",
+        headers=_auth_header_for_user_id(1),
+        json={
+            "service_id": "pharmacy",
+            "payload": {
+                "cart_lines": [
+                    {
+                        "id": "prod_amoxicillin_500mg",
+                        "name": "Amoxicillin 500mg",
+                        "price": 3.5,
+                        "subtitle": "$3.50",
+                        "rx_required": True,
+                        "icon": "pharmacy",
+                        "route": "",
+                        "quantity": 1,
+                    }
+                ],
+                "prescription_upload_ids": [],
+            },
+        },
+    )
+
+    assert res.status_code == 200
+    assert res.json()["order"]["status"] == "created"
+    assert res.json()["order"]["sub_status"] == "awaiting_prescription"
+
+
+def test_create_pharmacy_order_links_prescription_attachments() -> None:
+    _init_sqlite_db()
+
+    import app.db as dbmod
+
+    from app.ids import new_uuid7
+    from app.models import Attachment
+
+    with dbmod.SessionLocal() as db:
+        attachment = Attachment(
+            id=new_uuid7(),
+            storage_key="/tmp/rx-file.jpg",
+            filename="rx-file.jpg",
+            content_type="image/jpeg",
+            size_bytes=32,
+        )
+        db.add(attachment)
+        db.commit()
+        db.refresh(attachment)
+        attachment_id = str(attachment.id)
+
+    client = TestClient(app)
+    res = client.post(
+        "/v1/pharmacy/orders",
+        headers=_auth_header_for_user_id(1),
+        json={
+            "service_id": "pharmacy",
+            "payload": {
+                "cart_lines": [],
+                "prescription_upload_ids": [attachment_id],
+            },
+        },
+    )
+
+    assert res.status_code == 200
+
+    from sqlalchemy import select
+
+    from app.models import RequestAttachment, ServiceRequest
+
+    with dbmod.SessionLocal() as db:
+        request = db.scalar(select(ServiceRequest).where(ServiceRequest.id == 1))
+        assert request is not None
+        request_attachment = db.scalar(
+            select(RequestAttachment).where(RequestAttachment.request_id == request.id)
+        )
+        assert request_attachment is not None
+        assert request_attachment.attachment_type == "prescription"
+        assert str(request_attachment.attachment_id) == attachment_id
+        assert request.payload_json["prescription_upload_ids"] == [attachment_id]
 
 
 def test_pharmacy_checkout_options_returns_payment_methods_and_timings() -> None:
