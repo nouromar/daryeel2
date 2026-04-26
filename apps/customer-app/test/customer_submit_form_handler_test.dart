@@ -65,33 +65,14 @@ void main() {
         'timing': 'after_delivery',
       });
 
-      final payload = request['payload'] as Map<String, Object?>;
-      expect(payload['cart_lines'], <Map<String, Object?>>[
+      final payload = request['order'] as Map<String, Object?>;
+      expect(payload['items'], <Map<String, Object?>>[
         <String, Object?>{
-          'id': 'prod_paracetamol_500mg',
-          'name': 'Paracetamol 500 mg',
-          'subtitle': r'$1.00',
-          'price': 1.0,
-          'icon': 'pharmacy',
-          'route': '',
-          'rx_required': false,
+          'productId': 'prod_paracetamol_500mg',
           'quantity': 2,
         },
       ]);
-      expect(payload['summary_lines'], <Map<String, Object?>>[
-        <String, Object?>{
-          'id': 'subtotal',
-          'label': 'Subtotal',
-          'amount': 2,
-          'amountText': r'$2.00',
-        },
-      ]);
-      expect(payload['summary_total'], <String, Object?>{
-        'label': 'Total',
-        'amount': 2,
-        'amountText': r'$2.00',
-      });
-      expect(payload['prescription_upload_ids'], <String>['rx-1']);
+      expect(payload['prescriptionAttachmentIds'], <String>['rx-1']);
     },
   );
 }

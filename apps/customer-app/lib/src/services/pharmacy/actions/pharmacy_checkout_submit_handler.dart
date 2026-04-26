@@ -42,17 +42,17 @@ final class PharmacyCheckoutSubmitHandler {
     }
 
     final payload = buildPharmacyServiceRequest(store);
-    final pharmacyPayload = payload['payload'];
-    final cartLines = (pharmacyPayload is Map)
-        ? pharmacyPayload['cart_lines']
+    final orderPayload = payload['order'];
+    final items = (orderPayload is Map)
+        ? orderPayload['items']
         : null;
-    final prescriptionUploadIds = (pharmacyPayload is Map)
-        ? pharmacyPayload['prescription_upload_ids']
+    final prescriptionAttachmentIds = (orderPayload is Map)
+        ? orderPayload['prescriptionAttachmentIds']
         : null;
     final hasPrescription =
-        prescriptionUploadIds is List && prescriptionUploadIds.isNotEmpty;
+        prescriptionAttachmentIds is List && prescriptionAttachmentIds.isNotEmpty;
 
-    final hasLines = cartLines is List && cartLines.isNotEmpty;
+    final hasLines = items is List && items.isNotEmpty;
     if (!hasLines && !hasPrescription) {
       return const SubmitFormResponse(
         ok: false,
@@ -185,7 +185,7 @@ final class PharmacyCheckoutSubmitHandler {
     return <String, Object?>{
       'service_id': 'pharmacy',
       ..._buildCommonRequestFields(store),
-      'payload': _buildPharmacyOrderPayload(store),
+      'order': _buildPharmacyOrderPayload(store),
     };
   }
 
@@ -215,7 +215,7 @@ final class PharmacyCheckoutSubmitHandler {
   static Map<String, Object?> _buildPharmacyOrderPayload(
     SchemaStateStore store,
   ) {
-    final cartLines = <Map<String, Object?>>[];
+    final items = <Map<String, Object?>>[];
 
     final rawLines = store.getValue('pharmacy.cart.lines');
     final lines = _coerceListOfStringKeyedMaps(rawLines);
@@ -230,28 +230,10 @@ final class PharmacyCheckoutSubmitHandler {
           : int.tryParse('${quantityRaw ?? ''}') ?? 0;
       if (quantity <= 0) continue;
 
-      // Preserve the cart line record without remapping keys. Only coerce qty.
-      final out = <String, Object?>{};
-      for (final entry in line.entries) {
-        out[entry.key] = entry.value;
-      }
-      out['quantity'] = quantity;
-      cartLines.add(out);
+      items.add(<String, Object?>{'productId': id, 'quantity': quantity});
     }
 
-    final payload = <String, Object?>{'cart_lines': cartLines};
-
-    final summaryLines = _coerceListOfStringKeyedMaps(
-      store.getValue('pharmacy.cart.summary.lines'),
-    );
-    if (summaryLines.isNotEmpty) {
-      payload['summary_lines'] = summaryLines;
-    }
-
-    final summaryTotalRaw = store.getValue('pharmacy.cart.summary.total');
-    if (summaryTotalRaw is Map) {
-      payload['summary_total'] = _coerceStringKeyedMap(summaryTotalRaw);
-    }
+    final payload = <String, Object?>{'items': items};
 
     final uploadsRaw = store.getValue('pharmacy.cart.prescriptionUploads');
     if (uploadsRaw is List && uploadsRaw.isNotEmpty) {
@@ -264,7 +246,7 @@ final class PharmacyCheckoutSubmitHandler {
         }
       }
       if (ids.isNotEmpty) {
-        payload['prescription_upload_ids'] = ids;
+        payload['prescriptionAttachmentIds'] = ids;
       }
     }
 

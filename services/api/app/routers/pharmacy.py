@@ -14,6 +14,7 @@ from fastapi import File
 from fastapi import HTTPException
 from fastapi import Query
 from fastapi import UploadFile
+from pydantic import AliasChoices
 from pydantic import BaseModel
 from pydantic import Field
 from sqlalchemy import select
@@ -29,12 +30,15 @@ from app.models import (
     Attachment,
     Organization,
     Pharmacy,
+    PharmacyOrderDetail,
+    PharmacyOrderItem,
     PharmacyProduct,
     Product,
     RequestAttachment,
     ServiceRequest,
     User,
 )
+from app.settings import load_settings
 
 router = APIRouter(prefix="/v1/pharmacy", tags=["pharmacy"])
 
@@ -254,6 +258,79 @@ def _serialize_catalog_item(
     }
 
 
+def _parse_quantity(raw_quantity: Any) -> int:
+    if isinstance(raw_quantity, int):
+        return raw_quantity
+    if isinstance(raw_quantity, float):
+        return int(raw_quantity)
+    if isinstance(raw_quantity, str):
+        try:
+            return int(raw_quantity.strip())
+        except ValueError:
+            return 0
+    return 0
+
+
+def _load_selected_pharmacy(*, db: Session, pharmacy_id: uuid.UUID) -> Pharmacy:
+    pharmacy = db.scalar(
+        select(Pharmacy).where(
+            Pharmacy.id == pharmacy_id,
+            Pharmacy.status == "active",
+        )
+    )
+    if pharmacy is None:
+        raise HTTPException(status_code=400, detail="Unknown selected pharmacy")
+    return pharmacy
+
+
+def _resolve_default_pharmacy(*, db: Session) -> Pharmacy:
+    settings = load_settings()
+    configured_id = settings.default_pharmacy_id.strip()
+    if configured_id:
+        try:
+            pharmacy_id = uuid.UUID(configured_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=500,
+                detail="API_DEFAULT_PHARMACY_ID is invalid",
+            ) from exc
+        return _load_selected_pharmacy(db=db, pharmacy_id=pharmacy_id)
+
+    pharmacy = db.scalar(
+        select(Pharmacy)
+        .where(Pharmacy.status == "active")
+        .order_by(Pharmacy.created_at.asc(), Pharmacy.id.asc())
+    )
+    if pharmacy is None:
+        raise HTTPException(status_code=503, detail="No active pharmacy is configured")
+    return pharmacy
+
+
+def _load_pharmacy_product_offers(
+    *,
+    db: Session,
+    pharmacy_id: uuid.UUID,
+    product_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, tuple[Product, PharmacyProduct]]:
+    if not product_ids:
+        return {}
+
+    rows = list(
+        db.execute(
+            select(Product, PharmacyProduct)
+            .join(PharmacyProduct, PharmacyProduct.product_id == Product.id)
+            .where(
+                Product.id.in_(product_ids),
+                Product.status == "active",
+                PharmacyProduct.pharmacy_id == pharmacy_id,
+                PharmacyProduct.status == "active",
+                PharmacyProduct.stock_status.in_(("in_stock", "low_stock")),
+            )
+        )
+    )
+    return {product.id: (product, offer) for product, offer in rows}
+
+
 @router.get("/catalog")
 def pharmacy_catalog(
     db: Session = Depends(get_db),
@@ -335,29 +412,24 @@ class PaymentChoice(BaseModel):
     timing: str = Field(pattern=r"^(before_delivery|after_delivery)$")
 
 
-class SummaryLine(BaseModel):
-    id: str | None = Field(default=None, max_length=128)
-    label: str = Field(min_length=1, max_length=128)
-    amount: float | int = 0
-    amountText: str | None = Field(default=None, max_length=128)
-    kind: str | None = Field(default=None, max_length=64)
-    emphasis: str | None = Field(default=None, max_length=64)
-
-
-class SummaryTotal(BaseModel):
-    label: str = Field(min_length=1, max_length=128)
-    amount: float | int = 0
-    amountText: str | None = Field(default=None, max_length=128)
-    kind: str | None = Field(default=None, max_length=64)
-    emphasis: str | None = Field(default=None, max_length=64)
+class PharmacyOrderItemInput(BaseModel):
+    product_id: uuid.UUID = Field(
+        alias="productId",
+        validation_alias=AliasChoices("product_id", "productId"),
+    )
+    quantity: int = Field(ge=1)
 
 
 class PharmacyOrderPayload(BaseModel):
-    # Preserve the client-provided cart line record (same shape as catalog item + quantity).
-    cart_lines: list[dict[str, Any]] = Field(default_factory=list)
-    summary_lines: list[SummaryLine] = Field(default_factory=list)
-    summary_total: SummaryTotal | None = None
-    prescription_upload_ids: list[str] = Field(default_factory=list)
+    items: list[PharmacyOrderItemInput] = Field(default_factory=list)
+    prescription_attachment_ids: list[str] = Field(
+        default_factory=list,
+        alias="prescriptionAttachmentIds",
+        validation_alias=AliasChoices(
+            "prescription_attachment_ids",
+            "prescriptionAttachmentIds",
+        ),
+    )
 
 
 class CreatePharmacyOrderRequest(BaseModel):
@@ -365,7 +437,7 @@ class CreatePharmacyOrderRequest(BaseModel):
     delivery_location: Location | None = None
     payment: PaymentChoice | None = None
     notes: str | None = Field(default=None, max_length=500)
-    payload: PharmacyOrderPayload = Field(default_factory=PharmacyOrderPayload)
+    order: PharmacyOrderPayload = Field(default_factory=PharmacyOrderPayload)
 
 
 @router.post("/orders")
@@ -380,8 +452,11 @@ def create_pharmacy_order(
     if user is None:
         raise HTTPException(status_code=401, detail="Unknown user")
 
+    _ensure_catalog_seed_data(db)
+    selected_pharmacy = _resolve_default_pharmacy(db=db)
+
     ids: list[str] = []
-    for raw_id in payload.payload.prescription_upload_ids:
+    for raw_id in payload.order.prescription_attachment_ids:
         if not isinstance(raw_id, str):
             continue
         p = raw_id.strip()
@@ -403,59 +478,108 @@ def create_pharmacy_order(
         attachment_ids=attachment_ids,
     )
 
-    if not payload.payload.cart_lines and not attachments:
+    if not payload.order.items and not attachments:
         raise HTTPException(
             status_code=400,
-            detail="Order must include cart_lines or prescription_upload_ids",
+            detail="Order must include items or prescriptionAttachmentIds",
         )
 
-    cart_lines: list[dict[str, Any]] = []
-    for raw_line in payload.payload.cart_lines:
-        if not isinstance(raw_line, dict):
-            continue
-
-        qty_raw = raw_line.get("quantity")
-        if isinstance(qty_raw, int):
-            qty = qty_raw
-        elif isinstance(qty_raw, float):
-            qty = int(qty_raw)
-        elif isinstance(qty_raw, str):
-            try:
-                qty = int(qty_raw.strip())
-            except ValueError:
-                qty = 0
-        else:
-            qty = 0
-
+    product_ids_in_order: list[uuid.UUID] = []
+    normalized_items: list[PharmacyOrderItemInput] = []
+    for item in payload.order.items:
+        qty = _parse_quantity(item.quantity)
         if qty <= 0:
             continue
+        normalized_item = PharmacyOrderItemInput(product_id=item.product_id, quantity=qty)
+        normalized_items.append(normalized_item)
+        product_id = normalized_item.product_id
+        if product_id not in product_ids_in_order:
+            product_ids_in_order.append(product_id)
 
-        cart_lines.append({**raw_line, "quantity": qty})
+    offer_by_product_id = _load_pharmacy_product_offers(
+        db=db,
+        pharmacy_id=selected_pharmacy.id,
+        product_ids=product_ids_in_order,
+    )
+    missing_product_ids = [
+        str(product_id)
+        for product_id in product_ids_in_order
+        if product_id not in offer_by_product_id
+    ]
+    if missing_product_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Selected pharmacy does not offer one or more products",
+        )
+
+    currency_code = "USD"
+    subtotal_amount = Decimal("0.00")
+    discount_amount = Decimal("0.00")
+    fee_amount = Decimal("0.00")
+    tax_amount = Decimal("0.00")
+    order_items: list[PharmacyOrderItem] = []
+    for item in normalized_items:
+        product_id = item.product_id
+        quantity = item.quantity
+        product, offer = offer_by_product_id[product_id]
+        currency_code = offer.currency_code
+        unit_price = offer.price_amount
+        line_subtotal = unit_price * quantity
+        subtotal_amount += line_subtotal
+        order_items.append(
+            PharmacyOrderItem(
+                request_id=0,
+                product_id=product.id,
+                quantity=quantity,
+                product_name=product.name,
+                form=product.form,
+                strength=product.strength,
+                rx_required=product.rx_required,
+                seller_sku=offer.seller_sku,
+                unit_price_amount=unit_price,
+                line_subtotal_amount=line_subtotal,
+                line_discount_amount=None,
+                line_tax_amount=None,
+                line_total_amount=line_subtotal,
+            )
+        )
+
+    total_amount = subtotal_amount - discount_amount + fee_amount + tax_amount
 
     order = ServiceRequest(
         service_id=payload.service_id,
         customer_user_id=user.id,
         status="created",
         sub_status=_initial_pharmacy_sub_status(
-            cart_lines=cart_lines,
+            cart_lines=[
+                {"product_id": str(item.product_id), "rx_required": item.rx_required}
+                for item in order_items
+            ],
             prescription_upload_ids=[str(item.id) for item in attachments],
         ),
         notes=payload.notes,
         delivery_location_json=(payload.delivery_location.model_dump() if payload.delivery_location else None),
         payment_json=(payload.payment.model_dump() if payload.payment else None),
-        payload_json={
-            "cart_lines": cart_lines,
-            "summary_lines": [x.model_dump() for x in payload.payload.summary_lines],
-            "summary_total": (
-                payload.payload.summary_total.model_dump()
-                if payload.payload.summary_total
-                else None
-            ),
-            "prescription_upload_ids": [str(item.id) for item in attachments],
-        },
+        payload_json=None,
     )
     db.add(order)
     db.flush()
+
+    db.add(
+        PharmacyOrderDetail(
+            request_id=order.id,
+            selected_pharmacy_id=selected_pharmacy.id,
+            currency_code=currency_code,
+            subtotal_amount=subtotal_amount,
+            discount_amount=discount_amount,
+            fee_amount=fee_amount,
+            tax_amount=tax_amount,
+            total_amount=total_amount,
+        )
+    )
+    for order_item in order_items:
+        order_item.request_id = order.id
+        db.add(order_item)
 
     record_request_event(
         db,
@@ -502,7 +626,6 @@ def create_pharmacy_order(
             "notes": order.notes,
             "delivery_location": order.delivery_location_json,
             "payment": order.payment_json,
-            "payload": order.payload_json,
         }
     }
 

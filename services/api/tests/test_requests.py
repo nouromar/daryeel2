@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+import uuid
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -46,6 +48,109 @@ def _auth_header_for_user_id(user_id: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _seed_pharmacy_catalog(db) -> tuple[str, str]:
+    from app.models import Organization, Pharmacy, PharmacyProduct, Product
+
+    organization_id = uuid.UUID("018f2f22-0000-7000-8000-000000000001")
+    pharmacy_id = uuid.UUID("018f2f22-0000-7000-8000-000000000002")
+    product_id = uuid.UUID("018f2f22-0000-7000-8000-000000000101")
+
+    db.add(
+        Organization(
+            id=organization_id,
+            name="Normalized Pharmacy Group",
+            status="active",
+            country_code="SO",
+            city_name="Mogadishu",
+        )
+    )
+    db.add(
+        Pharmacy(
+            id=pharmacy_id,
+            organization_id=organization_id,
+            name="Normalized Branch",
+            branch_code="normalized-branch",
+            status="active",
+            address_text="Hodan",
+            country_code="SO",
+            city_name="Mogadishu",
+            zone_code="hodan",
+        )
+    )
+    db.add(
+        Product(
+            id=product_id,
+            name="Paracetamol 500mg",
+            generic_name="Paracetamol",
+            form="tablet",
+            strength="500mg",
+            rx_required=False,
+            status="active",
+        )
+    )
+    db.add(
+        PharmacyProduct(
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            price_amount=Decimal("1.00"),
+            currency_code="USD",
+            stock_status="in_stock",
+            status="active",
+        )
+    )
+    db.commit()
+    return str(pharmacy_id), str(product_id)
+
+
+def _add_pharmacy_order_rows(
+    db,
+    *,
+    request_id: int,
+    pharmacy_id: str,
+    product_id: str,
+    quantity: int = 1,
+    subtotal_amount: str = "1.00",
+    total_amount: str = "1.00",
+    product_name: str = "Paracetamol 500mg",
+    rx_required: bool = False,
+) -> None:
+    from app.ids import new_uuid7
+    from app.models import PharmacyOrderDetail, PharmacyOrderItem
+
+    db.add(
+        PharmacyOrderDetail(
+            request_id=request_id,
+            selected_pharmacy_id=uuid.UUID(pharmacy_id),
+            currency_code="USD",
+            subtotal_amount=Decimal(subtotal_amount),
+            discount_amount=Decimal("0.00"),
+            fee_amount=Decimal("0.00"),
+            tax_amount=Decimal("0.00"),
+            total_amount=Decimal(total_amount),
+        )
+    )
+    db.add(
+        PharmacyOrderItem(
+            id=new_uuid7(),
+            request_id=request_id,
+            product_id=uuid.UUID(product_id),
+            quantity=quantity,
+            product_name=product_name,
+            form="tablet",
+            strength="500mg",
+            rx_required=rx_required,
+            seller_sku=None,
+            unit_price_amount=(
+                Decimal(total_amount) / quantity if quantity > 0 else Decimal("0.00")
+            ),
+            line_subtotal_amount=Decimal(subtotal_amount),
+            line_discount_amount=None,
+            line_tax_amount=None,
+            line_total_amount=Decimal(total_amount),
+        )
+    )
+
+
 def test_requests_endpoint_buckets_active_and_history() -> None:
     _init_sqlite_db()
 
@@ -53,32 +158,42 @@ def test_requests_endpoint_buckets_active_and_history() -> None:
     from app.models import RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
         active_request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
             status="awaiting_info",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_paracetamol_500mg", "quantity": 2},
-                ],
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         history_request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
             status="completed",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_cetirizine_10mg", "quantity": 1},
-                ],
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         db.add(active_request)
         db.add(history_request)
         db.commit()
         db.refresh(active_request)
+        db.refresh(history_request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=active_request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=2,
+            subtotal_amount="2.00",
+            total_amount="2.00",
+        )
+        _add_pharmacy_order_rows(
+            db,
+            request_id=history_request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=1,
+            subtotal_amount="1.00",
+            total_amount="1.00",
+        )
         db.add(
             RequestEvent(
                 request_id=active_request.id,
@@ -118,27 +233,8 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
     import app.db as dbmod
     from app.models import RequestEvent, ServiceRequest
 
-    request_payload = {
-        "cart_lines": [
-            {
-                "id": "prod_paracetamol_500mg",
-                "name": "Paracetamol 500 mg",
-                "subtitle": "$1.00",
-                "price": 1.0,
-                "icon": "pharmacy",
-                "route": "",
-                "rx_required": False,
-                "quantity": 2,
-            },
-        ],
-        "summary_lines": [
-            {"id": "subtotal", "label": "Subtotal", "amount": 2, "amountText": "$2.00"},
-        ],
-        "summary_total": {"label": "Total", "amountText": "$2.00"},
-        "prescription_upload_ids": [],
-    }
-
     with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
@@ -146,11 +242,20 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
             notes="Leave at door",
             delivery_location_json={"text": "Hodan"},
             payment_json={"method": "cash", "timing": "after_delivery"},
-            payload_json=request_payload,
+            payload_json=None,
         )
         db.add(request)
         db.commit()
         db.refresh(request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=2,
+            subtotal_amount="2.00",
+            total_amount="2.00",
+        )
         db.add(
             RequestEvent(
                 request_id=request.id,
@@ -188,10 +293,144 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
     assert payload["serviceDetails"] == {
         "serviceId": "pharmacy",
         "isPharmacy": True,
-        "payload": request_payload,
+        "order": {
+            "items": [
+                {
+                    "productId": product_id,
+                    "name": "Paracetamol 500mg",
+                    "unitPriceAmount": 1.0,
+                    "unitPriceText": "$1.00",
+                    "rxRequired": False,
+                    "quantity": 2,
+                }
+            ],
+            "pricing": {
+                "currencyCode": "USD",
+                "lines": [
+                    {
+                        "id": "subtotal",
+                        "label": "Subtotal",
+                        "amount": 2.0,
+                        "amountText": "$2.00",
+                    }
+                ],
+                "total": {
+                    "label": "Total",
+                    "amount": 2.0,
+                    "amountText": "$2.00",
+                },
+            },
+            "prescriptionAttachments": [],
+        },
     }
     assert payload["timeline"][0]["title"] == "Requested"
     assert re.match(r"^[A-Z][a-z]{2} \d{2}$", payload["timeline"][0]["subtitle"])
+
+
+def test_request_detail_prefers_normalized_pharmacy_order_rows() -> None:
+    _init_sqlite_db()
+
+    import app.db as dbmod
+    from app.ids import new_uuid7
+    from app.models import PharmacyOrderDetail, PharmacyOrderItem, RequestEvent, ServiceRequest
+
+    with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
+        request = ServiceRequest(
+            service_id="pharmacy",
+            customer_user_id=1,
+            status="created",
+            payment_json={"method": "cash", "timing": "after_delivery"},
+            payload_json={
+                "cart_lines": [
+                    {"id": "legacy-product", "name": "Legacy payload row", "quantity": 99},
+                ],
+                "summary_total": {"label": "Total", "amountText": "$999.00"},
+                "prescription_upload_ids": [],
+            },
+        )
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+        db.add(
+            PharmacyOrderDetail(
+                request_id=request.id,
+                selected_pharmacy_id=uuid.UUID(pharmacy_id),
+                currency_code="USD",
+                subtotal_amount=Decimal("2.00"),
+                discount_amount=Decimal("0.00"),
+                fee_amount=Decimal("0.00"),
+                tax_amount=Decimal("0.00"),
+                total_amount=Decimal("2.00"),
+            )
+        )
+        db.add(
+            PharmacyOrderItem(
+                id=new_uuid7(),
+                request_id=request.id,
+                product_id=uuid.UUID(product_id),
+                quantity=2,
+                product_name="Paracetamol 500mg",
+                form="tablet",
+                strength="500mg",
+                rx_required=False,
+                seller_sku=None,
+                unit_price_amount=Decimal("1.00"),
+                line_subtotal_amount=Decimal("2.00"),
+                line_discount_amount=None,
+                line_tax_amount=None,
+                line_total_amount=Decimal("2.00"),
+            )
+        )
+        db.add(
+            RequestEvent(
+                request_id=request.id,
+                type="request_created",
+                from_status=None,
+                to_status="created",
+                actor_type="customer",
+                actor_id=1,
+                metadata_json=None,
+            )
+        )
+        db.commit()
+
+    client = TestClient(app)
+    res = client.get(
+        "/v1/requests/detail",
+        params={"requestId": 1},
+        headers=_auth_header_for_user_id(1),
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    service_payload = payload["serviceDetails"]["order"]
+    assert service_payload["items"] == [
+        {
+            "productId": product_id,
+            "name": "Paracetamol 500mg",
+            "unitPriceAmount": 1.0,
+            "unitPriceText": "$1.00",
+            "rxRequired": False,
+            "quantity": 2,
+        }
+    ]
+    assert service_payload["pricing"] == {
+        "currencyCode": "USD",
+        "lines": [
+            {
+                "id": "subtotal",
+                "label": "Subtotal",
+                "amount": 2.0,
+                "amountText": "$2.00",
+            }
+        ],
+        "total": {
+            "label": "Total",
+            "amount": 2.0,
+            "amountText": "$2.00",
+        },
+    }
 
 
 def test_request_detail_marks_recent_updates_for_non_created_latest_event() -> None:
@@ -205,12 +444,7 @@ def test_request_detail_marks_recent_updates_for_non_created_latest_event() -> N
             service_id="pharmacy",
             customer_user_id=1,
             status="assigned",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_paracetamol_500mg", "quantity": 1},
-                ],
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         db.add(request)
         db.commit()
@@ -266,12 +500,7 @@ def test_request_detail_returns_pending_action_for_prescription_upload() -> None
             customer_user_id=1,
             status="created",
             sub_status="awaiting_prescription",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_paracetamol_500mg", "quantity": 1},
-                ],
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         db.add(request)
         db.commit()
@@ -313,22 +542,26 @@ def test_request_detail_returns_pending_action_for_price_confirmation() -> None:
     from app.models import RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
             status="created",
             sub_status="awaiting_customer_confirmation",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_paracetamol_500mg", "quantity": 1},
-                ],
-                "summary_total": {"label": "Total", "amountText": "$7.00"},
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         db.add(request)
         db.commit()
         db.refresh(request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=1,
+            subtotal_amount="7.00",
+            total_amount="7.00",
+        )
         db.add(
             RequestEvent(
                 request_id=request.id,
@@ -368,22 +601,26 @@ def test_complete_request_action_approves_price_change() -> None:
     from app.models import RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
         request = ServiceRequest(
             service_id="pharmacy",
             customer_user_id=1,
             status="created",
             sub_status="awaiting_customer_confirmation",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_paracetamol_500mg", "quantity": 1},
-                ],
-                "summary_total": {"label": "Total", "amountText": "$7.00"},
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         db.add(request)
         db.commit()
         db.refresh(request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=1,
+            subtotal_amount="7.00",
+            total_amount="7.00",
+        )
         db.add(
             RequestEvent(
                 request_id=request.id,
@@ -432,12 +669,7 @@ def test_complete_request_action_uploads_prescription() -> None:
             customer_user_id=1,
             status="created",
             sub_status="awaiting_prescription",
-            payload_json={
-                "cart_lines": [
-                    {"product_id": "prod_paracetamol_500mg", "quantity": 1},
-                ],
-                "prescription_upload_ids": [],
-            },
+            payload_json=None,
         )
         db.add(request)
         db.commit()
@@ -477,10 +709,9 @@ def test_complete_request_action_uploads_prescription() -> None:
     assert payload["request"]["subStatus"] == "awaiting_branch_review"
     assert payload["pendingActions"] == []
     assert payload["request"]["hasUnreadUpdates"] is False
-    assert payload["serviceDetails"]["payload"]["prescription_upload_ids"] == [attachment_id]
-    assert payload["serviceDetails"]["payload"]["prescription_uploads"] == [
+    assert payload["serviceDetails"]["order"]["prescriptionAttachments"] == [
         {
-            "id": attachment_id,
+            "attachmentId": attachment_id,
             "filename": "rx-123.jpg",
         }
     ]

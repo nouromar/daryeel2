@@ -14,7 +14,7 @@
         {
           "type": "SectionCard",
           "visibleWhen": {
-            "expr": "len(data.serviceDetails.payload.cart_lines) > 0"
+            "expr": "len(data.serviceDetails.order.items) > 0"
           },
           "props": {
             "title": "Items",
@@ -30,7 +30,7 @@
               {
                 "type": "ForEach",
                 "props": {
-                  "itemsPath": "serviceDetails.payload.cart_lines"
+                  "itemsPath": "serviceDetails.order.items"
                 },
                 "slots": {
                   "item": [
@@ -39,8 +39,8 @@
                       "props": {
                         "title": "${item.name}",
                         "quantity": "${item.quantity}",
-                        "unitPriceText": "$${item.price}",
-                        "rxRequired": "${item.rx_required}",
+                        "unitPriceText": "${item.unitPriceText}",
+                        "rxRequired": "${item.rxRequired}",
                         "surface": "flat",
                         "density": "compact"
                       }
@@ -48,7 +48,7 @@
                     {
                       "type": "Gap",
                       "visibleWhen": {
-                        "expr": "index < len(data.serviceDetails.payload.cart_lines) - 1"
+                        "expr": "index < len(data.serviceDetails.order.items) - 1"
                       },
                       "props": { "height": 2}
                     }
@@ -61,19 +61,19 @@
         {
           "type": "CartSummary",
           "visibleWhen": {
-            "expr": "data.serviceDetails.payload.summary_total != null"
+            "expr": "data.serviceDetails.order.pricing != null && data.serviceDetails.order.pricing.total != null"
           },
           "props": {
             "title": "Summary",
-            "linesPath": "serviceDetails.payload.summary_lines",
-            "totalPath": "serviceDetails.payload.summary_total",
+            "linesPath": "serviceDetails.order.pricing.lines",
+            "totalPath": "serviceDetails.order.pricing.total",
             "surface": "subtle"
           }
         },
         {
           "type": "SectionCard",
           "visibleWhen": {
-            "expr": "len(data.serviceDetails.payload.prescription_uploads) > 0"
+            "expr": "len(data.serviceDetails.order.prescriptionAttachments) > 0"
           },
           "props": {
             "title": "Prescription",
@@ -89,7 +89,7 @@
               {
                 "type": "ForEach",
                 "props": {
-                  "itemsPath": "serviceDetails.payload.prescription_uploads"
+                  "itemsPath": "serviceDetails.order.prescriptionAttachments"
                 },
                 "slots": {
                   "item": [
@@ -105,7 +105,7 @@
                     {
                       "type": "Gap",
                       "visibleWhen": {
-                        "expr": "index < len(data.serviceDetails.payload.prescription_uploads) - 1"
+                        "expr": "index < len(data.serviceDetails.order.prescriptionAttachments) - 1"
                       },
                       "props": { "height": 6 }
                     }

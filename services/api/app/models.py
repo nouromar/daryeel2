@@ -366,3 +366,75 @@ class PharmacyProduct(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class PharmacyOrderDetail(Base):
+    __tablename__ = "pharmacy_order_details"
+    __table_args__ = (
+        Index("ix_pharmacy_order_details_selected_pharmacy_id", "selected_pharmacy_id"),
+    )
+
+    request_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("service_requests.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    selected_pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(),
+        ForeignKey("pharmacies.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    currency_code: Mapped[str] = mapped_column(String(3), nullable=False)
+    subtotal_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    discount_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    fee_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
+class PharmacyOrderItem(Base):
+    __tablename__ = "pharmacy_order_items"
+    __table_args__ = (
+        Index("ix_pharmacy_order_items_request_id", "request_id"),
+        Index("ix_pharmacy_order_items_product_id", "product_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(),
+        primary_key=True,
+        default=new_uuid7,
+    )
+    request_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("service_requests.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(),
+        ForeignKey("products.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    product_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    form: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    strength: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    rx_required: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    seller_sku: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    unit_price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    line_subtotal_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    line_discount_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    line_tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    line_total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

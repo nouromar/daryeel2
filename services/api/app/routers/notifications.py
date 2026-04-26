@@ -97,6 +97,7 @@ def list_notifications(
     items: list[dict[str, Any]] = []
     for req in requests:
         summary = requests_router._serialize_request_summary(
+            db,
             req,
             latest_event=latest_by_id.get(req.id),
         )

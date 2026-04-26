@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Backing services
     database_url: str = ""  # Use DATABASE_URL env var (not prefixed) in Docker.
     redis_url: str = ""
+    default_pharmacy_id: str = ""
 
     # Auth (dev-only OTP for now)
     auth_secret: str = "dev-insecure-secret"

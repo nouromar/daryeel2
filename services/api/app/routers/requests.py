@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 import uuid
 from typing import Any, Literal
 
@@ -20,6 +21,8 @@ from app.events.types import ATTACHMENT_ADDED
 from app.events.types import CUSTOMER_CONFIRMATION_RESOLVED
 from app.events.types import REQUEST_CREATED
 from app.models import Attachment
+from app.models import PharmacyOrderDetail
+from app.models import PharmacyOrderItem
 from app.models import RequestEvent
 from app.models import RequestAttachment
 from app.models import ServiceRequest
@@ -64,7 +67,8 @@ def list_customer_requests(
 
     for request in rows:
         item = _serialize_request_summary(
-            request,
+            db=db,
+            request=request,
             latest_event=latest_events.get(request.id),
         )
         if request.status in _TERMINAL_REQUEST_STATUSES:
@@ -80,11 +84,16 @@ def list_customer_requests(
 
 
 def _serialize_request_summary(
+    db: Session,
     request: ServiceRequest,
     *,
     latest_event: RequestEvent | None = None,
 ) -> dict[str, Any]:
-    pending_actions = _derive_pending_actions(request=request, latest_event=latest_event)
+    pending_actions = _derive_pending_actions(
+        db=db,
+        request=request,
+        latest_event=latest_event,
+    )
     attention = _attention_metadata(
         request=request,
         latest_event=latest_event,
@@ -93,7 +102,7 @@ def _serialize_request_summary(
     service_label = _service_label(request.service_id)
     status_label = _display_state_label(request)
     created_label = _format_created_at(request.created_at)
-    details_label = _request_details_label(request)
+    details_label = _request_details_label(db=db, request=request)
 
     subtitle_parts: list[str] = []
     if attention["summaryPrefixText"] is not None:
@@ -156,7 +165,11 @@ def complete_customer_request_action(
     request = _load_customer_request(db=db, user_id=user_id, request_id=request_id)
 
     latest_event = _latest_event_for_request(db=db, request_id=request.id)
-    pending_actions = _derive_pending_actions(request=request, latest_event=latest_event)
+    pending_actions = _derive_pending_actions(
+        db=db,
+        request=request,
+        latest_event=latest_event,
+    )
     matched = next((item for item in pending_actions if item["id"] == action_id), None)
     if matched is None:
         raise HTTPException(status_code=409, detail="Action is not available")
@@ -204,13 +217,17 @@ def _serialize_request_detail(
         )
     )
     latest_event = events[-1] if events else None
-    pending_actions = _derive_pending_actions(request=request, latest_event=latest_event)
+    pending_actions = _derive_pending_actions(
+        db=db,
+        request=request,
+        latest_event=latest_event,
+    )
     attention = _attention_metadata(
         request=request,
         latest_event=latest_event,
         pending_action_count=len(pending_actions),
     )
-    summary = _serialize_request_summary(request, latest_event=latest_event)
+    summary = _serialize_request_summary(db, request, latest_event=latest_event)
 
     return {
         "request": {
@@ -392,10 +409,10 @@ def _attention_metadata(
 
 def _derive_pending_actions(
     *,
+    db: Session,
     request: ServiceRequest,
     latest_event: RequestEvent | None,
 ) -> list[dict[str, Any]]:
-    payload = request.payload_json if isinstance(request.payload_json, dict) else {}
     latest_metadata = (
         latest_event.metadata_json
         if latest_event is not None and isinstance(latest_event.metadata_json, dict)
@@ -405,8 +422,9 @@ def _derive_pending_actions(
 
     if request.service_id == "pharmacy":
         return _derive_pharmacy_pending_actions(
+            db=db,
+            request=request,
             workflow_state=workflow_state,
-            payload=payload,
             latest_metadata=latest_metadata,
         )
 
@@ -453,16 +471,19 @@ def _derive_generic_pending_actions(
 
 def _derive_pharmacy_pending_actions(
     *,
+    db: Session,
+    request: ServiceRequest,
     workflow_state: str,
-    payload: dict[str, Any],
     latest_metadata: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    upload_ids = payload.get("prescription_upload_ids")
-    has_uploads = isinstance(upload_ids, list) and bool(upload_ids)
-    summary_total = payload.get("summary_total")
-    amount_text = None
-    if isinstance(summary_total, dict):
-        amount_text = _first_non_empty_string(summary_total.get("amountText"))
+    attachments = _load_request_prescription_attachments(db=db, request_id=request.id)
+    has_uploads = bool(attachments)
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    amount_text = (
+        _format_money(amount=detail.total_amount, currency_code=detail.currency_code)
+        if detail is not None
+        else None
+    )
 
     confirmation_type = _first_non_empty_string(
         latest_metadata.get("confirmationType"),
@@ -534,15 +555,10 @@ def _service_details(*, db: Session, request: ServiceRequest) -> dict[str, Any]:
     payload = request.payload_json if isinstance(request.payload_json, dict) else {}
 
     if request.service_id == "pharmacy":
-        enriched_payload = _enrich_pharmacy_payload_with_prescription_uploads(
-            db,
-            request=request,
-            payload=payload,
-        )
         return {
             "serviceId": request.service_id,
             "isPharmacy": True,
-            "payload": enriched_payload,
+            "order": _serialize_pharmacy_service_details(db=db, request=request),
         }
 
     return {
@@ -552,42 +568,165 @@ def _service_details(*, db: Session, request: ServiceRequest) -> dict[str, Any]:
     }
 
 
-def _enrich_pharmacy_payload_with_prescription_uploads(
-    db: Session,
+def _serialize_pharmacy_service_details(
     *,
+    db: Session,
     request: ServiceRequest,
-    payload: dict[str, Any],
 ) -> dict[str, Any]:
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    items = _load_pharmacy_order_items(db=db, request_id=request.id)
+    attachments = _load_request_prescription_attachments(db=db, request_id=request.id)
+
+    pricing = None
+    if detail is not None and (
+        items
+        or detail.subtotal_amount != Decimal("0.00")
+        or detail.discount_amount != Decimal("0.00")
+        or detail.fee_amount != Decimal("0.00")
+        or detail.tax_amount != Decimal("0.00")
+        or detail.total_amount != Decimal("0.00")
+    ):
+        pricing = {
+            "currencyCode": detail.currency_code,
+            "lines": _serialize_pharmacy_order_summary_lines(detail=detail),
+            "total": _serialize_pharmacy_order_summary_total(detail=detail),
+        }
+
+    return {
+        "items": [
+            _serialize_pharmacy_order_item(
+                item=item,
+                currency_code=detail.currency_code if detail is not None else "USD",
+            )
+            for item in items
+        ],
+        "pricing": pricing,
+        "prescriptionAttachments": attachments,
+    }
+
+
+def _format_money(*, amount: Decimal | float | int, currency_code: str) -> str:
+    normalized = amount if isinstance(amount, Decimal) else Decimal(str(amount))
+    if currency_code.upper() == "USD":
+        return f"${normalized:.2f}"
+    return f"{currency_code.upper()} {normalized:.2f}"
+
+
+def _serialize_pharmacy_order_item(
+    *,
+    item: PharmacyOrderItem,
+    currency_code: str,
+) -> dict[str, Any]:
+    return {
+        "productId": str(item.product_id),
+        "name": item.product_name,
+        "unitPriceAmount": float(item.unit_price_amount),
+        "unitPriceText": _format_money(
+            amount=item.unit_price_amount,
+            currency_code=currency_code,
+        ),
+        "rxRequired": item.rx_required,
+        "quantity": item.quantity,
+    }
+
+
+def _serialize_pharmacy_order_summary_lines(
+    *,
+    detail: PharmacyOrderDetail,
+) -> list[dict[str, Any]]:
+    lines: list[dict[str, Any]] = [
+        {
+            "id": "subtotal",
+            "label": "Subtotal",
+            "amount": float(detail.subtotal_amount),
+            "amountText": _format_money(
+                amount=detail.subtotal_amount,
+                currency_code=detail.currency_code,
+            ),
+        }
+    ]
+    for line_id, label, amount in (
+        ("discount", "Discount", detail.discount_amount),
+        ("fees", "Fees", detail.fee_amount),
+        ("tax", "Tax", detail.tax_amount),
+    ):
+        if amount == Decimal("0.00"):
+            continue
+        lines.append(
+            {
+                "id": line_id,
+                "label": label,
+                "amount": float(amount),
+                "amountText": _format_money(
+                    amount=amount,
+                    currency_code=detail.currency_code,
+                ),
+            }
+        )
+    return lines
+
+
+def _serialize_pharmacy_order_summary_total(
+    *,
+    detail: PharmacyOrderDetail,
+) -> dict[str, Any]:
+    return {
+        "label": "Total",
+        "amount": float(detail.total_amount),
+        "amountText": _format_money(
+            amount=detail.total_amount,
+            currency_code=detail.currency_code,
+        ),
+    }
+
+
+def _load_request_prescription_attachments(
+    *,
+    db: Session,
+    request_id: int,
+) -> list[dict[str, Any]]:
     rows = db.execute(
         select(RequestAttachment, Attachment)
         .join(Attachment, Attachment.id == RequestAttachment.attachment_id)
         .where(
-            RequestAttachment.request_id == request.id,
+            RequestAttachment.request_id == request_id,
             RequestAttachment.attachment_type == "prescription",
             RequestAttachment.status == "active",
         )
         .order_by(RequestAttachment.created_at.asc(), RequestAttachment.id.asc())
     ).all()
+    return [
+        {
+            "attachmentId": str(attachment.id),
+            "filename": (attachment.filename or str(attachment.id)).strip()
+            or str(attachment.id),
+        }
+        for _, attachment in rows
+    ]
 
-    if not rows:
-        return payload
 
-    uploads: list[dict[str, Any]] = []
-    upload_ids: list[str] = []
-    for request_attachment, attachment in rows:
-        attachment_id = str(attachment.id)
-        upload_ids.append(attachment_id)
-        uploads.append(
-            {
-                "id": attachment_id,
-                "filename": (attachment.filename or attachment_id).strip() or attachment_id,
-            }
+def _load_pharmacy_order_detail(
+    *,
+    db: Session,
+    request_id: int,
+) -> PharmacyOrderDetail | None:
+    return db.scalar(
+        select(PharmacyOrderDetail).where(PharmacyOrderDetail.request_id == request_id)
+    )
+
+
+def _load_pharmacy_order_items(
+    *,
+    db: Session,
+    request_id: int,
+) -> list[PharmacyOrderItem]:
+    return list(
+        db.scalars(
+            select(PharmacyOrderItem)
+            .where(PharmacyOrderItem.request_id == request_id)
+            .order_by(PharmacyOrderItem.created_at.asc(), PharmacyOrderItem.id.asc())
         )
-
-    out = dict(payload)
-    out["prescription_upload_ids"] = upload_ids
-    out["prescription_uploads"] = uploads
-    return out
+    )
 
 
 def _normalize_attachment_ids(values: Any) -> list[uuid.UUID]:
@@ -837,34 +976,13 @@ def _apply_pharmacy_request_action(
             db=db,
             attachment_ids=attachment_ids,
         )
-        linked_upload_ids = _link_prescription_attachments(
+        _link_prescription_attachments(
             db=db,
             request=request,
             attachments=attachments,
             actor_type="customer",
             actor_id=user_id,
         )
-
-        request_payload = (
-            dict(request.payload_json)
-            if isinstance(request.payload_json, dict)
-            else {}
-        )
-        existing_upload_ids = request_payload.get("prescription_upload_ids")
-        merged_upload_ids = (
-            [
-                item.strip()
-                for item in existing_upload_ids
-                if isinstance(item, str) and item.strip()
-            ]
-            if isinstance(existing_upload_ids, list)
-            else []
-        )
-        for upload_id in linked_upload_ids:
-            if upload_id not in merged_upload_ids:
-                merged_upload_ids.append(upload_id)
-        request_payload["prescription_upload_ids"] = merged_upload_ids
-        request.payload_json = request_payload
 
         request.sub_status = "awaiting_branch_review"
         db.add(request)
@@ -926,28 +1044,13 @@ def _request_detail_subtitle(request: ServiceRequest) -> str:
     )
 
 
-def _request_details_label(request: ServiceRequest) -> str | None:
-    payload = request.payload_json if isinstance(request.payload_json, dict) else None
-    if request.service_id == "pharmacy" and payload is not None:
-        cart_lines = payload.get("cart_lines")
-        if isinstance(cart_lines, list) and cart_lines:
-            total_quantity = 0
-            for line in cart_lines:
-                if not isinstance(line, dict):
-                    continue
-                raw_quantity = line.get("quantity")
-                if isinstance(raw_quantity, int):
-                    total_quantity += raw_quantity
-                elif isinstance(raw_quantity, float):
-                    total_quantity += int(raw_quantity)
-                elif isinstance(raw_quantity, str):
-                    try:
-                        total_quantity += int(raw_quantity.strip())
-                    except ValueError:
-                        pass
-            if total_quantity > 0:
-                return f"{total_quantity} item{'s' if total_quantity != 1 else ''}"
-        upload_ids = payload.get("prescription_upload_ids")
-        if isinstance(upload_ids, list) and upload_ids:
-            return f"{len(upload_ids)} prescription{'s' if len(upload_ids) != 1 else ''}"
+def _request_details_label(*, db: Session, request: ServiceRequest) -> str | None:
+    if request.service_id == "pharmacy":
+        items = _load_pharmacy_order_items(db=db, request_id=request.id)
+        total_quantity = sum(item.quantity for item in items)
+        if total_quantity > 0:
+            return f"{total_quantity} item{'s' if total_quantity != 1 else ''}"
+        uploads = _load_request_prescription_attachments(db=db, request_id=request.id)
+        if uploads:
+            return f"{len(uploads)} prescription{'s' if len(uploads) != 1 else ''}"
     return None

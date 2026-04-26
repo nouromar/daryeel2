@@ -45,6 +45,13 @@ def _auth_header_for_user_id(user_id: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _catalog_item_by_name(client: TestClient, name: str) -> dict[str, object]:
+    res = client.get("/v1/pharmacy/catalog")
+    assert res.status_code == 200
+    items = res.json()["items"]
+    return next(item for item in items if item["name"] == name)
+
+
 def test_create_pharmacy_order_requires_cart_or_prescription() -> None:
     _init_sqlite_db()
     client = TestClient(app)
@@ -54,9 +61,9 @@ def test_create_pharmacy_order_requires_cart_or_prescription() -> None:
         headers=_auth_header_for_user_id(1),
         json={
             "service_id": "pharmacy",
-            "payload": {
-                "cart_lines": [],
-                "prescription_upload_ids": [],
+            "order": {
+                "items": [],
+                "prescriptionAttachmentIds": [],
             },
         },
     )
@@ -67,6 +74,7 @@ def test_create_pharmacy_order_requires_cart_or_prescription() -> None:
 def test_create_pharmacy_order_creates_request_and_event() -> None:
     _init_sqlite_db()
     client = TestClient(app)
+    paracetamol = _catalog_item_by_name(client, "Paracetamol 500mg")
 
     res = client.post(
         "/v1/pharmacy/orders",
@@ -76,24 +84,14 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
             "delivery_location": {"text": "Hodan", "lat": 2.046934, "lng": 45.318162, "accuracy_m": 15},
             "payment": {"method": "cash", "timing": "after_delivery"},
             "notes": "Leave at door",
-            "payload": {
-                "cart_lines": [
+            "order": {
+                "items": [
                     {
-                        "id": "prod_paracetamol_500mg",
-                        "name": "Paracetamol 500mg",
-                        "price": 1.0,
-                        "subtitle": "$1.00",
-                        "rx_required": False,
-                        "icon": "pharmacy",
-                        "route": "",
+                        "productId": paracetamol["id"],
                         "quantity": 2,
-                    }
+                    },
                 ],
-                "summary_lines": [
-                    {"id": "subtotal", "label": "Subtotal", "amount": 2, "amountText": "$2.00"}
-                ],
-                "summary_total": {"label": "Total", "amount": 2, "amountText": "$2.00"},
-                "prescription_upload_ids": [],
+                "prescriptionAttachmentIds": [],
             },
         },
     )
@@ -112,7 +110,7 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
 
     from sqlalchemy import select
 
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderDetail, PharmacyOrderItem, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         sr = db.scalar(select(ServiceRequest).where(ServiceRequest.id == int(order["id"])))
@@ -122,13 +120,21 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         assert sr.notes == "Leave at door"
         assert sr.payment_json == {"method": "cash", "timing": "after_delivery"}
         assert sr.delivery_location_json["text"] == "Hodan"
-        assert sr.payload_json["summary_total"]["label"] == "Total"
-        assert sr.payload_json["cart_lines"][0]["id"] == "prod_paracetamol_500mg"
-        assert sr.payload_json["cart_lines"][0]["quantity"] == 2
-        assert sr.payload_json["cart_lines"][0]["price"] == 1.0
-        assert sr.payload_json["cart_lines"][0]["subtitle"] == "$1.00"
-        assert sr.payload_json["cart_lines"][0]["icon"] == "pharmacy"
-        assert sr.payload_json["cart_lines"][0]["route"] == ""
+        assert sr.payload_json is None
+        detail = db.scalar(
+            select(PharmacyOrderDetail).where(PharmacyOrderDetail.request_id == sr.id)
+        )
+        assert detail is not None
+        assert float(detail.subtotal_amount) == 2.0
+        assert float(detail.total_amount) == 2.0
+        item = db.scalar(
+            select(PharmacyOrderItem).where(PharmacyOrderItem.request_id == sr.id)
+        )
+        assert item is not None
+        assert str(item.product_id) == paracetamol["id"]
+        assert item.quantity == 2
+        assert float(item.unit_price_amount) == 1.0
+        assert float(item.line_total_amount) == 2.0
 
         ev = db.scalar(select(RequestEvent).where(RequestEvent.request_id == sr.id))
         assert ev is not None
@@ -142,26 +148,21 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
 def test_create_pharmacy_order_sets_awaiting_prescription_for_rx_only_cart() -> None:
     _init_sqlite_db()
     client = TestClient(app)
+    amoxicillin = _catalog_item_by_name(client, "Amoxicillin 500mg")
 
     res = client.post(
         "/v1/pharmacy/orders",
         headers=_auth_header_for_user_id(1),
         json={
             "service_id": "pharmacy",
-            "payload": {
-                "cart_lines": [
+            "order": {
+                "items": [
                     {
-                        "id": "prod_amoxicillin_500mg",
-                        "name": "Amoxicillin 500mg",
-                        "price": 3.5,
-                        "subtitle": "$3.50",
-                        "rx_required": True,
-                        "icon": "pharmacy",
-                        "route": "",
+                        "productId": amoxicillin["id"],
                         "quantity": 1,
                     }
                 ],
-                "prescription_upload_ids": [],
+                "prescriptionAttachmentIds": [],
             },
         },
     )
@@ -173,6 +174,8 @@ def test_create_pharmacy_order_sets_awaiting_prescription_for_rx_only_cart() -> 
 
 def test_create_pharmacy_order_links_prescription_attachments() -> None:
     _init_sqlite_db()
+    client = TestClient(app)
+    _catalog_item_by_name(client, "Paracetamol 500mg")
 
     import app.db as dbmod
 
@@ -192,15 +195,14 @@ def test_create_pharmacy_order_links_prescription_attachments() -> None:
         db.refresh(attachment)
         attachment_id = str(attachment.id)
 
-    client = TestClient(app)
     res = client.post(
         "/v1/pharmacy/orders",
         headers=_auth_header_for_user_id(1),
         json={
             "service_id": "pharmacy",
-            "payload": {
-                "cart_lines": [],
-                "prescription_upload_ids": [attachment_id],
+            "order": {
+                "items": [],
+                "prescriptionAttachmentIds": [attachment_id],
             },
         },
     )
@@ -209,18 +211,23 @@ def test_create_pharmacy_order_links_prescription_attachments() -> None:
 
     from sqlalchemy import select
 
-    from app.models import RequestAttachment, ServiceRequest
+    from app.models import PharmacyOrderDetail, RequestAttachment, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         request = db.scalar(select(ServiceRequest).where(ServiceRequest.id == 1))
         assert request is not None
+        detail = db.scalar(
+            select(PharmacyOrderDetail).where(PharmacyOrderDetail.request_id == request.id)
+        )
+        assert detail is not None
+        assert float(detail.total_amount) == 0.0
         request_attachment = db.scalar(
             select(RequestAttachment).where(RequestAttachment.request_id == request.id)
         )
         assert request_attachment is not None
         assert request_attachment.attachment_type == "prescription"
         assert str(request_attachment.attachment_id) == attachment_id
-        assert request.payload_json["prescription_upload_ids"] == [attachment_id]
+        assert request.payload_json is None
 
 
 def test_pharmacy_checkout_options_returns_payment_methods_and_timings() -> None:

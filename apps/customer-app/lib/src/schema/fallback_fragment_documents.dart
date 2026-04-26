@@ -225,7 +225,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
           {
             'type': 'Column',
             'visibleWhen': {
-              'valuePath': 'serviceDetails.payload.cart_lines',
+              'valuePath': 'serviceDetails.order.items',
               'op': 'isNotEmpty',
             },
             'props': {
@@ -254,17 +254,16 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                 },
                 {
                   'type': 'ForEach',
-                  'props': {'itemsPath': 'serviceDetails.payload.cart_lines'},
+                  'props': {'itemsPath': 'serviceDetails.order.items'},
                   'slots': {
                     'item': [
                       {
                         'type': 'CartItem',
                         'props': {
                           'title': r'${item.name}',
-                          'subtitle': r'${item.subtitle}',
                           'quantity': r'${item.quantity}',
-                          'unitPriceText': r'$${item.price}',
-                          'rxRequired': r'${item.rx_required}',
+                          'unitPriceText': r'${item.unitPriceText}',
+                          'rxRequired': r'${item.rxRequired}',
                           'readonly': true,
                           'surface': 'flat',
                           'density': 'compact',
@@ -274,7 +273,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         'type': 'Gap',
                         'visibleWhen': {
                           'expr':
-                              'index < len(data.serviceDetails.payload.cart_lines) - 1',
+                              'index < len(data.serviceDetails.order.items) - 1',
                         },
                         'props': {'height': 4},
                       },
@@ -287,20 +286,20 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
           {
             'type': 'CartSummary',
             'visibleWhen': {
-              'valuePath': 'serviceDetails.payload.summary_total',
-              'op': 'isNotNull',
+              'expr':
+                  'data.serviceDetails.order.pricing != null && data.serviceDetails.order.pricing.total != null',
             },
             'props': {
               'title': 'Summary',
-              'linesPath': 'serviceDetails.payload.summary_lines',
-              'totalPath': 'serviceDetails.payload.summary_total',
+              'linesPath': 'serviceDetails.order.pricing.lines',
+              'totalPath': 'serviceDetails.order.pricing.total',
               'surface': 'subtle',
             },
           },
           {
             'type': 'SectionCard',
             'visibleWhen': {
-              'valuePath': 'serviceDetails.payload.prescription_uploads',
+              'valuePath': 'serviceDetails.order.prescriptionAttachments',
               'op': 'isNotEmpty',
             },
             'props': {
@@ -317,7 +316,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                 {
                   'type': 'ForEach',
                   'props': {
-                    'itemsPath': 'serviceDetails.payload.prescription_uploads',
+                    'itemsPath': 'serviceDetails.order.prescriptionAttachments',
                   },
                   'slots': {
                     'item': [
@@ -334,7 +333,7 @@ const fallbackFragmentDocuments = <String, Map<String, Object?>>{
                         'type': 'Gap',
                         'visibleWhen': {
                           'expr':
-                              'index < len(data.serviceDetails.payload.prescription_uploads) - 1',
+                              'index < len(data.serviceDetails.order.prescriptionAttachments) - 1',
                         },
                         'props': {'height': 6},
                       },
