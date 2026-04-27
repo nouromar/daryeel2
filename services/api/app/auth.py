@@ -5,9 +5,12 @@ import hashlib
 import hmac
 import json
 import time
+import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -24,15 +27,29 @@ class AccessTokenPayload:
     sub: str
     phone: str
     exp: int
+    sid: str | None = None
 
 
-def create_access_token(*, secret: str, user_id: int, phone: str, ttl_seconds: int) -> str:
+def hash_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def create_access_token(
+    *,
+    secret: str,
+    user_id: int,
+    phone: str,
+    ttl_seconds: int,
+    session_id: str | None = None,
+) -> str:
     now = int(time.time())
     payload = {
         "sub": str(user_id),
         "phone": phone,
         "exp": now + max(1, int(ttl_seconds)),
     }
+    if session_id:
+        payload["sid"] = str(session_id)
 
     # Minimal JWT-like token: base64url(header).base64url(payload).base64url(signature)
     header = {"alg": "HS256", "typ": "JWT"}
@@ -48,7 +65,12 @@ def create_access_token(*, secret: str, user_id: int, phone: str, ttl_seconds: i
     return f"{header_b64}.{payload_b64}.{sig_b64}"
 
 
-def verify_bearer_token(*, secret: str, authorization_header: str) -> AccessTokenPayload:
+def verify_bearer_token(
+    *,
+    secret: str,
+    authorization_header: str,
+    db: Session | None = None,
+) -> AccessTokenPayload:
     if not authorization_header:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
 
@@ -83,6 +105,7 @@ def verify_bearer_token(*, secret: str, authorization_header: str) -> AccessToke
     sub = str(payload.get("sub", ""))
     phone = str(payload.get("phone", ""))
     exp = payload.get("exp")
+    sid = payload.get("sid")
     if not sub or not phone or not isinstance(exp, int):
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -90,4 +113,32 @@ def verify_bearer_token(*, secret: str, authorization_header: str) -> AccessToke
     if exp <= now:
         raise HTTPException(status_code=401, detail="Token expired")
 
-    return AccessTokenPayload(sub=sub, phone=phone, exp=exp)
+    session_id = None
+    if sid is not None:
+        if not isinstance(sid, str) or not sid:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        session_id = sid
+
+    if db is not None and session_id is not None:
+        from app.models import AuthSession
+
+        try:
+            session_key = uuid.UUID(session_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+        session = db.get(AuthSession, session_key)
+        if session is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        if session.revoked_at is not None:
+            raise HTTPException(status_code=401, detail="Session revoked")
+
+        session_expires_at = session.expires_at
+        if session_expires_at.tzinfo is None:
+            session_expires_at = session_expires_at.replace(tzinfo=UTC)
+        if session_expires_at <= datetime.now(UTC):
+            raise HTTPException(status_code=401, detail="Token expired")
+        if session.session_token_hash != hash_token(token):
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+    return AccessTokenPayload(sub=sub, phone=phone, exp=exp, sid=session_id)

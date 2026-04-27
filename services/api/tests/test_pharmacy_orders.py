@@ -110,7 +110,13 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
 
     from sqlalchemy import select
 
-    from app.models import PharmacyOrderDetail, PharmacyOrderItem, RequestEvent, ServiceRequest
+    from app.models import (
+        PharmacyOrderAssignment,
+        PharmacyOrderDetail,
+        PharmacyOrderItem,
+        RequestEvent,
+        ServiceRequest,
+    )
 
     with dbmod.SessionLocal() as db:
         sr = db.scalar(select(ServiceRequest).where(ServiceRequest.id == int(order["id"])))
@@ -120,7 +126,16 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         assert sr.notes == "Leave at door"
         assert sr.payment_json == {"method": "cash", "timing": "after_delivery"}
         assert sr.delivery_location_json["text"] == "Hodan"
-        assert sr.payload_json is None
+        assert sr.payload_json == {
+            "submittedOrder": {
+                "items": [
+                    {
+                        "productId": paracetamol["id"],
+                        "quantity": 2,
+                    }
+                ]
+            }
+        }
         detail = db.scalar(
             select(PharmacyOrderDetail).where(PharmacyOrderDetail.request_id == sr.id)
         )
@@ -135,8 +150,22 @@ def test_create_pharmacy_order_creates_request_and_event() -> None:
         assert item.quantity == 2
         assert float(item.unit_price_amount) == 1.0
         assert float(item.line_total_amount) == 2.0
+        assignment = db.scalar(
+            select(PharmacyOrderAssignment).where(
+                PharmacyOrderAssignment.request_id == sr.id
+            )
+        )
+        assert assignment is not None
+        assert assignment.assignment_kind == "branch_fulfillment"
+        assert assignment.status == "active"
+        assert assignment.attempt_no == 1
 
-        ev = db.scalar(select(RequestEvent).where(RequestEvent.request_id == sr.id))
+        ev = db.scalar(
+            select(RequestEvent).where(
+                RequestEvent.request_id == sr.id,
+                RequestEvent.type == "request_created",
+            )
+        )
         assert ev is not None
         assert ev.type == "request_created"
         assert ev.actor_type == "customer"
@@ -227,7 +256,11 @@ def test_create_pharmacy_order_links_prescription_attachments() -> None:
         assert request_attachment is not None
         assert request_attachment.attachment_type == "prescription"
         assert str(request_attachment.attachment_id) == attachment_id
-        assert request.payload_json is None
+        assert request.payload_json == {
+            "submittedOrder": {
+                "items": []
+            }
+        }
 
 
 def test_pharmacy_checkout_options_returns_payment_methods_and_timings() -> None:

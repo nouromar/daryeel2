@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import os
 import shutil
 import uuid
@@ -21,16 +22,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import require_access_token_payload
+from app.deps import AuthorizedActor, require_access_token_payload, require_permission
 from app.events import record_request_event
+from app.events.types import ASSIGNMENT_CLOSED
+from app.events.types import ASSIGNMENT_CREATED
 from app.events.types import ATTACHMENT_ADDED
+from app.events.types import CUSTOMER_CONFIRMATION_REQUESTED
+from app.events.types import FULFILLMENT_COMPLETED
+from app.events.types import FULFILLMENT_STARTED
 from app.events.types import REQUEST_CREATED
+from app.events.types import REQUEST_STATUS_CHANGED
 from app.ids import new_uuid7
 from app.models import (
     Attachment,
     Organization,
     Pharmacy,
     PharmacyOrderDetail,
+    PharmacyOrderAssignment,
     PharmacyOrderItem,
     PharmacyProduct,
     Product,
@@ -38,9 +46,23 @@ from app.models import (
     ServiceRequest,
     User,
 )
+from app.pharmacy_review import (
+    DERIVED_ORDER_CHANGE_CONFIRMATION_TYPE,
+    apply_pharmacy_order_snapshot,
+    build_pharmacy_order_snapshot,
+    clear_pharmacy_pending_confirmation,
+    create_pharmacy_pending_confirmation,
+    pending_confirmation_requires_customer_approval,
+    resolve_pharmacy_pending_confirmation,
+    serialize_pharmacy_pending_confirmation,
+    set_submitted_order_snapshot,
+)
 from app.settings import load_settings
 
 router = APIRouter(prefix="/v1/pharmacy", tags=["pharmacy"])
+
+_MANAGE_PHARMACY_ORDERS_PERMISSION = "pharmacy.manage_orders"
+_COMPLETE_PHARMACY_DELIVERY_PERMISSION = "pharmacy.complete_delivery"
 
 
 def _upload_dir() -> Path:
@@ -119,6 +141,10 @@ _PHARMACY_CHECKOUT_OPTIONS = {
         ],
     }
 }
+
+_OPEN_ASSIGNMENT_STATUSES = {"active", "accepted"}
+_BRANCH_ASSIGNMENT_KIND = "branch_fulfillment"
+_DELIVERY_ASSIGNMENT_KIND = "delivery"
 
 
 def _initial_pharmacy_sub_status(
@@ -440,6 +466,381 @@ class CreatePharmacyOrderRequest(BaseModel):
     order: PharmacyOrderPayload = Field(default_factory=PharmacyOrderPayload)
 
 
+class AssignBranchRequest(BaseModel):
+    pharmacy_id: uuid.UUID | None = Field(
+        default=None,
+        alias="pharmacyId",
+        validation_alias=AliasChoices("pharmacy_id", "pharmacyId"),
+    )
+    assigned_role_code: str | None = Field(
+        default=None,
+        alias="assignedRoleCode",
+        validation_alias=AliasChoices("assigned_role_code", "assignedRoleCode"),
+    )
+
+
+class BranchRejectRequest(BaseModel):
+    reason_code: str = Field(
+        min_length=1,
+        max_length=64,
+        alias="reasonCode",
+        validation_alias=AliasChoices("reason_code", "reasonCode"),
+    )
+
+
+class RerouteBranchRequest(BaseModel):
+    pharmacy_id: uuid.UUID = Field(
+        alias="pharmacyId",
+        validation_alias=AliasChoices("pharmacy_id", "pharmacyId"),
+    )
+    reason_code: str = Field(
+        min_length=1,
+        max_length=64,
+        alias="reasonCode",
+        validation_alias=AliasChoices("reason_code", "reasonCode"),
+    )
+    assigned_role_code: str | None = Field(
+        default=None,
+        alias="assignedRoleCode",
+        validation_alias=AliasChoices("assigned_role_code", "assignedRoleCode"),
+    )
+
+
+class DispatchDeliveryRequest(BaseModel):
+    assigned_role_code: str | None = Field(
+        default=None,
+        alias="assignedRoleCode",
+        validation_alias=AliasChoices("assigned_role_code", "assignedRoleCode"),
+    )
+
+
+class DeliveryFailureRequest(BaseModel):
+    reason_code: str = Field(
+        min_length=1,
+        max_length=64,
+        alias="reasonCode",
+        validation_alias=AliasChoices("reason_code", "reasonCode"),
+    )
+
+
+class ReviewBranchOrderRequest(BaseModel):
+    items: list[PharmacyOrderItemInput] = Field(min_length=1)
+    reason_code: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        alias="reasonCode",
+        validation_alias=AliasChoices("reason_code", "reasonCode"),
+    )
+    message: str | None = Field(default=None, max_length=500)
+    confirmation_channel: str = Field(
+        default="phone_call",
+        pattern=r"^(phone_call|in_app)$",
+        alias="confirmationChannel",
+        validation_alias=AliasChoices("confirmation_channel", "confirmationChannel"),
+    )
+
+
+class ResolveCustomerConfirmationRequest(BaseModel):
+    decision: Literal["approve", "reject"]
+    channel: str = Field(
+        default="phone_call",
+        pattern=r"^(phone_call|in_app)$",
+    )
+    message: str | None = Field(default=None, max_length=500)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _load_pharmacy_service_request(*, db: Session, request_id: int) -> ServiceRequest:
+    request = db.scalar(
+        select(ServiceRequest).where(
+            ServiceRequest.id == request_id,
+            ServiceRequest.service_id == "pharmacy",
+        )
+    )
+    if request is None:
+        raise HTTPException(status_code=404, detail="Pharmacy order not found")
+    return request
+
+
+def _load_pharmacy_order_detail(
+    *,
+    db: Session,
+    request_id: int,
+) -> PharmacyOrderDetail:
+    detail = db.scalar(
+        select(PharmacyOrderDetail).where(PharmacyOrderDetail.request_id == request_id)
+    )
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Pharmacy order detail not found")
+    return detail
+
+
+def _load_pharmacy_order_items(
+    *,
+    db: Session,
+    request_id: int,
+) -> list[PharmacyOrderItem]:
+    return list(
+        db.scalars(
+            select(PharmacyOrderItem)
+            .where(PharmacyOrderItem.request_id == request_id)
+            .order_by(PharmacyOrderItem.created_at.asc(), PharmacyOrderItem.id.asc())
+        )
+    )
+
+
+def _load_current_assignment(
+    *,
+    db: Session,
+    request_id: int,
+    assignment_kind: str,
+) -> PharmacyOrderAssignment | None:
+    rows = list(
+        db.scalars(
+            select(PharmacyOrderAssignment)
+            .where(
+                PharmacyOrderAssignment.request_id == request_id,
+                PharmacyOrderAssignment.assignment_kind == assignment_kind,
+                PharmacyOrderAssignment.status.in_(tuple(_OPEN_ASSIGNMENT_STATUSES)),
+                PharmacyOrderAssignment.ended_at.is_(None),
+            )
+            .order_by(
+                PharmacyOrderAssignment.started_at.desc(),
+                PharmacyOrderAssignment.created_at.desc(),
+            )
+        )
+    )
+    if len(rows) > 1:
+        raise HTTPException(
+            status_code=500,
+            detail="Multiple active assignments found for the same fulfillment phase",
+        )
+    return rows[0] if rows else None
+
+
+def _require_current_assignment(
+    *,
+    db: Session,
+    request_id: int,
+    assignment_kind: str,
+) -> PharmacyOrderAssignment:
+    assignment = _load_current_assignment(
+        db=db,
+        request_id=request_id,
+        assignment_kind=assignment_kind,
+    )
+    if assignment is None:
+        raise HTTPException(status_code=409, detail="No active assignment for this phase")
+    return assignment
+
+
+def _next_assignment_attempt_no(
+    *,
+    db: Session,
+    request_id: int,
+    assignment_kind: str,
+) -> int:
+    attempts = list(
+        db.scalars(
+            select(PharmacyOrderAssignment.attempt_no)
+            .where(
+                PharmacyOrderAssignment.request_id == request_id,
+                PharmacyOrderAssignment.assignment_kind == assignment_kind,
+            )
+            .order_by(PharmacyOrderAssignment.attempt_no.desc())
+        )
+    )
+    if not attempts:
+        return 1
+    return int(attempts[0]) + 1
+
+
+def _ensure_pharmacy_can_fulfill_order(
+    *,
+    db: Session,
+    request_id: int,
+    pharmacy_id: uuid.UUID,
+) -> None:
+    order_items = _load_pharmacy_order_items(db=db, request_id=request_id)
+    if not order_items:
+        return
+
+    product_ids = list({item.product_id for item in order_items})
+    offers = _load_pharmacy_product_offers(
+        db=db,
+        pharmacy_id=pharmacy_id,
+        product_ids=product_ids,
+    )
+    missing = [str(product_id) for product_id in product_ids if product_id not in offers]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail="Selected pharmacy does not offer one or more order items",
+        )
+
+
+def _create_assignment(
+    *,
+    db: Session,
+    request: ServiceRequest,
+    assignment_kind: str,
+    pharmacy_id: uuid.UUID | None,
+    assigned_role_code: str | None,
+    actor_type: str,
+    actor_id: int | None,
+    reason_code: str | None = None,
+) -> PharmacyOrderAssignment:
+    assignment = PharmacyOrderAssignment(
+        request_id=request.id,
+        pharmacy_id=pharmacy_id,
+        assignment_kind=assignment_kind,
+        assigned_role_code=assigned_role_code,
+        status="active",
+        attempt_no=_next_assignment_attempt_no(
+            db=db,
+            request_id=request.id,
+            assignment_kind=assignment_kind,
+        ),
+        reason_code=reason_code,
+        started_at=_utcnow(),
+    )
+    db.add(assignment)
+    db.flush()
+    record_request_event(
+        db,
+        request=request,
+        event_type=ASSIGNMENT_CREATED,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        related_entity_type="assignment",
+        related_entity_id=str(assignment.id),
+        metadata={
+            "assignmentKind": assignment.assignment_kind,
+            "assignmentStatus": assignment.status,
+            "attemptNo": assignment.attempt_no,
+            "pharmacyId": str(assignment.pharmacy_id) if assignment.pharmacy_id else None,
+            "assignedRoleCode": assignment.assigned_role_code,
+            "reasonCode": reason_code,
+        },
+    )
+    return assignment
+
+
+def _close_assignment(
+    *,
+    db: Session,
+    request: ServiceRequest,
+    assignment: PharmacyOrderAssignment,
+    actor_type: str,
+    actor_id: int | None,
+    status: str,
+    reason_code: str | None = None,
+) -> PharmacyOrderAssignment:
+    assignment.status = status
+    assignment.reason_code = reason_code
+    assignment.ended_at = _utcnow()
+    db.add(assignment)
+    record_request_event(
+        db,
+        request=request,
+        event_type=ASSIGNMENT_CLOSED,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        related_entity_type="assignment",
+        related_entity_id=str(assignment.id),
+        metadata={
+            "assignmentKind": assignment.assignment_kind,
+            "assignmentStatus": assignment.status,
+            "attemptNo": assignment.attempt_no,
+            "pharmacyId": str(assignment.pharmacy_id) if assignment.pharmacy_id else None,
+            "assignedRoleCode": assignment.assigned_role_code,
+            "reasonCode": reason_code,
+        },
+    )
+    return assignment
+
+
+def _workflow_state(request: ServiceRequest) -> tuple[str, str | None]:
+    return request.status, request.sub_status
+
+
+def _record_pharmacy_status_transition(
+    *,
+    db: Session,
+    request: ServiceRequest,
+    actor_type: str,
+    actor_id: int | None,
+    allowed_states: set[tuple[str, str | None]],
+    next_status: str,
+    next_sub_status: str | None,
+    metadata: dict[str, Any],
+    related_entity_id: str | None = None,
+) -> None:
+    if _workflow_state(request) not in allowed_states:
+        raise HTTPException(status_code=409, detail="Order is not in a valid state for this action")
+    record_request_event(
+        db,
+        request=request,
+        event_type=REQUEST_STATUS_CHANGED,
+        actor_type=actor_type,
+        actor_id=actor_id,
+        to_status=next_status,
+        sub_status=next_sub_status,
+        related_entity_type="assignment" if related_entity_id else None,
+        related_entity_id=related_entity_id,
+        metadata=metadata,
+    )
+
+
+def _serialize_assignment(assignment: PharmacyOrderAssignment | None) -> dict[str, Any] | None:
+    if assignment is None:
+        return None
+    return {
+        "id": str(assignment.id),
+        "assignmentKind": assignment.assignment_kind,
+        "status": assignment.status,
+        "attemptNo": assignment.attempt_no,
+        "pharmacyId": str(assignment.pharmacy_id) if assignment.pharmacy_id else None,
+        "assignedRoleCode": assignment.assigned_role_code,
+        "reasonCode": assignment.reason_code,
+        "startedAt": assignment.started_at.isoformat() if assignment.started_at else None,
+        "endedAt": assignment.ended_at.isoformat() if assignment.ended_at else None,
+    }
+
+
+def _serialize_fulfillment_response(
+    *,
+    db: Session,
+    request: ServiceRequest,
+) -> dict[str, Any]:
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    branch_assignment = _load_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    delivery_assignment = _load_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_DELIVERY_ASSIGNMENT_KIND,
+    )
+    return {
+        "request": {
+            "id": str(request.id),
+            "status": request.status,
+            "subStatus": request.sub_status,
+            "selectedPharmacyId": str(detail.selected_pharmacy_id),
+        },
+        "branchAssignment": _serialize_assignment(branch_assignment),
+        "deliveryAssignment": _serialize_assignment(delivery_assignment),
+        "pendingConfirmation": serialize_pharmacy_pending_confirmation(request),
+    }
+
+
 @router.post("/orders")
 def create_pharmacy_order(
     payload: CreatePharmacyOrderRequest = Body(...),
@@ -562,6 +963,13 @@ def create_pharmacy_order(
         payment_json=(payload.payment.model_dump() if payload.payment else None),
         payload_json=None,
     )
+    set_submitted_order_snapshot(
+        order,
+        item_selections=[
+            (item.product_id, item.quantity)
+            for item in normalized_items
+        ],
+    )
     db.add(order)
     db.flush()
 
@@ -591,6 +999,16 @@ def create_pharmacy_order(
         to_status=order.status,
         sub_status=order.sub_status,
         metadata={"service": "pharmacy"},
+    )
+    _create_assignment(
+        db=db,
+        request=order,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+        pharmacy_id=selected_pharmacy.id,
+        assigned_role_code="branch_staff",
+        actor_type="system",
+        actor_id=None,
+        reason_code="order_created",
     )
 
     for attachment in attachments:
@@ -628,6 +1046,515 @@ def create_pharmacy_order(
             "payment": order.payment_json,
         }
     }
+
+
+@router.post("/orders/{request_id}/fulfillment/assign-branch")
+def assign_branch_fulfillment(
+    request_id: int,
+    payload: AssignBranchRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    current_assignment = _load_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    if current_assignment is not None:
+        raise HTTPException(status_code=409, detail="An active branch assignment already exists")
+
+    pharmacy_id = (
+        payload.pharmacy_id
+        if payload is not None and payload.pharmacy_id is not None
+        else detail.selected_pharmacy_id
+    )
+    pharmacy = _load_selected_pharmacy(db=db, pharmacy_id=pharmacy_id)
+    _ensure_pharmacy_can_fulfill_order(
+        db=db,
+        request_id=request.id,
+        pharmacy_id=pharmacy.id,
+    )
+    detail.selected_pharmacy_id = pharmacy.id
+    db.add(detail)
+
+    _create_assignment(
+        db=db,
+        request=request,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+        pharmacy_id=pharmacy.id,
+        assigned_role_code=(
+            payload.assigned_role_code
+            if payload is not None and payload.assigned_role_code
+            else "branch_staff"
+        ),
+        actor_type="staff",
+        actor_id=user_id,
+        reason_code="manual_assignment",
+    )
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={
+            ("created", "awaiting_branch_review"),
+            ("created", "awaiting_prescription"),
+        },
+        next_status="created",
+        next_sub_status=request.sub_status,
+        metadata={"action": "assign_branch"},
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/review")
+def review_branch_order(
+    request_id: int,
+    payload: ReviewBranchOrderRequest = Body(...),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    if _workflow_state(request) != ("created", "awaiting_branch_review"):
+        raise HTTPException(status_code=409, detail="Order is not in a valid state for branch review")
+
+    snapshot = build_pharmacy_order_snapshot(
+        db=db,
+        selected_pharmacy_id=detail.selected_pharmacy_id,
+        item_selections=[(item.product_id, item.quantity) for item in payload.items],
+    )
+    clear_pharmacy_pending_confirmation(request)
+    if pending_confirmation_requires_customer_approval(
+        request,
+        proposed_items=snapshot["proposedItems"],
+    ):
+        message = payload.message or "The pharmacy reviewed the prescription and needs customer confirmation for the updated order."
+        pending_confirmation = create_pharmacy_pending_confirmation(
+            request,
+            snapshot=snapshot,
+            channel=payload.confirmation_channel,
+            message=message,
+            reason_code=payload.reason_code,
+        )
+        request.sub_status = "awaiting_customer_confirmation"
+        db.add(request)
+        proposed_pricing = pending_confirmation["proposedPricing"]
+        record_request_event(
+            db,
+            request=request,
+            event_type=CUSTOMER_CONFIRMATION_REQUESTED,
+            actor_type="staff",
+            actor_id=user_id,
+            related_entity_type="assignment",
+            related_entity_id=str(assignment.id),
+            metadata={
+                "confirmationType": DERIVED_ORDER_CHANGE_CONFIRMATION_TYPE,
+                "channel": payload.confirmation_channel,
+                "reasonCode": payload.reason_code,
+                "message": message,
+                "proposedTotalAmount": proposed_pricing.get("totalAmount"),
+                "proposedTotalText": (
+                    proposed_pricing.get("total", {}).get("amountText")
+                    if isinstance(proposed_pricing.get("total"), dict)
+                    else None
+                ),
+            },
+        )
+    else:
+        apply_pharmacy_order_snapshot(
+            db=db,
+            request_id=request.id,
+            snapshot=snapshot,
+        )
+
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/branch-accept")
+def accept_branch_fulfillment(
+    request_id: int,
+    payload: AssignBranchRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    assignment.status = "accepted"
+    if payload is not None and payload.assigned_role_code:
+        assignment.assigned_role_code = payload.assigned_role_code
+    elif not assignment.assigned_role_code:
+        assignment.assigned_role_code = "pharmacist"
+    db.add(assignment)
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={("created", "awaiting_branch_review")},
+        next_status="accepted",
+        next_sub_status="preparing",
+        related_entity_id=str(assignment.id),
+        metadata={
+            "action": "branch_accept",
+            "assignmentKind": assignment.assignment_kind,
+            "assignedRoleCode": assignment.assigned_role_code,
+        },
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/resolve-confirmation")
+def resolve_customer_confirmation(
+    request_id: int,
+    payload: ResolveCustomerConfirmationRequest = Body(...),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    if _workflow_state(request) != ("created", "awaiting_customer_confirmation"):
+        raise HTTPException(status_code=409, detail="Order is not awaiting customer confirmation")
+
+    resolve_pharmacy_pending_confirmation(
+        db=db,
+        request=request,
+        decision=payload.decision,
+        actor_type="staff",
+        actor_id=user_id,
+        channel=payload.channel,
+        message=payload.message,
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/branch-reject")
+def reject_branch_fulfillment(
+    request_id: int,
+    payload: BranchRejectRequest = Body(...),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    _close_assignment(
+        db=db,
+        request=request,
+        assignment=assignment,
+        actor_type="staff",
+        actor_id=user_id,
+        status="failed" if request.status == "accepted" else "rejected",
+        reason_code=payload.reason_code,
+    )
+    if request.status == "accepted":
+        next_status = "failed"
+        next_sub_status = "unable_to_fulfill"
+    elif payload.reason_code == "invalid_prescription":
+        next_status = "rejected"
+        next_sub_status = "rejected_invalid_prescription"
+    else:
+        next_status = "rejected"
+        next_sub_status = "rejected_unavailable"
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={
+            ("created", "awaiting_branch_review"),
+            ("accepted", "preparing"),
+        },
+        next_status=next_status,
+        next_sub_status=next_sub_status,
+        related_entity_id=str(assignment.id),
+        metadata={
+            "action": "branch_reject",
+            "reasonCode": payload.reason_code,
+            "assignmentKind": assignment.assignment_kind,
+        },
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/reroute")
+def reroute_branch_fulfillment(
+    request_id: int,
+    payload: RerouteBranchRequest = Body(...),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    current_assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    if current_assignment.pharmacy_id == payload.pharmacy_id:
+        raise HTTPException(status_code=400, detail="Reroute pharmacy must be different")
+    pharmacy = _load_selected_pharmacy(db=db, pharmacy_id=payload.pharmacy_id)
+    _ensure_pharmacy_can_fulfill_order(
+        db=db,
+        request_id=request.id,
+        pharmacy_id=pharmacy.id,
+    )
+
+    _close_assignment(
+        db=db,
+        request=request,
+        assignment=current_assignment,
+        actor_type="staff",
+        actor_id=user_id,
+        status="failed" if request.status == "accepted" else "rejected",
+        reason_code=payload.reason_code,
+    )
+    detail.selected_pharmacy_id = pharmacy.id
+    db.add(detail)
+    new_assignment = _create_assignment(
+        db=db,
+        request=request,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+        pharmacy_id=pharmacy.id,
+        assigned_role_code=payload.assigned_role_code or "branch_staff",
+        actor_type="staff",
+        actor_id=user_id,
+        reason_code=payload.reason_code,
+    )
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={
+            ("created", "awaiting_branch_review"),
+            ("accepted", "preparing"),
+        },
+        next_status="created",
+        next_sub_status="awaiting_branch_review",
+        related_entity_id=str(new_assignment.id),
+        metadata={
+            "action": "reroute",
+            "reasonCode": payload.reason_code,
+            "pharmacyId": str(pharmacy.id),
+        },
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/dispatch")
+def dispatch_order(
+    request_id: int,
+    payload: DispatchDeliveryRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_MANAGE_PHARMACY_ORDERS_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    detail = _load_pharmacy_order_detail(db=db, request_id=request.id)
+    branch_assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_BRANCH_ASSIGNMENT_KIND,
+    )
+    if branch_assignment.status != "accepted":
+        raise HTTPException(status_code=409, detail="Branch assignment must be accepted before dispatch")
+    if _load_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_DELIVERY_ASSIGNMENT_KIND,
+    ) is not None:
+        raise HTTPException(status_code=409, detail="An active delivery assignment already exists")
+
+    _close_assignment(
+        db=db,
+        request=request,
+        assignment=branch_assignment,
+        actor_type="staff",
+        actor_id=user_id,
+        status="completed",
+        reason_code="handoff_to_delivery",
+    )
+    delivery_assignment = _create_assignment(
+        db=db,
+        request=request,
+        assignment_kind=_DELIVERY_ASSIGNMENT_KIND,
+        pharmacy_id=detail.selected_pharmacy_id,
+        assigned_role_code=(
+            payload.assigned_role_code
+            if payload is not None and payload.assigned_role_code
+            else "delivery_rider"
+        ),
+        actor_type="staff",
+        actor_id=user_id,
+        reason_code="dispatch",
+    )
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={("accepted", "preparing")},
+        next_status="in_progress",
+        next_sub_status="out_for_delivery",
+        related_entity_id=str(delivery_assignment.id),
+        metadata={
+            "action": "dispatch",
+            "assignmentKind": delivery_assignment.assignment_kind,
+        },
+    )
+    record_request_event(
+        db,
+        request=request,
+        event_type=FULFILLMENT_STARTED,
+        actor_type="staff",
+        actor_id=user_id,
+        related_entity_type="assignment",
+        related_entity_id=str(delivery_assignment.id),
+        metadata={
+            "assignmentKind": delivery_assignment.assignment_kind,
+            "pharmacyId": str(detail.selected_pharmacy_id),
+        },
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/deliver")
+def deliver_order(
+    request_id: int,
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_COMPLETE_PHARMACY_DELIVERY_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    delivery_assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_DELIVERY_ASSIGNMENT_KIND,
+    )
+    _close_assignment(
+        db=db,
+        request=request,
+        assignment=delivery_assignment,
+        actor_type="staff",
+        actor_id=user_id,
+        status="completed",
+        reason_code="delivered",
+    )
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={("in_progress", "out_for_delivery")},
+        next_status="completed",
+        next_sub_status="delivered",
+        related_entity_id=str(delivery_assignment.id),
+        metadata={"action": "deliver"},
+    )
+    record_request_event(
+        db,
+        request=request,
+        event_type=FULFILLMENT_COMPLETED,
+        actor_type="staff",
+        actor_id=user_id,
+        related_entity_type="assignment",
+        related_entity_id=str(delivery_assignment.id),
+        metadata={"action": "deliver"},
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
+
+
+@router.post("/orders/{request_id}/fulfillment/delivery-failed")
+def fail_delivery(
+    request_id: int,
+    payload: DeliveryFailureRequest = Body(...),
+    db: Session = Depends(get_db),
+    actor: AuthorizedActor = Depends(
+        require_permission(_COMPLETE_PHARMACY_DELIVERY_PERMISSION, service_id="pharmacy")
+    ),
+) -> dict[str, Any]:
+    user_id = actor.user_id
+    request = _load_pharmacy_service_request(db=db, request_id=request_id)
+    delivery_assignment = _require_current_assignment(
+        db=db,
+        request_id=request.id,
+        assignment_kind=_DELIVERY_ASSIGNMENT_KIND,
+    )
+    _close_assignment(
+        db=db,
+        request=request,
+        assignment=delivery_assignment,
+        actor_type="staff",
+        actor_id=user_id,
+        status="failed",
+        reason_code=payload.reason_code,
+    )
+    _record_pharmacy_status_transition(
+        db=db,
+        request=request,
+        actor_type="staff",
+        actor_id=user_id,
+        allowed_states={("in_progress", "out_for_delivery")},
+        next_status="failed",
+        next_sub_status="delivery_failed",
+        related_entity_id=str(delivery_assignment.id),
+        metadata={"action": "delivery_failed", "reasonCode": payload.reason_code},
+    )
+    db.commit()
+    db.refresh(request)
+    return _serialize_fulfillment_response(db=db, request=request)
 
 
 @router.post("/prescriptions/upload")

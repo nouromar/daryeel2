@@ -27,20 +27,22 @@ This document does **not** cover catalog entities, provider dispatch, or fulfill
 Today pharmacy order creation in `services/api/app/routers/pharmacy.py`:
 
 - creates a shared `service_requests` row
-- stores pharmacy-specific order data inside `payload_json`
-- stores pricing inside UI-oriented payload fields such as `summary_lines` and `summary_total`
-- stores prescription references inside `payload_json.prescription_upload_ids`
-- writes a `request_events` row with type `created`
+- computes pricing from normalized branch offers
+- stores order-wide pricing in `pharmacy_order_details`
+- stores canonical order lines in `pharmacy_order_items`
+- links prescription files through `attachments` and `request_attachments`
+- selects the initial pharmacy internally on the backend
+- writes standardized request and assignment events
 
 Current request detail rendering in `services/api/app/routers/requests.py` also derives pharmacy behavior from:
 
 - `service_requests.service_id == "pharmacy"`
-- `payload_json.cart_lines`
-- `payload_json.summary_total`
-- `payload_json.prescription_upload_ids`
-- request `status` plus event metadata
+- `pharmacy_order_details`
+- `pharmacy_order_items`
+- `request_attachments`
+- request `status` / `sub_status` plus standardized event metadata
 
-This works for demos, but it leaves important order state inside blobs instead of first-class order entities.
+Current v1 request detail is serialized under `serviceDetails.order`.
 
 ## Decisions
 
@@ -81,13 +83,15 @@ That means:
 - checkout computes the final order pricing
 - final pricing is snapshotted onto the order
 
-### 5. Selected pharmacy is set at order creation
+### 5. Selected pharmacy is set at order creation by the backend
 
 For v1 fixed pricing, the selected branch/store should be known when the order is created.
 
 So:
 
 - `pharmacy_order_details.selected_pharmacy_id` should be populated at order creation
+- the customer app should not choose or submit the pharmacy in v1
+- until a routing engine exists, the backend may assign a default pharmacy internally
 - it may later change only if fulfillment reroutes to another branch while preserving the customer-facing order snapshot price
 
 ### 6. Prescriptions use shared request attachments
@@ -110,7 +114,17 @@ Use:
 
 This keeps core request logic portable while still allowing pharmacy-specific operational states.
 
-### 8. ID strategy
+### 8. Temporary review state stays in `payload_json`
+
+For pharmacy v1:
+
+- canonical order items and totals stay in normalized order tables
+- `service_requests.payload_json.submittedOrder` stores the original customer-selected order lines
+- `service_requests.payload_json.pendingConfirmation` stores temporary review proposals that still need customer confirmation
+
+This allows mixed-order review handling without adding a dedicated confirmation/provenance entity yet.
+
+### 9. ID strategy
 
 For the target entity model in this document:
 
@@ -128,22 +142,15 @@ Pharmacy v1 should continue to use the shared request spine, but evolve it with 
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `id` | uuid PK | Target design uses `UUIDv7` |
+| `id` | int PK in shipped v1; UUIDv7 target later | Current shared request root |
 | `service_id` | varchar(64) | `pharmacy` |
-| `customer_person_id` or `customer_user_id` | uuid FK | Depends on broader people/auth migration timing |
+| `customer_user_id` | int FK -> `users.id` in shipped v1 | Move to people/person ownership later |
 | `status` | varchar(64) | Shared request lifecycle |
 | `sub_status` | varchar(64) nullable | Pharmacy-specific lifecycle detail |
 | `notes` | varchar(500) nullable | Customer note |
-| `delivery_address_text` | varchar(255) nullable | Structured request location |
-| `delivery_country_code` | varchar(2) nullable | Structured request location |
-| `delivery_region_code` | varchar(64) nullable | Structured request location |
-| `delivery_city_name` | varchar(128) nullable | Structured request location |
-| `delivery_zone_code` | varchar(64) nullable | Structured request location |
-| `delivery_lat` | numeric(10,7) nullable | Structured request location |
-| `delivery_lng` | numeric(10,7) nullable | Structured request location |
-| `delivery_place_id` | varchar(255) nullable | Structured request location |
-| `delivery_location_metadata_json` | json/jsonb nullable | Optional extra provider payload |
+| `delivery_location_json` | json/jsonb nullable | Structured request location snapshot for v1 |
 | `payment_json` | json/jsonb nullable | Payment selection snapshot for now |
+| `payload_json` | json/jsonb nullable | Temporary, non-authoritative service extension state only |
 | `created_at` | timestamptz | Audit |
 | `updated_at` | timestamptz | Audit |
 
@@ -160,8 +167,8 @@ Notes:
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `request_id` | uuid PK/FK -> `service_requests.id` | One-to-one with request |
-| `selected_pharmacy_id` | uuid FK -> `pharmacies.id` | Branch chosen for fulfillment |
+| `request_id` | int PK/FK in shipped v1; UUID target later | One-to-one with request |
+| `selected_pharmacy_id` | uuid FK -> `pharmacies.id` | Branch chosen internally for fulfillment |
 | `currency_code` | varchar(3) | ISO currency code |
 | `subtotal_amount` | numeric(12,2) | Sum of order-line subtotals before order-level adjustments |
 | `discount_amount` | numeric(12,2) | Total order-level discount |
@@ -183,7 +190,7 @@ Normalized ordered product lines.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | uuid PK | Use `UUIDv7` |
-| `request_id` | uuid FK -> `service_requests.id` | Owning request |
+| `request_id` | int FK in shipped v1; UUID target later | Owning request |
 | `product_id` | uuid FK -> `products.id` | Canonical ordered product |
 | `quantity` | integer | Ordered quantity |
 | `product_name` | varchar(200) | Snapshot display name |
@@ -228,7 +235,10 @@ V1 should also allow a mixture of:
 
 If pharmacist/provider or admin/dispatcher propose changes after reviewing the prescription:
 
-- pending proposed changes may live temporarily in `service_requests.payload_json`
+- additive prescription-derived lines may be auto-applied without customer confirmation
+- changing customer-selected lines requires customer confirmation
+- the original customer-selected order lives in `service_requests.payload_json.submittedOrder`
+- pending proposed changes live temporarily in `service_requests.payload_json.pendingConfirmation`
 - canonical order items and totals remain authoritative until the customer accepts the proposed changes
 - if the customer accepts, apply the proposal into canonical order tables
 - if the customer rejects, end the order with `rejected` + `customer_rejected_changes`
@@ -331,10 +341,14 @@ Notes:
 ## Implementation impact on current API
 
 - keep pharmacy order creation rooted in `service_requests`
+- customer checkout sends canonical order input under:
+  - `order.items`
+  - `order.prescriptionAttachmentIds`
+- the customer app does not send a pharmacy identifier in v1
 - replace `payload_json.cart_lines` with `pharmacy_order_items`
 - replace UI-oriented `summary_lines` / `summary_total` persistence with structured pricing fields
 - replace `payload_json.prescription_upload_ids` with `request_attachments`
-- evolve request detail rendering to load order lines and pricing from order entities instead of payload blobs
+- request detail renders normalized pharmacy data under `serviceDetails.order`
 
 ## Non-goals for this document
 
@@ -349,3 +363,4 @@ Notes:
 - whether `payment_json` should stay on `service_requests` or move to a pharmacy-specific payment selection table later
 - whether v1 needs a dedicated field split for fee types instead of one combined `fee_amount`
 - whether substitution outcomes should update existing order lines or create explicit replacement line semantics
+- when to replace the backend default-pharmacy assignment with a real routing engine

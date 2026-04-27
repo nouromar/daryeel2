@@ -1,8 +1,8 @@
 ---
 description: "Implementation plan for the v1 entity and workflow designs under docs/feature_docs/."
-status: draft
+status: active
 owner: backend
-last_updated: 2026-04-25
+last_updated: 2026-04-27
 ---
 
 # Implementation Plan: `docs/feature_docs/*`
@@ -11,9 +11,9 @@ This plan turns the feature docs into an implementation sequence that matches:
 
 - the agreed design docs
 - the current `services/api` codebase
-- the current app contracts that still depend on existing request/detail payload shapes
+- the app/backend contract decisions made during implementation
 
-It replaces the earlier "straight cutover" draft.
+It replaces the earlier "straight cutover" draft and records the decisions that were made while shipping the first pharmacy/shared-request slices.
 
 ## Source docs
 
@@ -25,17 +25,40 @@ It replaces the earlier "straight cutover" draft.
 
 ## Current baseline
 
-Today `services/api` still uses a minimal skeleton:
+The first shared-request and pharmacy slices are now implemented in `services/api`:
 
-- `users`
-- `service_requests`
-- `request_events`
-- `prescription_uploads`
-- in-memory `_SERVICE_DEFINITIONS`
-- in-memory `_PHARMACY_CATALOG`
-- pharmacy order state inferred from `payload_json`
+- `service_requests.sub_status`
+- standardized `request_events` with `UUIDv7` event IDs plus related-entity refs
+- DB-backed `service_definitions`
+- `people`
+- `customer_profiles`
+- `provider_profiles`
+- `staff_profiles`
+- transitional `users.person_id -> people.id` bridge for the current user-rooted auth flow
+- `roles`
+- `person_role_assignments`
+- `auth_identities`
+- `auth_factors`
+- `auth_challenges`
+- `auth_sessions`
+- `auth_policies`
+- `organization_memberships`
+- generic `attachments` and `request_attachments`
+- DB-backed pharmacy catalog tables
+- normalized `pharmacy_order_details` and `pharmacy_order_items`
+- normalized `pharmacy_order_assignments`
+- backend-selected pharmacy assignment at order creation
+- pharmacy request detail serialized under `serviceDetails.order`
+- customer checkout using canonical `order.items` and `order.prescriptionAttachmentIds`
 
-The feature docs define the **target design**, not the current implementation.
+Still deferred:
+
+- `service_requests.id` remains integer
+- `request_events.request_id` remains on the current integer request root
+- `request_events.actor_id` remains integer/user-rooted
+- auth tokens and request ownership remain user-rooted
+- geo-scoped role assignments are not implemented yet
+- scopes, permission hardening, and people-root cutover are not yet implemented
 
 ## Planning principles
 
@@ -66,11 +89,12 @@ People/auth should be implemented in parallel where it is low-risk, but the phar
 
 The feature docs use `UUIDv7` for the target entity model.
 
-However, the current backend still uses integer IDs for:
+However, the current backend still uses integer roots for:
 
 - `users`
 - `service_requests`
-- `request_events`
+- `request_events.request_id`
+- `request_events.actor_id`
 
 Recommended implementation path:
 
@@ -127,20 +151,32 @@ Do **not** replace `payment_json` yet.
 
 The agreed order design keeps `payment_json` as the v1 payment selection snapshot and leaves redesign as a follow-up.
 
-### 7. Response-shape compatibility matters
+### 7. Backend selects the pharmacy until routing exists
 
-Even after backend normalization, some current app surfaces still expect pharmacy request detail data in the existing derived shape under:
+We explicitly decided that the customer app should **not** choose a pharmacy during checkout in v1.
 
-- `serviceDetails.payload.cart_lines`
-- `serviceDetails.payload.summary_total`
-- prescription upload/display fields
+Current v1 rule:
 
-So the backend plan should:
+- the backend assigns `pharmacy_order_details.selected_pharmacy_id` when the order is created
+- it resolves that branch from `API_DEFAULT_PHARMACY_ID` when configured
+- otherwise it falls back to the first active pharmacy row
 
-- move the **source of truth** to normalized tables
-- continue to **serialize the current app-facing detail shape** until app fragments and handlers are updated
+This is a temporary routing policy, not the long-term marketplace/routing design.
 
-### 8. Contract changes must be paired with app changes
+### 8. The normalized app contract is already in place
+
+The earlier compatibility period is over for the pharmacy request-detail and checkout flows.
+
+Current v1 contract:
+
+- checkout sends canonical `order.items` and `order.prescriptionAttachmentIds`
+- pharmacy request detail reads from normalized rows
+- pharmacy request detail is returned under `serviceDetails.order`
+- the old `serviceDetails.payload.*` compatibility fields are no longer part of the pharmacy contract
+
+Future slices should preserve this normalized contract unless a paired app/backend change explicitly replaces it.
+
+### 9. Contract changes must be paired with app changes
 
 The old draft treated app changes as out of scope. That is not accurate.
 
@@ -363,17 +399,14 @@ Do **not** silently switch API IDs without the paired app changes.
 
 ### PR A3.5 — Support checkout source context
 
-The order design assumes the selected pharmacy is known at order creation.
+Current implemented decision:
 
-Before the order rewrite is considered complete, we need a concrete way for checkout to know the chosen branch:
+- the customer app does **not** send a pharmacy/branch identifier during checkout
+- the backend resolves a default branch internally and writes `selected_pharmacy_id`
 
-- either the catalog/selection flow returns branch/source-offer context explicitly
-- or the backend uses a clearly documented single-branch dev-only fallback
+Follow-up:
 
-Recommended:
-
-- allow the single-branch fallback only in early dev
-- require explicit selected pharmacy context before multi-branch rollout
+- replace the default resolver with a routing engine later without changing the v1 customer-facing checkout contract
 
 ---
 
@@ -387,7 +420,7 @@ Source doc:
 
 **Migration**
 
-- add structured delivery location fields on `service_requests`
+- keep `delivery_location_json`
 - keep `payment_json`
 - add `pharmacy_order_details`
 - add `pharmacy_order_items`
@@ -399,12 +432,13 @@ Source doc:
 Update `POST /v1/pharmacy/orders` so that:
 
 1. the request row remains rooted in `service_requests`
-2. `selected_pharmacy_id` is set at order creation
+2. `selected_pharmacy_id` is set at order creation by backend routing/default-pharmacy selection
 3. order items are written into `pharmacy_order_items`
 4. pricing is computed from `pharmacy_products`
 5. authoritative totals are stored in `pharmacy_order_details`
 6. prescriptions are linked through `request_attachments`
 7. the request and event rows use the shared event vocabulary
+8. the customer app does not send a pharmacy identifier in this slice
 
 ### PR A4.3 — Support both prescription-only and mixed orders
 
@@ -412,7 +446,9 @@ Update `POST /v1/pharmacy/orders` so that:
 
 - allow prescription-only orders with no initial canonical order items
 - allow mixed orders with order items plus prescription attachments
-- keep `payload_json` available for temporary proposed changes only
+- keep `payload_json` available for temporary review state only:
+  - `submittedOrder` for the original customer-selected order lines
+  - `pendingConfirmation` for temporary proposed changes awaiting confirmation
 
 ### PR A4.4 — Request detail serialization from normalized order tables
 
@@ -422,7 +458,7 @@ Update `POST /v1/pharmacy/orders` so that:
   - `pharmacy_order_details`
   - `pharmacy_order_items`
   - `request_attachments`
-- build `summary_lines` / `summary_total` at read time for app compatibility
+- serialize the normalized app contract under `serviceDetails.order`
 - stop depending on JSON blobs as the authoritative source for these values
 
 ### PR A4.5 — Remove pharmacy-only legacy storage paths
@@ -430,7 +466,8 @@ Update `POST /v1/pharmacy/orders` so that:
 After the normalized order path is stable:
 
 - stop writing canonical order data into `payload_json`
-- delete `prescription_uploads` once uploads are fully backed by `attachments`
+- remove the old pharmacy compatibility payload fields and old checkout summary payload submission path
+- delete `prescription_uploads` once uploads are fully retired everywhere
 
 ---
 
@@ -486,14 +523,19 @@ Introduce provider/admin operations routes for:
 
 Add operations for:
 
+- branch review of prescription-only and mixed orders
 - requesting confirmation
 - resolving confirmation
 
 **Rule**
 
-- proposed changes may live temporarily in `payload_json`
+- additive prescription-derived changes may auto-apply without customer confirmation
+- changing customer-selected lines requires confirmation
+- store the original customer-selected lines in `payload_json.submittedOrder`
+- store temporary proposals in `payload_json.pendingConfirmation`
 - canonical order tables change only after confirmation acceptance
 - rejection ends the request with `rejected` + `customer_rejected_changes`
+- `phone_call` confirmations are recorded by staff; only `in_app` confirmations should surface a customer action
 
 ### PR A5.5 — Delivery assignment and terminal delivery outcomes
 
@@ -527,12 +569,23 @@ This workstream should follow the people/auth doc's own internal ordering, while
 - add `provider_profiles`
 - add `staff_profiles`
 
+**Current status**
+
+- implemented
+- the current backend also carries a transitional `users.person_id` bridge so existing user-rooted OTP auth can link customers to `people` without changing token or request ownership contracts yet
+
 ### PR B1.2 — Roles and role assignments
 
 **Migration**
 
 - add `roles`
 - add `person_role_assignments`
+
+**Current status**
+
+- implemented
+- `person_role_assignments` currently supports person, role, organization, service, and assigning-person references
+- `geo_scope_id` is intentionally deferred to PR B1.3 so the roles slice does not reference `geo_scopes` before that table exists
 
 ### PR B1.3 — Service and geography scopes
 
@@ -544,6 +597,13 @@ If `service_definitions` already landed in Workstream A, reuse it here.
 - add `geo_scopes`
 - add `person_geo_scopes`
 
+**Current status**
+
+- deferred by product decision for now
+- this slice is not required for current shipped pharmacy or dev auth behavior
+- `geo_scope_id` remains deferred on `person_role_assignments` until this slice is resumed
+- the next implementation slice moves to `PR B3.1 — Auth tables`
+
 ## Phase B2 — Organizations and memberships
 
 If `organizations` already landed in Workstream A, do **not** recreate it.
@@ -551,6 +611,11 @@ If `organizations` already landed in Workstream A, do **not** recreate it.
 **Migration**
 
 - add `organization_memberships`
+
+**Current status**
+
+- implemented
+- `organization_memberships` now links `people` to existing `organizations` with membership type, status, title, and effective dates
 
 ## Phase B3 — Auth foundation
 
@@ -564,6 +629,11 @@ If `organizations` already landed in Workstream A, do **not** recreate it.
 - add `auth_sessions`
 - add `auth_policies`
 
+**Current status**
+
+- implemented
+- this slice adds the auth foundation schema used by the current dev OTP/session flow
+
 ### PR B3.2 — Replace dev OTP flow with real auth tables
 
 **Code**
@@ -571,6 +641,13 @@ If `organizations` already landed in Workstream A, do **not** recreate it.
 - move OTP challenge state into auth tables
 - create/link people records on first verified customer sign-in
 - return session-backed auth instead of the current minimal dev-only behavior
+
+**Current status**
+
+- implemented
+- `/dev/auth/otp/start` now creates pending `auth_challenges`
+- `/dev/auth/otp/verify` now completes challenges, verifies phone identities/factors, and creates `auth_sessions`
+- dev auth remains user-rooted at the token contract level until the later `users` -> `people` cutover
 
 ## Phase B4 — Permission hardening
 
@@ -583,6 +660,14 @@ If `organizations` already landed in Workstream A, do **not** recreate it.
 
 - add permission helpers/dependencies
 - gate provider/admin pharmacy ops routes with the new permission model
+
+**Current status**
+
+- implemented
+- added `permissions` and `role_permissions`
+- added a reusable permission dependency over active `person_role_assignments`
+- gated pharmacy fulfillment routes with `pharmacy.manage_orders` and `pharmacy.complete_delivery`
+- seeded baseline pharmacy role/permission mappings for `admin`, `dispatcher`, `specialist`, `pharmacist`, `branch_staff`, `delivery_rider`, and `driver`
 
 ---
 
@@ -630,35 +715,50 @@ Do **not** try to combine this with the earlier pharmacy normalization slices.
 
 ---
 
-## Contract notes that must be decided explicitly
+## Resolved contract decisions
 
-These are not optional details. The implementation plan must treat them as explicit decisions.
+These decisions were made during implementation and should now be treated as part of the v1 plan.
 
 ### 1. Pharmacy product identifier contract
 
-Need an explicit choice between:
+Decision:
 
-- app/API cutover to UUID product IDs
-- or a separate stable public product code
+- the app/API uses canonical `products.id` UUIDs directly in v1
+- no separate public product code was added in this slice
 
 ### 2. Selected pharmacy at checkout
 
-Need an explicit mechanism for checkout to know the chosen branch before order creation is considered complete.
+Decision:
+
+- checkout does not include a pharmacy identifier
+- the backend assigns the branch internally using the default-pharmacy resolver
+- a future routing engine can replace that resolver later
 
 ### 3. Upload identifier contract
 
-Need an explicit transition choice for uploaded prescriptions:
+Decision:
 
-- keep current field naming temporarily while backing it with `attachments`
-- or change app/backend contracts together to attachment-focused names
+- prescription upload returns an attachment `id`
+- checkout sends those IDs through `order.prescriptionAttachmentIds`
+- request detail exposes them as `serviceDetails.order.prescriptionAttachments`
 
 ### 4. `payload_json` semantics by service
 
-Need an explicit rule that:
+Decision:
 
 - pharmacy should treat `payload_json` as non-authoritative once normalized entities land
 - other services may continue using `payload_json` until their own entity and flow designs are defined
 - no service should silently use `payload_json` as a permanent substitute for canonical entities once those entities exist
+- pharmacy v1 currently uses:
+  - `submittedOrder` for the original customer-selected lines
+  - `pendingConfirmation` for temporary confirmation-required proposals
+
+### 5. Pharmacy request-detail contract
+
+Decision:
+
+- pharmacy request detail uses `serviceDetails.order`
+- the older pharmacy `serviceDetails.payload.*` compatibility fields were removed together with the app update
 
 ---
 
@@ -692,7 +792,7 @@ Also add at least one Postgres-backed migration/integration path for features SQ
 
 - catalog is DB-backed
 - canonical pharmacy order state lives in normalized order tables
-- request detail is rendered from normalized rows, not from canonical JSON blobs
+- request detail is rendered from normalized rows under `serviceDetails.order`
 - rerouting preserves order price snapshots
 - manual customer confirmation is supported through status/sub-status/events/assignments
 
@@ -717,3 +817,4 @@ Also add at least one Postgres-backed migration/integration path for features SQ
 - whether invalid-prescription flows allow resubmission on the same request
 - whether delivery should always stay inside `pharmacy_order_assignments`
 - whether manual customer confirmation later needs a dedicated entity
+- when to replace the backend default-pharmacy resolver with a real routing engine

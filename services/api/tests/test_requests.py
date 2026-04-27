@@ -155,7 +155,7 @@ def test_requests_endpoint_buckets_active_and_history() -> None:
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         pharmacy_id, product_id = _seed_pharmacy_catalog(db)
@@ -231,7 +231,7 @@ def test_request_detail_endpoint_returns_common_shell_data() -> None:
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         pharmacy_id, product_id = _seed_pharmacy_catalog(db)
@@ -437,7 +437,7 @@ def test_request_detail_marks_recent_updates_for_non_created_latest_event() -> N
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         request = ServiceRequest(
@@ -492,7 +492,7 @@ def test_request_detail_returns_pending_action_for_prescription_upload() -> None
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         request = ServiceRequest(
@@ -539,7 +539,7 @@ def test_request_detail_returns_pending_action_for_price_confirmation() -> None:
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         pharmacy_id, product_id = _seed_pharmacy_catalog(db)
@@ -598,7 +598,7 @@ def test_complete_request_action_approves_price_change() -> None:
     _init_sqlite_db()
 
     import app.db as dbmod
-    from app.models import RequestEvent, ServiceRequest
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
 
     with dbmod.SessionLocal() as db:
         pharmacy_id, product_id = _seed_pharmacy_catalog(db)
@@ -651,6 +651,339 @@ def test_complete_request_action_approves_price_change() -> None:
     assert payload["request"]["attentionState"] == "none"
     assert payload["request"]["hasUnreadUpdates"] is False
     assert payload["pendingActions"] == []
+    assert payload["timeline"][-1]["type"] == "customer_confirmation_resolved"
+
+
+def test_request_detail_returns_pending_action_for_generic_order_change_confirmation() -> None:
+    _init_sqlite_db()
+
+    import app.db as dbmod
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
+
+    with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
+        request = ServiceRequest(
+            service_id="pharmacy",
+            customer_user_id=1,
+            status="created",
+            sub_status="awaiting_customer_confirmation",
+            payload_json={
+                "submittedOrder": {
+                    "items": [
+                        {
+                            "productId": product_id,
+                            "quantity": 1,
+                        }
+                    ]
+                },
+                "pendingConfirmation": {
+                    "confirmationType": "derived_order_change",
+                    "channel": "in_app",
+                    "message": "The pharmacist updated the order after reviewing the prescription.",
+                    "proposedItems": [
+                        {
+                            "productId": product_id,
+                            "quantity": 2,
+                            "productName": "Paracetamol 500mg",
+                            "form": "tablet",
+                            "strength": "500mg",
+                            "rxRequired": False,
+                            "sellerSku": None,
+                            "unitPriceAmount": 1.0,
+                            "lineSubtotalAmount": 2.0,
+                            "lineDiscountAmount": None,
+                            "lineTaxAmount": None,
+                            "lineTotalAmount": 2.0,
+                        }
+                    ],
+                    "proposedPricing": {
+                        "currencyCode": "USD",
+                        "subtotalAmount": 2.0,
+                        "discountAmount": 0.0,
+                        "feeAmount": 0.0,
+                        "taxAmount": 0.0,
+                        "totalAmount": 2.0,
+                        "lines": [
+                            {
+                                "id": "subtotal",
+                                "label": "Subtotal",
+                                "amount": 2.0,
+                                "amountText": "$2.00",
+                            }
+                        ],
+                        "total": {
+                            "label": "Total",
+                            "amount": 2.0,
+                            "amountText": "$2.00",
+                        },
+                    },
+                },
+            },
+        )
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=1,
+            subtotal_amount="1.00",
+            total_amount="1.00",
+        )
+        db.add(
+            PharmacyOrderAssignment(
+                request_id=request.id,
+                pharmacy_id=uuid.UUID(pharmacy_id),
+                assignment_kind="branch_fulfillment",
+                assigned_role_code="branch_staff",
+                status="active",
+                attempt_no=1,
+            )
+        )
+        db.add(
+            RequestEvent(
+                request_id=request.id,
+                type="customer_confirmation_requested",
+                from_status="created",
+                to_status="created",
+                actor_type="system",
+                actor_id=None,
+                metadata_json={
+                    "confirmationType": "derived_order_change",
+                    "channel": "in_app",
+                    "message": "Please review the updated order.",
+                },
+            )
+        )
+        db.commit()
+
+    client = TestClient(app)
+    res = client.get(
+        "/v1/requests/detail",
+        params={"requestId": 1},
+        headers=_auth_header_for_user_id(1),
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["pendingActions"][0]["id"] == "confirm_change"
+    assert payload["pendingActions"][0]["type"] == "confirm_change"
+    assert payload["pendingActions"][0]["title"] == "Review order changes"
+    assert "Updated total: $2.00" in payload["pendingActions"][0]["subtitle"]
+    assert payload["serviceDetails"]["order"]["pendingConfirmation"]["confirmationType"] == "derived_order_change"
+
+
+def test_request_detail_hides_manual_phone_confirmation_action() -> None:
+    _init_sqlite_db()
+
+    import app.db as dbmod
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
+
+    with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
+        request = ServiceRequest(
+            service_id="pharmacy",
+            customer_user_id=1,
+            status="created",
+            sub_status="awaiting_customer_confirmation",
+            payload_json={
+                "submittedOrder": {"items": []},
+                "pendingConfirmation": {
+                    "confirmationType": "derived_order_change",
+                    "channel": "phone_call",
+                    "message": "The branch will call to confirm the reviewed order.",
+                    "proposedItems": [],
+                    "proposedPricing": {
+                        "currencyCode": "USD",
+                        "totalAmount": 0.0,
+                        "total": {
+                            "label": "Total",
+                            "amount": 0.0,
+                            "amountText": "$0.00",
+                        },
+                    },
+                },
+            },
+        )
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=1,
+            subtotal_amount="1.00",
+            total_amount="1.00",
+        )
+        db.add(
+            PharmacyOrderAssignment(
+                request_id=request.id,
+                pharmacy_id=uuid.UUID(pharmacy_id),
+                assignment_kind="branch_fulfillment",
+                assigned_role_code="branch_staff",
+                status="active",
+                attempt_no=1,
+            )
+        )
+        db.add(
+            RequestEvent(
+                request_id=request.id,
+                type="customer_confirmation_requested",
+                from_status="created",
+                to_status="created",
+                actor_type="system",
+                actor_id=None,
+                metadata_json={
+                    "confirmationType": "derived_order_change",
+                    "channel": "phone_call",
+                },
+            )
+        )
+        db.commit()
+
+    client = TestClient(app)
+    res = client.get(
+        "/v1/requests/detail",
+        params={"requestId": 1},
+        headers=_auth_header_for_user_id(1),
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["request"]["attentionState"] == "action_required"
+    assert payload["pendingActions"] == []
+
+
+def test_complete_request_action_approves_generic_order_change() -> None:
+    _init_sqlite_db()
+
+    import app.db as dbmod
+    from app.models import PharmacyOrderAssignment, RequestEvent, ServiceRequest
+
+    with dbmod.SessionLocal() as db:
+        pharmacy_id, product_id = _seed_pharmacy_catalog(db)
+        request = ServiceRequest(
+            service_id="pharmacy",
+            customer_user_id=1,
+            status="created",
+            sub_status="awaiting_customer_confirmation",
+            payload_json={
+                "submittedOrder": {
+                    "items": [
+                        {
+                            "productId": product_id,
+                            "quantity": 1,
+                        }
+                    ]
+                },
+                "pendingConfirmation": {
+                    "confirmationType": "derived_order_change",
+                    "channel": "in_app",
+                    "message": "Please confirm the reviewed order.",
+                    "proposedItems": [
+                        {
+                            "productId": product_id,
+                            "quantity": 2,
+                            "productName": "Paracetamol 500mg",
+                            "form": "tablet",
+                            "strength": "500mg",
+                            "rxRequired": False,
+                            "sellerSku": None,
+                            "unitPriceAmount": 1.0,
+                            "lineSubtotalAmount": 2.0,
+                            "lineDiscountAmount": None,
+                            "lineTaxAmount": None,
+                            "lineTotalAmount": 2.0,
+                        }
+                    ],
+                    "proposedPricing": {
+                        "currencyCode": "USD",
+                        "subtotalAmount": 2.0,
+                        "discountAmount": 0.0,
+                        "feeAmount": 0.0,
+                        "taxAmount": 0.0,
+                        "totalAmount": 2.0,
+                        "lines": [
+                            {
+                                "id": "subtotal",
+                                "label": "Subtotal",
+                                "amount": 2.0,
+                                "amountText": "$2.00",
+                            }
+                        ],
+                        "total": {
+                            "label": "Total",
+                            "amount": 2.0,
+                            "amountText": "$2.00",
+                        },
+                    },
+                },
+            },
+        )
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+        _add_pharmacy_order_rows(
+            db,
+            request_id=request.id,
+            pharmacy_id=pharmacy_id,
+            product_id=product_id,
+            quantity=1,
+            subtotal_amount="1.00",
+            total_amount="1.00",
+        )
+        db.add(
+            PharmacyOrderAssignment(
+                request_id=request.id,
+                pharmacy_id=uuid.UUID(pharmacy_id),
+                assignment_kind="branch_fulfillment",
+                assigned_role_code="branch_staff",
+                status="active",
+                attempt_no=1,
+            )
+        )
+        db.add(
+            RequestEvent(
+                request_id=request.id,
+                type="customer_confirmation_requested",
+                from_status="created",
+                to_status="created",
+                actor_type="system",
+                actor_id=None,
+                metadata_json={
+                    "confirmationType": "derived_order_change",
+                    "channel": "in_app",
+                },
+            )
+        )
+        db.commit()
+
+    client = TestClient(app)
+    res = client.post(
+        "/v1/requests/1/actions/confirm_change",
+        json={"decision": "approve"},
+        headers=_auth_header_for_user_id(1),
+    )
+
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["request"]["status"] == "accepted"
+    assert payload["request"]["subStatus"] == "preparing"
+    assert payload["pendingActions"] == []
+    assert payload["serviceDetails"]["order"]["items"] == [
+        {
+            "productId": product_id,
+            "name": "Paracetamol 500mg",
+            "unitPriceAmount": 1.0,
+            "unitPriceText": "$1.00",
+            "rxRequired": False,
+            "quantity": 2,
+        }
+    ]
     assert payload["timeline"][-1]["type"] == "customer_confirmation_resolved"
 
 

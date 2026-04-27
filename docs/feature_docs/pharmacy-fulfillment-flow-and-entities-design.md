@@ -8,7 +8,7 @@ This document covers:
 
 - the end-to-end fulfillment flow after order creation
 - rerouting across pharmacy branches while preserving the customer-facing order price
-- manual phone confirmation for pharmacist/admin-proposed changes
+- manual or in-app confirmation for pharmacist/admin-proposed changes
 - exception handling
 - the minimum assignment model needed for branch and delivery ownership
 
@@ -22,14 +22,26 @@ This document does **not** redesign the catalog or top-level order model.
 
 ## Current repo baseline
 
-Today pharmacy workflow behavior is largely inferred from:
+Today pharmacy fulfillment in `services/api` uses:
 
 - `service_requests.status`
+- `service_requests.sub_status`
+- `pharmacy_order_assignments`
 - pharmacy-specific interpretation of `payload_json`
 - `request_events`
 - request-detail helpers that derive pending actions from status plus event metadata
 
-There is no dedicated fulfillment assignment entity yet, and rerouting is not explicitly modeled.
+Current operations routes already exist for:
+
+- branch assignment
+- branch review
+- manual confirmation resolution
+- branch acceptance
+- branch rejection
+- reroute
+- dispatch
+- delivery completion
+- delivery failure
 
 ## Decisions
 
@@ -41,7 +53,7 @@ Assumptions:
 
 - product-first shopping
 - fixed pricing
-- selected pharmacy branch known at order creation
+- selected pharmacy branch known internally at order creation
 - one branch fulfills the order at a time
 - no full substitution workflow
 - customer confirmation of pharmacist/admin changes may happen by phone
@@ -83,8 +95,10 @@ Only one assignment of a given active phase should be current at a time.
 
 If a pharmacist/provider or admin/dispatcher derives or changes the order contents:
 
+- additive prescription-derived changes may auto-apply without confirmation
 - the system may move the order to `awaiting_customer_confirmation`
 - the customer may be called manually
+- the system may also expose an in-app confirmation action if that channel is chosen
 - the pharmacist/provider or admin/dispatcher may record the acceptance/rejection outcome
 
 If the customer rejects the changes:
@@ -102,7 +116,8 @@ For these cases:
 
 - accepted/canonical order items stay in `pharmacy_order_items`
 - prescription documents stay in `request_attachments`
-- pending proposed changes may live temporarily in `service_requests.payload_json` until confirmed
+- `service_requests.payload_json.submittedOrder` stores the original customer-selected order lines
+- pending proposed changes live temporarily in `service_requests.payload_json.pendingConfirmation` until confirmed
 
 ### 7. Provider participation is captured through assignments and events
 
@@ -127,8 +142,8 @@ For the target entity model in this document:
 | --- | --- | --- | --- | --- |
 | 1. Order submitted | Customer | `created` | `awaiting_prescription` or `awaiting_branch_review` | If Rx is required but missing, wait for prescription; otherwise branch can review immediately. |
 | 2. Prescription added | Customer | `created` | `awaiting_branch_review` | Customer uploads required prescription. |
-| 3. Branch review | Pharmacist / branch staff | `accepted`, `rejected`, or stays `created` | `preparing`, `rejected_unavailable`, `rejected_invalid_prescription`, or `awaiting_customer_confirmation` | Branch checks prescription, stock, and derived items. |
-| 4. Manual customer confirmation if needed | Pharmacist/provider or admin/dispatcher | `created` or `rejected` | `awaiting_customer_confirmation` or `customer_rejected_changes` | Phone-call outcome is recorded by the acting provider/admin. |
+| 3. Branch review | Pharmacist / branch staff | `accepted`, `rejected`, or stays `created` | `preparing`, `rejected_unavailable`, `rejected_invalid_prescription`, or `awaiting_customer_confirmation` | Branch checks prescription, stock, and derived items. Pure additive prescription-derived changes may auto-apply; customer-selected line changes require confirmation. |
+| 4. Manual or in-app customer confirmation if needed | Pharmacist/provider or admin/dispatcher | `accepted`, `created`, or `rejected` | `preparing`, `awaiting_customer_confirmation`, or `customer_rejected_changes` | `phone_call` outcomes are recorded by staff; `in_app` confirmations can be exposed through request actions. |
 | 5. Preparation | Branch staff | `accepted` | `preparing` | Order is packed and readied. |
 | 6. Dispatch / handoff | Branch staff / delivery actor | `in_progress` | `out_for_delivery` | Delivery assignment begins. |
 | 7. Delivery completed | Delivery actor / system | `completed` | `delivered` | Order is complete. |
@@ -169,6 +184,7 @@ That means:
 - `pharmacy_order_items.product_id` stays stable
 - order item/header price snapshots remain unchanged
 - reroute history is recorded in assignments and events
+- until a routing engine exists, the first `selected_pharmacy_id` may come from the backend default-pharmacy resolver
 
 ### Reroute flow
 
@@ -185,10 +201,11 @@ When pharmacist/provider or admin/dispatcher review changes require customer app
 
 1. put the order into `created` + `awaiting_customer_confirmation`
 2. write `customer_confirmation_requested`
-3. contact the customer by phone
-4. record the result through `customer_confirmation_resolved`
-5. if accepted, apply the proposed changes into canonical order tables
-6. if rejected, set `rejected` + `customer_rejected_changes`
+3. store the proposal in `service_requests.payload_json.pendingConfirmation`
+4. contact the customer by phone, or expose an in-app action if the chosen channel is `in_app`
+5. record the result through `customer_confirmation_resolved`
+6. if approved, apply the proposed changes into canonical order tables and move to `accepted` + `preparing`
+7. if rejected, set `rejected` + `customer_rejected_changes`
 
 ### Event metadata guidance
 
@@ -197,11 +214,25 @@ Recommended `customer_confirmation_resolved.metadata_json` shape:
 ```json
 {
   "confirmationType": "derived_order_change",
-  "decision": "accept",
+  "decision": "approve",
   "channel": "phone_call",
   "recordedByRole": "pharmacist"
 }
 ```
+
+### Current v1 operations surface
+
+Current backend fulfillment routes are:
+
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/assign-branch`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/review`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/resolve-confirmation`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/branch-accept`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/branch-reject`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/reroute`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/dispatch`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/deliver`
+- `POST /v1/pharmacy/orders/{request_id}/fulfillment/delivery-failed`
 
 ## Prescription-only and mixed-order handling
 
@@ -228,7 +259,9 @@ Mixed orders may start with:
 
 If branch review proposes changes:
 
-- proposed changes may live temporarily in `service_requests.payload_json`
+- additive prescription-derived lines may auto-apply
+- changing customer-selected lines requires confirmation
+- proposed changes may live temporarily in `service_requests.payload_json.pendingConfirmation`
 - canonical order items/totals are updated only after manual customer acceptance
 - customer rejection ends the order with `customer_rejected_changes`
 
@@ -241,7 +274,7 @@ Tracks branch/delivery ownership and fulfillment attempts over time.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | uuid PK | Use `UUIDv7` |
-| `request_id` | uuid FK -> `service_requests.id` | Owning order/request |
+| `request_id` | int FK in shipped v1; UUID target later | Owning order/request |
 | `pharmacy_id` | uuid FK -> `pharmacies.id` nullable | Branch context when relevant |
 | `assignment_kind` | varchar(64) | `branch_fulfillment`, `delivery` |
 | `assigned_person_id` | uuid nullable | Specific pharmacist/staff/rider when known |
@@ -302,3 +335,4 @@ Recommended event types used heavily by fulfillment:
 - whether v1 delivery should use the same assignment entity or a separate delivery-assignment table
 - whether invalid-prescription cases should support resubmission on the same request or require a new request
 - whether a dedicated confirmation entity is needed once manual phone confirmation becomes common across services
+- when to replace the backend default-pharmacy assignment with a real routing engine

@@ -23,6 +23,11 @@ from app.events.types import REQUEST_CREATED
 from app.models import Attachment
 from app.models import PharmacyOrderDetail
 from app.models import PharmacyOrderItem
+from app.pharmacy_review import (
+    get_pharmacy_pending_confirmation,
+    resolve_pharmacy_pending_confirmation,
+    serialize_pharmacy_pending_confirmation,
+)
 from app.models import RequestEvent
 from app.models import RequestAttachment
 from app.models import ServiceRequest
@@ -484,11 +489,26 @@ def _derive_pharmacy_pending_actions(
         if detail is not None
         else None
     )
+    pending_confirmation = get_pharmacy_pending_confirmation(request)
 
     confirmation_type = _first_non_empty_string(
+        pending_confirmation.get("confirmationType") if pending_confirmation else None,
         latest_metadata.get("confirmationType"),
         latest_metadata.get("confirmation_type"),
     )
+    confirmation_channel = _first_non_empty_string(
+        pending_confirmation.get("channel") if pending_confirmation else None,
+        latest_metadata.get("channel"),
+    )
+    pending_confirmation_total_text = None
+    if pending_confirmation is not None:
+        proposed_pricing = pending_confirmation.get("proposedPricing")
+        if isinstance(proposed_pricing, dict):
+            total = proposed_pricing.get("total")
+            if isinstance(total, dict):
+                pending_confirmation_total_text = _first_non_empty_string(
+                    total.get("amountText"),
+                )
 
     if workflow_state in {"awaiting_prescription", "waiting_for_prescription"} and not has_uploads:
         return [
@@ -508,11 +528,15 @@ def _derive_pharmacy_pending_actions(
         workflow_state == "awaiting_customer_confirmation" and confirmation_type == "price_change"
     ):
         price_message = _first_non_empty_string(
+            pending_confirmation.get("message") if pending_confirmation else None,
             latest_metadata.get("message"),
             latest_metadata.get("priceChangeMessage"),
         ) or "The pharmacy updated the price and needs your approval."
-        if amount_text:
-            price_message = _join_non_empty(price_message, f"Updated total: {amount_text}")
+        if pending_confirmation_total_text or amount_text:
+            price_message = _join_non_empty(
+                price_message,
+                f"Updated total: {pending_confirmation_total_text or amount_text}",
+            )
         return [
             {
                 "id": "confirm_price",
@@ -526,6 +550,7 @@ def _derive_pharmacy_pending_actions(
         workflow_state == "awaiting_customer_confirmation" and confirmation_type == "substitution"
     ):
         substitution_message = _first_non_empty_string(
+            pending_confirmation.get("message") if pending_confirmation else None,
             latest_metadata.get("message"),
             latest_metadata.get("substitutionSummary"),
             latest_metadata.get("reason"),
@@ -536,6 +561,30 @@ def _derive_pharmacy_pending_actions(
                 "type": "confirm_substitution",
                 "title": "Review substitution",
                 "subtitle": substitution_message,
+            }
+        ]
+
+    if (
+        workflow_state == "awaiting_customer_confirmation"
+        and confirmation_type == "derived_order_change"
+    ):
+        if confirmation_channel == "phone_call":
+            return []
+        change_message = _first_non_empty_string(
+            pending_confirmation.get("message") if pending_confirmation else None,
+            latest_metadata.get("message"),
+        ) or "The pharmacy updated the order and needs your approval."
+        if pending_confirmation_total_text:
+            change_message = _join_non_empty(
+                change_message,
+                f"Updated total: {pending_confirmation_total_text}",
+            )
+        return [
+            {
+                "id": "confirm_change",
+                "type": "confirm_change",
+                "title": "Review order changes",
+                "subtitle": change_message,
             }
         ]
 
@@ -592,7 +641,7 @@ def _serialize_pharmacy_service_details(
             "total": _serialize_pharmacy_order_summary_total(detail=detail),
         }
 
-    return {
+    out = {
         "items": [
             _serialize_pharmacy_order_item(
                 item=item,
@@ -603,6 +652,10 @@ def _serialize_pharmacy_service_details(
         "pricing": pricing,
         "prescriptionAttachments": attachments,
     }
+    pending_confirmation = serialize_pharmacy_pending_confirmation(request)
+    if pending_confirmation is not None:
+        out["pendingConfirmation"] = pending_confirmation
+    return out
 
 
 def _format_money(*, amount: Decimal | float | int, currency_code: str) -> str:
@@ -906,6 +959,17 @@ def _apply_pharmacy_request_action(
     decision: str,
     payload: dict[str, Any],
 ) -> None:
+    if action_id == "confirm_change":
+        resolve_pharmacy_pending_confirmation(
+            db=db,
+            request=request,
+            decision=decision,
+            actor_type="customer",
+            actor_id=user_id,
+            channel="in_app",
+        )
+        return
+
     if action_id == "confirm_price":
         if decision not in {"approve", "reject"}:
             raise HTTPException(status_code=400, detail="Invalid decision")

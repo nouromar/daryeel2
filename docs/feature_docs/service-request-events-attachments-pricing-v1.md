@@ -19,25 +19,28 @@ Today `services/api` already has the following:
   - `service_id`
   - `customer_user_id`
   - `status`
+  - `sub_status`
   - `notes`
   - `payload_json`
   - `delivery_location_json`
   - `payment_json`
   - `created_at`, `updated_at`
 - `request_events`
-  - integer PK
-  - `request_id`
+  - `UUIDv7` PK
+  - integer `request_id`
   - `type`
   - `from_status`
   - `to_status`
   - `actor_type`
-  - `actor_id`
+  - integer `actor_id`
+  - `related_entity_type`
+  - `related_entity_id`
   - `metadata_json`
   - `created_at`
-- `prescription_uploads`
-  - pharmacy-only upload record
-  - currently referenced from `service_requests.payload_json.prescription_upload_ids`
-- pricing data for pharmacy orders is currently carried inside request payload blobs such as `summary_lines` and `summary_total`
+- `attachments`
+- `request_attachments`
+- legacy `prescription_uploads` may still exist in the repo, but pharmacy request flows now use `attachments` and `request_attachments`
+- pharmacy pricing snapshots are now stored in normalized order tables (`pharmacy_order_details` and `pharmacy_order_items`), not in request payload blobs
 
 The current model is sufficient for local demos, but it mixes important workflow state into service-specific payloads and metadata.
 
@@ -71,6 +74,12 @@ That means the long-term target is:
 - `attachments.id` -> `UUIDv7`
 - `request_attachments.id` -> `UUIDv7`
 
+Implementation note for the currently shipped v1 slices:
+
+- `request_events.id` already uses `UUIDv7`
+- `service_requests.id` and `request_events.request_id` still use the current integer request root
+- `request_events.actor_id` is still integer/user-rooted until the people/auth migration lands
+
 ### 2. Use generic request-scoped attachments
 
 We will replace the pharmacy-only `prescription_uploads` concept with a generic attachment model for request workflows.
@@ -100,10 +109,10 @@ Append-only shared request timeline.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `id` | uuid PK | Use `UUIDv7` |
-| `request_id` | uuid FK -> `service_requests.id` | Owning request |
+| `request_id` | int FK today; UUID FK in the target model | Owning request |
 | `type` | varchar(64) | Shared event type |
 | `actor_type` | varchar(32) | `customer`, `provider`, `staff`, `system` |
-| `actor_id` | uuid nullable | Acting user/person when known |
+| `actor_id` | int nullable today; UUID/person ref later | Acting user/person when known |
 | `from_status` | varchar(64) nullable | Previous request status |
 | `to_status` | varchar(64) nullable | New request status |
 | `related_entity_type` | varchar(64) nullable | e.g. `attachment`, `confirmation`, `payment` |
@@ -124,7 +133,8 @@ Use a small shared vocabulary across services:
 - `attachment_added`
 - `attachment_removed`
 - `payment_recorded`
-- later: `provider_assigned`, `fulfillment_started`, `fulfillment_completed`
+- `fulfillment_started`
+- `fulfillment_completed`
 
 ### Event rules
 
@@ -200,22 +210,16 @@ Because pricing is fixed in v1:
 
 ### Recommended request-side pricing snapshot
 
-For v1, the request should persist final pricing in a structured way that is not dependent on UI-only payload fields.
+For pharmacy v1, the fixed pricing snapshot now lives in normalized order tables:
 
-Recommended fields or structured subdocument:
+- `pharmacy_order_details` for order-wide totals
+- `pharmacy_order_items` for line-specific amounts
 
-- `currency_code`
-- `subtotal_amount`
-- `discount_amount`
-- `fee_amount`
-- `tax_amount`
-- `total_amount`
-- optional line-item breakdown snapshot
-
-The exact storage shape can be finalized with the pharmacy entity work, but the rule is:
+The shared request-spine rule is therefore:
 
 - pricing is a persisted request/order snapshot
 - pricing is not modeled as a separate quote workflow in v1
+- the snapshot should live in normalized service-side entities, not in UI-only request payload fields
 
 ## Non-goals for this document
 
@@ -245,7 +249,7 @@ The exact storage shape can be finalized with the pharmacy entity work, but the 
 ### Pricing
 
 - keep fixed pricing on the request side
-- remove dependence on UI-specific `summary_lines` / `summary_total` as the only persisted pricing record
+- for pharmacy, keep the canonical pricing snapshot in normalized order tables rather than `service_requests.payload_json`
 - defer `quotes` until a service actually needs revised, proposed, or approved pricing
 
 ## Recommended implementation order
@@ -253,11 +257,11 @@ The exact storage shape can be finalized with the pharmacy entity work, but the 
 1. Standardize `request_events` vocabulary and add related-entity references.
 2. Introduce `attachments` and `request_attachments`.
 3. Migrate pharmacy prescription uploads to request attachments.
-4. Persist fixed pricing snapshots on the request side in a structured form.
+4. Persist fixed pricing snapshots in normalized service-side entities.
 5. Remove remaining payload-only workflow references where request-side entities now exist.
 
 ## Open follow-ups
 
 - Decide whether `service_requests` should get dedicated pricing columns or a structured pricing JSON field in the short term.
-- Define a standardized confirmation entity if customer approvals become more common across services.
+- For pharmacy v1, keep temporary review state in `payload_json.pendingConfirmation` and define a standardized confirmation entity later if customer approvals become more common across services.
 - When dynamic pricing arrives, add a separate `Quote` design instead of overloading request payloads.
